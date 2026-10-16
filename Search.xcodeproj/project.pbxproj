@@ -15,6 +15,7 @@
 		5943FF98A9A452149B359458 /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7807EE2E079D5685A54B5084 /* Store.swift */; };
 		C146817CE1CA52479F9AE9A4 /* Tab.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA870B8CDF2D5CE6AC9C75E1 /* Tab.swift */; };
 		782A0D32A3A35CEF96B045A1 /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC52428BD328590F9419F77D /* Views.swift */; };
+		AA11BB22CC33DD44EE550001 /* Mock.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550002 /* Mock.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -27,6 +28,7 @@
 		7807EE2E079D5685A54B5084 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
 		EA870B8CDF2D5CE6AC9C75E1 /* Tab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tab.swift; sourceTree = "<group>"; };
 		BC52428BD328590F9419F77D /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE550002 /* Mock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mock.swift; sourceTree = "<group>"; };
 		464120BE58E35723ABFE6B9A /* OfficeBrowser.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = OfficeBrowser.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -60,6 +62,7 @@
 				7807EE2E079D5685A54B5084 /* Store.swift */,
 				EA870B8CDF2D5CE6AC9C75E1 /* Tab.swift */,
 				BC52428BD328590F9419F77D /* Views.swift */,
+				AA11BB22CC33DD44EE550002 /* Mock.swift */,
 			);
 			path = Sources;
 			sourceTree = "<group>";
@@ -138,6 +141,7 @@
 				5943FF98A9A452149B359458 /* Store.swift in Sources */,
 				C146817CE1CA52479F9AE9A4 /* Tab.swift in Sources */,
 				782A0D32A3A35CEF96B045A1 /* Views.swift in Sources */,
+				AA11BB22CC33DD44EE550001 /* Mock.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -153,6 +157,7 @@
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				ONLY_ACTIVE_ARCH = YES;

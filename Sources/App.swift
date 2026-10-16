@@ -8,8 +8,17 @@ struct OfficeBrowserApp: App {
 
     var body: some Scene {
         WindowGroup {
+            #if DEBUG
+            if let number = Mock.screen {
+                MockScreen(number: number)
+            } else {
+                ContentView(browser: browser)
+                    .preferredColorScheme(.light)
+            }
+            #else
             ContentView(browser: browser)
                 .preferredColorScheme(.light)
+            #endif
         }
     }
 }
