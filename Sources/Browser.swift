@@ -21,6 +21,9 @@ final class Browser: NSObject, ObservableObject {
     @Published var holding = false
     /// Bumped when what was typed can't be anywhere. The field shivers.
     @Published private(set) var refusals = 0
+    /// A word over the pill, and gone: the Mac's toasts.
+    @Published private(set) var toast: String?
+    private var toastTimer: DispatchWorkItem?
 
     let history = History()
     /// How far the pill is folded. Its own object, so that a page scrolling
@@ -44,6 +47,7 @@ final class Browser: NSObject, ObservableObject {
 
     override init() {
         super.init()
+        Shield.shared.compile()
         Favicons.shared.arrived = { [weak self] key, image in
             for tab in self?.tabs ?? [] where tab.address.flatMap(Favicons.key) == key {
                 tab.icon = image
@@ -192,6 +196,47 @@ final class Browser: NSObject, ObservableObject {
             .store(in: &bag)
     }
 
+    // MARK: - the page's own menu
+
+    /// The article alone, or the page again.
+    func read(_ tab: Tab) {
+        if tab.reading {
+            tab.reading = false
+            tab.web.reload()
+            return
+        }
+        tab.web.evaluateJavaScript(Reader.script) { [weak self, weak tab] answer, _ in
+            MainActor.assumeIsolated {
+                if (answer as? String) == "read" {
+                    tab?.reading = true
+                } else {
+                    Feel.refuse()
+                    self?.say("Nothing to read here")
+                }
+            }
+        }
+    }
+
+    /// Ads on or off for the site this tab is on, for this page and every
+    /// one after it on the site.
+    func shield(_ tab: Tab) {
+        guard let host = tab.address?.host()?.lowercased() else { return }
+        let off = !Shield.shared.isPaused(on: host)
+        Shield.shared.pause(host, off)
+        say(off ? "Ads allowed on \(Address.host(tab.address!))" : "Ads blocked on \(Address.host(tab.address!))")
+        tab.web.reload()
+    }
+
+    func say(_ words: String) {
+        toastTimer?.cancel()
+        withAnimation(Motion.settle) { toast = words }
+        let gone = DispatchWorkItem { [weak self] in
+            withAnimation(Motion.settle) { self?.toast = nil }
+        }
+        toastTimer = gone
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.7, execute: gone)
+    }
+
     // MARK: - the field
 
     func edit() {
@@ -267,6 +312,36 @@ final class Browser: NSObject, ObservableObject {
 }
 
 extension Browser: WKNavigationDelegate, WKUIDelegate {
+    /// Before each page: the ad blocker goes on or off for the site it's
+    /// heading to, so "off for this site" holds for the whole page. Links
+    /// that aren't for a browser (mail, phone, the App Store) go to the app
+    /// that handles them.
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor action: WKNavigationAction,
+        decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void
+    ) {
+        guard let url = action.request.url, let scheme = url.scheme?.lowercased() else {
+            decisionHandler(.allow)
+            return
+        }
+        if !["http", "https", "about", "data", "blob", "file"].contains(scheme) {
+            decisionHandler(.cancel)
+            if action.navigationType == .linkActivated || action.targetFrame?.isMainFrame != false {
+                UIApplication.shared.open(url)
+            }
+            return
+        }
+        if action.targetFrame?.isMainFrame == true {
+            Shield.shared.tune(webView.configuration.userContentController, for: url.host()?.lowercased())
+        }
+        decisionHandler(.allow)
+    }
+
+    func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+        tabs.first { $0.web === webView }?.reading = false
+    }
+
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
         guard let tab = tabs.first(where: { $0.web === webView }),
               let url = tab.address

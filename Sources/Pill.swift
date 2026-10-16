@@ -166,6 +166,12 @@ struct Held: View {
     var pinned: Bool
     var done: () -> Void
     var pin: () -> Void
+    var read: () -> Void
+    var shield: () -> Void
+
+    private var blocking: Bool {
+        Shield.shared.enabled && !Shield.shared.isPaused(on: tab.address?.host()?.lowercased())
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -175,6 +181,16 @@ struct Held: View {
             }
             Rectangle().fill(Palette.hairline).frame(height: 1)
             item("arrow.clockwise", "Reload") { tab.reload() }
+            line
+            item("doc.plaintext", tab.reading ? "Leave Reader" : "Reader", action: read)
+            if Shield.shared.enabled {
+                line
+                item(
+                    blocking ? "shield.slash" : "shield",
+                    blocking ? "Allow ads on this site" : "Block ads on this site",
+                    action: shield
+                )
+            }
             line
             item(pinned ? "pin.slash" : "pin", pinned ? "Unpin" : "Pin", action: pin)
         }

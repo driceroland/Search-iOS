@@ -89,6 +89,10 @@ struct ContentView: View {
                         withAnimation(Motion.settle) { browser.holding = false }
                     } pin: {
                         browser.pin(tab)
+                    } read: {
+                        browser.read(tab)
+                    } shield: {
+                        browser.shield(tab)
                     }
                     .padding(.bottom, Metrics.pill + 18)
                     .transition(.scale(0.9, anchor: .bottom).combined(with: .opacity))
@@ -111,6 +115,19 @@ struct ContentView: View {
                 if browser.editing {
                     Field(browser: browser, space: space)
                         .transition(.opacity)
+                }
+
+                if let words = browser.toast {
+                    Text(words)
+                        .font(.system(size: 13))
+                        .foregroundStyle(Palette.ink)
+                        .padding(.horizontal, 15)
+                        .padding(.vertical, 9)
+                        .background(Glass(shape: Capsule()))
+                        .padding(.bottom, Metrics.pill + 22)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .allowsHitTesting(false)
+                        .ignoresSafeArea(.keyboard)
                 }
             }
             .animation(Motion.glide, value: browser.editing)

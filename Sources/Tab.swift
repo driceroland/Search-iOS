@@ -52,6 +52,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published private(set) var snapshot: UIImage?
     /// One letter, when the tab has been pinned.
     @Published var pin: String?
+    /// Showing the article alone, in the Reader's type.
+    @Published var reading = false
     /// The site's own icon, once it has been fetched or found on disk.
     @Published var icon: UIImage?
     /// A private tab keeps nothing: no history, no icons on disk, no cookies.
@@ -103,6 +105,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         web.scrollView.contentInset.bottom = Metrics.pillRoom
         web.scrollView.verticalScrollIndicatorInsets.bottom = Metrics.pillRoom
         web.scrollView.delegate = self
+        Shield.shared.protect(web.configuration.userContentController)
 
         watch = [
             web.observe(\.title, options: [.new]) { [weak self] _, _ in

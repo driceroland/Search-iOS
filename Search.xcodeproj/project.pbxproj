@@ -6,6 +6,8 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA11BB22CC33DD44EE550203 /* Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550204 /* Reader.swift */; };
+		AA11BB22CC33DD44EE550201 /* Shield.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550202 /* Shield.swift */; };
 		AA11BB22CC33DD44EE550107 /* Icons.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550108 /* Icons.swift */; };
 		AA11BB22CC33DD44EE550105 /* Sheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550106 /* Sheet.swift */; };
 		AA11BB22CC33DD44EE550103 /* Field.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550104 /* Field.swift */; };
@@ -23,6 +25,8 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		AA11BB22CC33DD44EE550204 /* Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reader.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE550202 /* Shield.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shield.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550108 /* Icons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Icons.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550106 /* Sheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sheet.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550104 /* Field.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Field.swift; sourceTree = "<group>"; };
@@ -71,6 +75,8 @@
 				EA870B8CDF2D5CE6AC9C75E1 /* Tab.swift */,
 				BC52428BD328590F9419F77D /* Views.swift */,
 				AA11BB22CC33DD44EE550002 /* Mock.swift */,
+				AA11BB22CC33DD44EE550204 /* Reader.swift */,
+				AA11BB22CC33DD44EE550202 /* Shield.swift */,
 				AA11BB22CC33DD44EE550108 /* Icons.swift */,
 				AA11BB22CC33DD44EE550106 /* Sheet.swift */,
 				AA11BB22CC33DD44EE550104 /* Field.swift */,
@@ -154,6 +160,8 @@
 				C146817CE1CA52479F9AE9A4 /* Tab.swift in Sources */,
 				782A0D32A3A35CEF96B045A1 /* Views.swift in Sources */,
 				AA11BB22CC33DD44EE550001 /* Mock.swift in Sources */,
+				AA11BB22CC33DD44EE550203 /* Reader.swift in Sources */,
+				AA11BB22CC33DD44EE550201 /* Shield.swift in Sources */,
 				AA11BB22CC33DD44EE550107 /* Icons.swift in Sources */,
 				AA11BB22CC33DD44EE550105 /* Sheet.swift in Sources */,
 				AA11BB22CC33DD44EE550103 /* Field.swift in Sources */,
