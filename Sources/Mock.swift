@@ -101,7 +101,7 @@ private struct Article: View {
 // MARK: - the bar
 
 /// The one control on a page: where you are, and how many pages are open.
-private struct Pill: View {
+private struct MockPill: View {
     var dark = false
     var text = "theverge.com"
     var count = 5
@@ -161,7 +161,7 @@ private struct PageMock: View {
     var body: some View {
         ZStack(alignment: .bottom) {
             Article()
-            Pill(loading: false)
+            MockPill(loading: false)
                 .padding(.bottom, 8)
         }
         .ignoresSafeArea(edges: .top)
@@ -427,7 +427,7 @@ private struct SwipeMock: View {
 
                 VStack(spacing: 14) {
                     Note(text: "Let go to open Hacker News")
-                    Pill(text: "news.ycombinator.com", count: 5, offset: -18)
+                    MockPill(text: "news.ycombinator.com", count: 5, offset: -18)
                 }
                 .padding(.bottom, 8)
             }
@@ -490,7 +490,7 @@ private struct ActionsMock: View {
                 .shadow(color: .black.opacity(0.4), radius: 30, y: 10)
                 .padding(.horizontal, 16)
 
-                Pill(dark: dark)
+                MockPill(dark: dark)
                     .scaleEffect(0.97)
             }
             .padding(.bottom, 8)

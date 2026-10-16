@@ -48,6 +48,12 @@ enum Address {
         return path.isEmpty || path == "/" ? bare : bare + path
     }
 
+    /// Just the site: what the pill shows.
+    static func host(_ url: URL) -> String {
+        guard let host = url.host() else { return url.absoluteString }
+        return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
+    }
+
     /// A place if it can be one, a search if it can't.
     static func destination(for typed: String) -> URL? {
         if let place = url(from: typed) { return place }

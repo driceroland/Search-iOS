@@ -2,36 +2,53 @@ import SwiftUI
 import WebKit
 import Combine
 
-// Everything the app knows: which tabs exist, which one is showing, and whether
-// the address field is up.
+// Everything the app knows: which tabs exist, which one is showing, and what is
+// summoned over it.
 
 @MainActor
 final class Browser: NSObject, ObservableObject {
     @Published private(set) var tabs: [Tab] = []
-    @Published var activeID: Tab.ID?
+    @Published private(set) var activeID: Tab.ID?
 
     @Published var editing = false
     @Published var typed = "" { didSet { guess() } }
     @Published private(set) var offers: [Suggestion] = []
     @Published private(set) var ending: String?
-    /// True while the grid of tabs is up.
+    /// Asked for the sheet of every tab. The sheet's own position belongs to
+    /// the gesture that moves it; this only says where it should end up.
     @Published var showingTabs = false
+    /// The pill held: the page's own menu.
+    @Published var holding = false
     /// Bumped when what was typed can't be anywhere. The field shivers.
     @Published private(set) var refusals = 0
 
-    private static let flight = Animation.spring(response: 0.42, dampingFraction: 0.84)
-
     let history = History()
+    /// How far the pill is folded. Its own object, so that a page scrolling
+    /// redraws the pill and nothing else.
+    let chrome = Chrome()
 
     private var bag = Set<AnyCancellable>()
     private var saving = false
 
     var active: Tab? { tabs.first { $0.id == activeID } }
+    var activeIndex: Int? { tabs.firstIndex { $0.id == activeID } }
     var completed: String { typed + (ending ?? "") }
     var pinnedCount: Int { tabs.filter { $0.pin != nil }.count }
 
+    /// The page either side of this one, as walking the pill reaches them.
+    func neighbour(_ step: Int) -> Tab? {
+        guard let here = activeIndex else { return nil }
+        let there = here + step
+        return tabs.indices.contains(there) ? tabs[there] : nil
+    }
+
     override init() {
         super.init()
+        Favicons.shared.arrived = { [weak self] key, image in
+            for tab in self?.tabs ?? [] where tab.address.flatMap(Favicons.key) == key {
+                tab.icon = image
+            }
+        }
         let saved = Session.read()
         guard !saved.tabs.isEmpty else {
             adopt(Tab())
@@ -53,33 +70,42 @@ final class Browser: NSObject, ObservableObject {
     // MARK: - tabs
 
     func newTab() {
+        active?.capture()
         let tab = Tab()
         adopt(tab)
         activeID = tab.id
+        chrome.unfold(animated: false)
         typed = ""
         editing = true
         showingTabs = false
     }
 
-    func select(_ tab: Tab) {
-        guard tab.id != activeID else {
-            withAnimation(Browser.flight) { showingTabs = false }
-            return
+    /// A link from another app.
+    func open(_ url: URL) {
+        guard let scheme = url.scheme?.lowercased(), ["http", "https"].contains(scheme) else { return }
+        if let active, active.isBlank {
+            active.go(to: url)
+        } else {
+            active?.capture()
+            let tab = Tab()
+            adopt(tab)
+            activeID = tab.id
+            tab.go(to: url)
         }
+        editing = false
+        showingTabs = false
+        holding = false
+        chrome.unfold(animated: false)
+        remember()
+    }
+
+    func select(_ tab: Tab) {
+        showingTabs = false
+        guard tab.id != activeID else { return }
+        active?.capture()
         activeID = tab.id
         editing = false
-        remember()
-        withAnimation(Browser.flight) { showingTabs = false }
-    }
-
-    func openTabs() {
-        withAnimation(Browser.flight) { showingTabs = true }
-    }
-
-    /// Swiping the bar walks the row, and comes round to the first again.
-    func step(_ direction: Int) {
-        guard tabs.count > 1, let here = tabs.firstIndex(where: { $0.id == activeID }) else { return }
-        activeID = tabs[(here + direction + tabs.count) % tabs.count].id
+        chrome.unfold(animated: false)
         remember()
     }
 
@@ -113,7 +139,7 @@ final class Browser: NSObject, ObservableObject {
             remember()
             return
         }
-        let host = tab.address?.host()?.replacingOccurrences(of: "www.", with: "") ?? ""
+        let host = tab.address.map { Address.host($0) } ?? ""
         tab.pin = host.first.map { String($0).uppercased() } ?? "•"
         if let here = tabs.firstIndex(where: { $0.id == tab.id }) {
             let home = max(0, pinnedCount - 1)
@@ -133,6 +159,17 @@ final class Browser: NSObject, ObservableObject {
     private func prepare(_ tab: Tab) {
         tab.web.navigationDelegate = self
         tab.web.uiDelegate = self
+        tab.scrolled = { [weak self, weak tab] event in
+            guard let self, let tab, tab.id == self.activeID else { return }
+            self.chrome.follow(event)
+        }
+        tab.$address
+            .removeDuplicates { $0.flatMap(Favicons.key) == $1.flatMap(Favicons.key) }
+            .sink { [weak tab] url in
+                // Another site: its own icon if one is known, its letter if not.
+                tab?.icon = url.flatMap { Favicons.shared.cached($0) }
+            }
+            .store(in: &bag)
         tab.$address
             .dropFirst()
             .sink { [weak self] _ in self?.remember() }
@@ -143,6 +180,7 @@ final class Browser: NSObject, ObservableObject {
 
     func edit() {
         typed = active?.address.map { Address.pretty($0) } ?? ""
+        holding = false
         editing = true
     }
 
@@ -211,22 +249,66 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         guard let tab = tabs.first(where: { $0.web === webView }),
               let url = tab.address
         else { return }
-        history.record(url, title: tab.title)
+        if !tab.isPrivate { history.record(url, title: tab.title) }
+        Favicons.shared.fetch(for: tab)
     }
 
-    /// A link asking for a new window gets a new tab.
+    /// A link asking for a new window gets a new tab — a real one, built on
+    /// the configuration WebKit hands over, so the page that opened it can
+    /// still talk to it ("Sign in with…" windows need `window.opener`).
     func webView(
         _ webView: WKWebView,
         createWebViewWith configuration: WKWebViewConfiguration,
         for action: WKNavigationAction,
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
-        guard let url = action.request.url else { return nil }
-        let tab = Tab()
+        // The child must not share the opener's content controller: closing
+        // the child would strip the opener's scripts (the Mac learned this).
+        configuration.userContentController = WKUserContentController()
+        let tab = Tab(configuration: configuration)
+        active?.capture()
         adopt(tab)
         activeID = tab.id
-        tab.go(to: url)
-        return nil
+        chrome.unfold(animated: false)
+        return tab.web
+    }
+
+    /// A page closing the window it opened.
+    func webViewDidClose(_ webView: WKWebView) {
+        guard let tab = tabs.first(where: { $0.web === webView }) else { return }
+        close(tab)
+    }
+}
+
+/// The pill's fold: 0 open, 1 folded down to the site's name.
+@MainActor
+final class Chrome: ObservableObject {
+    @Published private(set) var fold: CGFloat = 0
+
+    /// How far a page has to travel to fold the pill all the way.
+    private let travel: CGFloat = 44
+
+    func follow(_ event: Scrolled) {
+        switch event {
+        case .by(let delta):
+            let next = min(1, max(0, fold + delta / travel))
+            if next != fold { fold = next }
+        case .top:
+            unfold(animated: true)
+        case .rest:
+            let target: CGFloat = fold > 0.5 ? 1 : 0
+            guard target != fold else { return }
+            withAnimation(Motion.settle) { fold = target }
+        }
+    }
+
+    func unfold(animated: Bool) {
+        guard fold != 0 else { return }
+        if animated {
+            withAnimation(Motion.settle) { fold = 0 }
+        } else {
+            fold = 0
+        }
     }
 }
 
