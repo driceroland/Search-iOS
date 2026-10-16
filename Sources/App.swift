@@ -3,7 +3,7 @@ import SwiftUI
 // A page, and a bar at the bottom. Everything else is summoned and put away.
 
 @main
-struct OfficeBrowserApp: App {
+struct SearchApp: App {
     @StateObject private var browser = Browser()
 
     var body: some Scene {
