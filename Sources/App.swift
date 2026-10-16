@@ -1,0 +1,46 @@
+import SwiftUI
+
+// A page, and a bar at the bottom. Everything else is summoned and put away.
+
+@main
+struct OfficeBrowserApp: App {
+    @StateObject private var browser = Browser()
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView(browser: browser)
+                .preferredColorScheme(.light)
+        }
+    }
+}
+
+struct ContentView: View {
+    @ObservedObject var browser: Browser
+
+    @Namespace private var space
+
+    var body: some View {
+        ZStack {
+            Palette.ground.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                if let tab = browser.active {
+                    Page(tab: tab)
+                } else {
+                    Palette.ground
+                }
+                Bar(browser: browser)
+            }
+
+            if browser.showingTabs {
+                Rows(browser: browser, space: space)
+            }
+
+            if browser.editing {
+                Field(browser: browser)
+                    .transition(.opacity)
+            }
+        }
+        .animation(Motion.settle, value: browser.editing)
+    }
+}
