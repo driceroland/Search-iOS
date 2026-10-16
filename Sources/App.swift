@@ -59,11 +59,14 @@ struct ContentView: View {
 
                 // The page fades into a blur toward the bottom edge, under
                 // the pill, the way iOS's own bars sit on what scrolls.
-                Fade()
-                    .frame(height: geo.safeAreaInsets.bottom + Metrics.pill + 52)
+                Color.clear
+                    .overlay(alignment: .bottom) {
+                        Fade()
+                            .frame(height: geo.safeAreaInsets.bottom + 8 + Metrics.pill + 24)
+                    }
                     .opacity(Double(1 - min(1, lift)))
                     .allowsHitTesting(false)
-                    .ignoresSafeArea(edges: .bottom)
+                    .ignoresSafeArea()
 
                 if browser.editing {
                     Palette.ground.opacity(0.74)

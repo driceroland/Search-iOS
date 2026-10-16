@@ -57,7 +57,6 @@ struct Card: View {
         }
         .clipped()
         .ignoresSafeArea()
-        .overlay(alignment: .top) { Band(tint: tab?.tint, height: top) }
     }
 }
 
@@ -135,10 +134,12 @@ struct Still: View {
     var top: CGFloat
 
     var body: some View {
+        // No band laid over it: the picture has the page's own top, and a
+        // band of fixed height would end up on the page's content as the
+        // picture shrinks.
         Holder(view: view)
             .background(Palette.ground)
             .ignoresSafeArea()
-            .overlay(alignment: .top) { Band(tint: tint, height: top) }
     }
 
     private struct Holder: UIViewRepresentable {
@@ -160,64 +161,96 @@ struct Still: View {
     }
 }
 
-/// A blur that grows toward the bottom edge: two layers of material, each
-/// masked by a gradient, the lighter one reaching higher. With Reduce
-/// Transparency on, the ground instead, fading in the same way.
+/// A blur that grows toward the bottom edge, from nothing to its strongest at
+/// the very edge, with no tint of its own: the page shows through, only
+/// softer. UIKit has no public variable blur, so it is built from a few
+/// plain blurs of rising strength, each held part-way through its animation
+/// (the radius is what changes along the way; at these fractions the
+/// material's tint stays out of it) and each masked to a band that overlaps
+/// the next. With Reduce Transparency on, nothing: the page as it is.
 struct Fade: UIViewRepresentable {
     func makeUIView(context: Context) -> FadeView { FadeView() }
     func updateUIView(_ view: FadeView, context: Context) {}
 }
 
 final class FadeView: UIView {
-    private let soft = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
-    private let firm = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterial))
-    private let plain = UIView()
-    private let softMask = CAGradientLayer()
-    private let firmMask = CAGradientLayer()
-    private let plainMask = CAGradientLayer()
+    /// How far along each layer's blur is held, and where its band starts
+    /// (0 the top of the fade, 1 the bottom edge).
+    private static let steps: [(strength: CGFloat, from: CGFloat)] = [
+        (0.05, 0.0), (0.1, 0.3), (0.18, 0.55), (0.3, 0.8),
+    ]
+
+    private var layers: [(view: UIVisualEffectView, mask: Gradient)] = []
+    private var animators: [UIViewPropertyAnimator] = []
 
     override init(frame: CGRect) {
         super.init(frame: frame)
         isUserInteractionEnabled = false
-        for layer in [softMask, firmMask, plainMask] {
-            layer.startPoint = CGPoint(x: 0.5, y: 0)
-            layer.endPoint = CGPoint(x: 0.5, y: 1)
+        for step in Self.steps {
+            let view = UIVisualEffectView(effect: nil)
+            // A mask view, not a mask layer: a visual effect view drops its
+            // blur under a layer mask.
+            let mask = Gradient()
+            let gradient = mask.layer as! CAGradientLayer
+            gradient.startPoint = CGPoint(x: 0.5, y: 0)
+            gradient.endPoint = CGPoint(x: 0.5, y: 1)
+            gradient.colors = [UIColor.clear.cgColor, UIColor.black.cgColor]
+            // Each band fades in over the step above it, so no edge shows.
+            let start = max(0, step.from - 0.25)
+            gradient.locations = [NSNumber(value: Double(start)), NSNumber(value: Double(min(1, step.from + 0.15)))]
+            view.mask = mask
+            addSubview(view)
+            layers.append((view, mask))
         }
-        softMask.colors = [UIColor.clear.cgColor, UIColor.black.cgColor, UIColor.black.cgColor]
-        softMask.locations = [0, 0.45, 1]
-        firmMask.colors = [UIColor.clear.cgColor, UIColor.black.withAlphaComponent(0.8).cgColor]
-        firmMask.locations = [0.35, 1]
-        plainMask.colors = [UIColor.clear.cgColor, UIColor.black.withAlphaComponent(0.92).cgColor]
-        plainMask.locations = [0, 0.7]
-        soft.layer.mask = softMask
-        firm.layer.mask = firmMask
-        plain.layer.mask = plainMask
-        [soft, firm, plain].forEach(addSubview)
-        update()
-        NotificationCenter.default.addObserver(
-            self, selector: #selector(update),
-            name: UIAccessibility.reduceTransparencyStatusDidChangeNotification, object: nil
-        )
+        hold()
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(hold), name: UIAccessibility.reduceTransparencyStatusDidChangeNotification, object: nil)
+        // An animator held part-way loses its place when the app comes back.
+        center.addObserver(self, selector: #selector(hold), name: UIApplication.didBecomeActiveNotification, object: nil)
     }
 
     required init?(coder: NSCoder) { fatalError() }
 
-    @objc private func update() {
+    @objc private func hold() {
+        animators.forEach { $0.stopAnimation(true) }
+        animators = []
         let solid = UIAccessibility.isReduceTransparencyEnabled
-        soft.isHidden = solid
-        firm.isHidden = solid
-        plain.isHidden = !solid
-        plain.backgroundColor = UIColor(Palette.ground)
+        for (index, layer) in layers.enumerated() {
+            layer.view.effect = nil
+            layer.view.isHidden = solid
+            guard !solid else { continue }
+            let animator = UIViewPropertyAnimator(duration: 1, curve: .linear) {
+                layer.view.effect = UIBlurEffect(style: .regular)
+            }
+            animator.pausesOnCompletion = true
+            animator.fractionComplete = Self.steps[index].strength
+            animators.append(animator)
+        }
+    }
+
+    /// Held blurs set up before the view is in a window don't take: they are
+    /// set up again once it is.
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        if window != nil { hold() }
     }
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        for view in [soft, firm, plain] { view.frame = bounds }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        softMask.frame = bounds
-        firmMask.frame = bounds
-        plainMask.frame = bounds
+        for layer in layers {
+            layer.view.frame = bounds
+            layer.mask.frame = layer.view.bounds
+        }
         CATransaction.commit()
+    }
+
+    deinit {
+        animators.forEach { $0.stopAnimation(true) }
+    }
+
+    final class Gradient: UIView {
+        override class var layerClass: AnyClass { CAGradientLayer.self }
     }
 }

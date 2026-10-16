@@ -20,11 +20,19 @@ struct Sheet: View {
     var height: (CGFloat) -> Void
 
     @State private var pull: CGFloat = 0
+    /// The list shows its first line: a drag down anywhere moves the sheet.
+    @State private var atTop = true
+    /// The drag under way is the sheet's (true), someone else's (false), or
+    /// not decided yet (nil).
+    @State private var dragging: Bool?
 
     private var pinned: [Tab] { browser.tabs.filter { $0.pin != nil } }
     private var loose: [Tab] { browser.tabs.filter { $0.pin == nil } }
 
     private let row: CGFloat = 48
+
+    /// More lines than the sheet has room for.
+    private var overflows: Bool { CGFloat(loose.count + 1) * (row + 2) + 4 > 420 }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -44,6 +52,26 @@ struct Sheet: View {
                 .ignoresSafeArea(edges: .bottom)
         )
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height($0) }
+        // Down from anywhere on it: the rows, the empty room, the foot. A
+        // drag that sets off sideways is a row's to close or pin, and a tap
+        // still picks; only one going down moves the sheet.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 12, coordinateSpace: .global)
+                .onChanged { value in
+                    if dragging == nil {
+                        let down = value.translation.height > 0
+                            && value.translation.height > abs(value.translation.width) * 1.2
+                        dragging = down && atTop
+                    }
+                    if dragging == true { drag(max(0, value.translation.height)) }
+                }
+                .onEnded { value in
+                    if dragging == true {
+                        dropped(max(0, value.translation.height), value.velocity.height)
+                    }
+                    dragging = nil
+                }
+        )
     }
 
     // MARK: - the parts
@@ -84,104 +112,93 @@ struct Sheet: View {
         }
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
-        .gesture(Pan(action: pan))
     }
 
     private var list: some View {
-        List {
-            ForEach(loose) { tab in
-                Line(tab: tab, live: tab.id == browser.activeID, space: space)
-                    .contentShape(Rectangle())
-                    .onTapGesture { pick(tab) }
-                    .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
-                    .listRowSeparator(.hidden)
-                    .listRowBackground(Color.clear)
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button {
-                            Feel.tick()
-                            withAnimation(Motion.settle) { browser.close(tab) }
-                        } label: {
-                            Label("Close", systemImage: "xmark")
-                        }
-                        .tint(Color(white: 0.55))
+        ScrollView {
+            VStack(spacing: 2) {
+                ForEach(loose) { tab in
+                    Swipe {
+                        Feel.tick()
+                        withAnimation(Motion.settle) { browser.close(tab) }
+                    } pin: {
+                        Feel.nudge()
+                        withAnimation(Motion.settle) { browser.pin(tab) }
+                    } content: {
+                        Line(tab: tab, live: tab.id == browser.activeID, space: space)
+                            .contentShape(Rectangle())
+                            .onTapGesture { pick(tab) }
                     }
-                    .swipeActions(edge: .leading, allowsFullSwipe: true) {
-                        Button {
-                            Feel.nudge()
-                            withAnimation(Motion.settle) { browser.pin(tab) }
-                        } label: {
-                            Label("Pin", systemImage: "pin")
-                        }
-                        .tint(Color(white: 0.3))
-                    }
-            }
-
-            HStack(spacing: 0) {
-                Button {
-                    Feel.tick()
-                    browser.newTab()
-                } label: {
-                    HStack(spacing: 10) {
-                        Image(systemName: "plus")
-                            .font(.system(size: 14, weight: .medium))
-                            .frame(width: 18)
-                        Text("New tab").font(.system(size: 15))
-                        Spacer()
-                    }
-                    .padding(.horizontal, 14)
-                    .frame(height: row)
-                    .contentShape(Rectangle())
+                    .transition(.opacity.combined(with: .scale(0.96, anchor: .leading)))
                 }
-                .buttonStyle(.plain)
 
-                Button {
-                    browser.settings = true
-                } label: {
-                    Image(systemName: "gearshape")
-                        .font(.system(size: 15))
-                        .frame(width: 40, height: row)
+                HStack(spacing: 0) {
+                    Button {
+                        Feel.tick()
+                        browser.newTab()
+                    } label: {
+                        HStack(spacing: 10) {
+                            Image(systemName: "plus")
+                                .font(.system(size: 14, weight: .medium))
+                                .frame(width: 18)
+                            Text("New tab").font(.system(size: 15))
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .frame(height: row)
                         .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Settings")
-
-                // A tab that keeps nothing: no history, no cookies once
-                // the last private tab closes, never written down.
-                Button {
-                    Feel.tick()
-                    browser.newTab(private: true)
-                } label: {
-                    HStack(spacing: 6) {
-                        Image(systemName: "eyeglasses")
-                            .font(.system(size: 12, weight: .medium))
-                        Text("Private").font(.system(size: 14))
                     }
-                    .padding(.horizontal, 14)
-                    .frame(height: row)
-                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+
+                    Button {
+                        browser.settings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .font(.system(size: 15))
+                            .frame(width: 40, height: row)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Settings")
+
+                    // A tab that keeps nothing: no history, no cookies once
+                    // the last private tab closes, never written down.
+                    Button {
+                        Feel.tick()
+                        browser.newTab(private: true)
+                    } label: {
+                        HStack(spacing: 6) {
+                            Image(systemName: "eyeglasses")
+                                .font(.system(size: 12, weight: .medium))
+                            Text("Private").font(.system(size: 14))
+                        }
+                        .padding(.horizontal, 14)
+                        .frame(height: row)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+                .foregroundStyle(Palette.muted)
+                .padding(.horizontal, 0)
             }
-            .foregroundStyle(Palette.muted)
-            .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
-            .listRowSeparator(.hidden)
-            .listRowBackground(Color.clear)
+            .padding(.horizontal, 8)
         }
-        .listStyle(.plain)
-        .scrollContentBackground(.hidden)
-        .environment(\.defaultMinListRowHeight, row)
         .scrollBounceBehavior(.basedOnSize)
+        // A list that fits doesn't scroll at all, so a drag down on it is
+        // the sheet's.
+        .scrollDisabled(!overflows)
         // Hugs what it holds. A sheet that always reserves room for ten tabs
         // looks broken when it is showing one.
         .frame(height: min(CGFloat(loose.count + 1) * (row + 2) + 4, 420))
-        // Pulled down past its start: the sheet follows, and goes on release.
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             geo.contentOffset.y + geo.contentInsets.top
         } action: { _, offset in
             pull = max(0, -offset)
+            atTop = offset <= 1
         }
         .onScrollPhaseChange { old, new in
-            if old == .interacting, new != .interacting, pull > 70 {
+            // A long list pulled down past its start: let go and it goes.
+            if overflows, old == .interacting, new != .interacting, pull > 70 {
                 dropped(pull, 1200)
             }
         }
@@ -191,7 +208,6 @@ struct Sheet: View {
         Color.clear
             .frame(height: 14)
             .contentShape(Rectangle())
-            .gesture(Pan(action: pan))
     }
 
     // MARK: - moving
@@ -227,6 +243,62 @@ struct Sheet: View {
             start += size
         }
         return rows
+    }
+
+    /// A line that can be swiped: left to close, right to pin, a word under
+    /// it saying which, and back in place if let go short. Only a drag that
+    /// sets off sideways is its; one going down is the sheet's.
+    private struct Swipe<Content: View>: View {
+        let close: () -> Void
+        let pin: () -> Void
+        @ViewBuilder let content: () -> Content
+
+        @State private var shift: CGFloat = 0
+        @State private var sideways: Bool?
+        private let reach: CGFloat = 96
+
+        var body: some View {
+            content()
+                .offset(x: shift)
+                .background {
+                    HStack {
+                        if shift > 0 {
+                            Label("Pin", systemImage: "pin").padding(.leading, 18)
+                            Spacer()
+                        } else if shift < 0 {
+                            Spacer()
+                            Label("Close", systemImage: "xmark").padding(.trailing, 18)
+                        }
+                    }
+                    .font(.system(size: 13, weight: .medium))
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(abs(shift) > reach ? Palette.ink : Palette.muted)
+                    .opacity(Double(min(1, abs(shift) / 40)))
+                }
+                .simultaneousGesture(
+                    DragGesture(minimumDistance: 12)
+                        .onChanged { value in
+                            if sideways == nil {
+                                sideways = abs(value.translation.width) > abs(value.translation.height) * 1.2
+                            }
+                            guard sideways == true else { return }
+                            let was = abs(shift) > reach
+                            shift = value.translation.width
+                            if was != (abs(shift) > reach) { Feel.tick() }
+                        }
+                        .onEnded { value in
+                            defer { sideways = nil }
+                            guard sideways == true else { return }
+                            let landing = value.translation.width + value.velocity.width * 0.1
+                            if landing < -reach {
+                                close()
+                            } else if landing > reach {
+                                pin()
+                            }
+                            withAnimation(Motion.settle) { shift = 0 }
+                        }
+                )
+        }
     }
 
     /// A pinned tab: one letter, and its place at the head.
