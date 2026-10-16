@@ -6,6 +6,7 @@ import SwiftUI
 @main
 struct SearchApp: App {
     @StateObject private var browser = Browser()
+    @ObservedObject private var prefs = Prefs.shared
     @Environment(\.scenePhase) private var phase
 
     var body: some Scene {
@@ -15,11 +16,11 @@ struct SearchApp: App {
                 MockScreen(number: number)
             } else {
                 ContentView(browser: browser)
-                    .preferredColorScheme(.light)
+                    .preferredColorScheme(prefs.look.scheme)
             }
             #else
             ContentView(browser: browser)
-                .preferredColorScheme(.light)
+                .preferredColorScheme(prefs.look.scheme)
             #endif
         }
         .onChange(of: phase) { _, now in
@@ -86,8 +87,8 @@ struct ContentView: View {
                         lift: { lifting($0) },
                         lifted: { lifted($0, speed: $1) }
                     )
-                    .opacity(1 - lift)
-                    .allowsHitTesting(lift == 0 && !landing && !browser.holding)
+                    .opacity(browser.finding ? 0 : 1 - lift)
+                    .allowsHitTesting(lift == 0 && !landing && !browser.holding && !browser.finding)
                     .transition(.opacity)
                 }
 
@@ -164,6 +165,10 @@ struct ContentView: View {
         }
         .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { browser.safe = $0 }
         .onOpenURL { browser.open($0) }
+        .sheet(isPresented: $browser.settings) {
+            Settings(browser: browser)
+                .presentationDetents([.large])
+        }
     }
 
     // MARK: - the pages

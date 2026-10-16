@@ -54,14 +54,9 @@ enum Address {
         return host.hasPrefix("www.") ? String(host.dropFirst(4)) : host
     }
 
-    /// A place if it can be one, a search if it can't.
-    static func destination(for typed: String) -> URL? {
+    /// A place if it can be one, a search with the chosen engine if it can't.
+    @MainActor static func destination(for typed: String) -> URL? {
         if let place = url(from: typed) { return place }
-        var allowed = CharacterSet.alphanumerics
-        allowed.insert(charactersIn: "-._~")
-        guard let escaped = typed.trimmingCharacters(in: .whitespacesAndNewlines)
-            .addingPercentEncoding(withAllowedCharacters: allowed), !escaped.isEmpty
-        else { return nil }
-        return URL(string: "https://www.google.com/search?q=" + escaped)
+        return Engine.url(for: typed, template: Prefs.shared.searchTemplate)
     }
 }

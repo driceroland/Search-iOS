@@ -6,6 +6,9 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA11BB22CC33DD44EE550505 /* Settings.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550506 /* Settings.swift */; };
+		AA11BB22CC33DD44EE550503 /* Prefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550504 /* Prefs.swift */; };
+		AA11BB22CC33DD44EE550501 /* Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550502 /* Engine.swift */; };
 		AA11BB22CC33DD44EE550401 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550402 /* Assets.xcassets */; };
 		AA11BB22CC33DD44EE550301 /* Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550302 /* Downloads.swift */; };
 		AA11BB22CC33DD44EE550203 /* Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550204 /* Reader.swift */; };
@@ -27,6 +30,9 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		AA11BB22CC33DD44EE550506 /* Settings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Settings.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE550504 /* Prefs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Prefs.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE550502 /* Engine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engine.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550402 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550302 /* Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Downloads.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550204 /* Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reader.swift; sourceTree = "<group>"; };
@@ -79,6 +85,9 @@
 				EA870B8CDF2D5CE6AC9C75E1 /* Tab.swift */,
 				BC52428BD328590F9419F77D /* Views.swift */,
 				AA11BB22CC33DD44EE550002 /* Mock.swift */,
+				AA11BB22CC33DD44EE550506 /* Settings.swift */,
+				AA11BB22CC33DD44EE550504 /* Prefs.swift */,
+				AA11BB22CC33DD44EE550502 /* Engine.swift */,
 				AA11BB22CC33DD44EE550402 /* Assets.xcassets */,
 				AA11BB22CC33DD44EE550302 /* Downloads.swift */,
 				AA11BB22CC33DD44EE550204 /* Reader.swift */,
@@ -168,6 +177,9 @@
 				C146817CE1CA52479F9AE9A4 /* Tab.swift in Sources */,
 				782A0D32A3A35CEF96B045A1 /* Views.swift in Sources */,
 				AA11BB22CC33DD44EE550001 /* Mock.swift in Sources */,
+				AA11BB22CC33DD44EE550505 /* Settings.swift in Sources */,
+				AA11BB22CC33DD44EE550503 /* Prefs.swift in Sources */,
+				AA11BB22CC33DD44EE550501 /* Engine.swift in Sources */,
 				AA11BB22CC33DD44EE550301 /* Downloads.swift in Sources */,
 				AA11BB22CC33DD44EE550203 /* Reader.swift in Sources */,
 				AA11BB22CC33DD44EE550201 /* Shield.swift in Sources */,

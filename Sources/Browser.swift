@@ -29,6 +29,10 @@ final class Browser: NSObject, ObservableObject {
     @Published var showingTabs = false
     /// The pill held: the page's own menu.
     @Published var holding = false
+    /// The system's find bar is up; the pill steps aside for it.
+    @Published var finding = false
+    @Published var settings = false
+    private var findWatch: NSObjectProtocol?
     /// Bumped when what was typed can't be anywhere. The field shivers.
     @Published private(set) var refusals = 0
     /// A word over the pill, and gone: the Mac's toasts.
@@ -271,7 +275,19 @@ final class Browser: NSObject, ObservableObject {
 
     /// The system's own find bar, over the keyboard.
     func find(_ tab: Tab) {
+        finding = true
         tab.web.findInteraction?.presentFindNavigator(showingReplace: false)
+        // The find bar rides on the keyboard and goes with it.
+        findWatch = NotificationCenter.default.addObserver(
+            forName: UIResponder.keyboardWillHideNotification, object: nil, queue: .main
+        ) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                withAnimation(Motion.quick) { self.finding = false }
+                if let watch = self.findWatch { NotificationCenter.default.removeObserver(watch) }
+                self.findWatch = nil
+            }
+        }
     }
 
     func say(_ words: String) {

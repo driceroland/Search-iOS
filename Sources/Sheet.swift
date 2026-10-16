@@ -134,6 +134,17 @@ struct Sheet: View {
                 }
                 .buttonStyle(.plain)
 
+                Button {
+                    browser.settings = true
+                } label: {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 15))
+                        .frame(width: 40, height: row)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Settings")
+
                 // A tab that keeps nothing: no history, no cookies once
                 // the last private tab closes, never written down.
                 Button {
