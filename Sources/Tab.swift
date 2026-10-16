@@ -112,9 +112,14 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         web.allowsBackForwardNavigationGestures = true
         web.allowsLinkPreview = true
         web.isInspectable = true
-        web.scrollView.contentInsetAdjustmentBehavior = .always
-        web.scrollView.contentInset.bottom = Metrics.pillRoom
-        web.scrollView.verticalScrollIndicatorInsets.bottom = Metrics.pillRoom
+        if #available(iOS 26.0, *) {
+            // WebKit is told what's covered (see `cover`) and does the rest.
+            web.scrollView.contentInsetAdjustmentBehavior = .never
+        } else {
+            web.scrollView.contentInsetAdjustmentBehavior = .always
+            web.scrollView.contentInset.bottom = Metrics.pillRoom
+            web.scrollView.verticalScrollIndicatorInsets.bottom = Metrics.pillRoom
+        }
         web.scrollView.delegate = self
         web.isFindInteractionEnabled = true
         Shield.shared.protect(web.configuration.userContentController)
@@ -183,6 +188,32 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     func reload() { web.reload() }
     func back() { web.goBack() }
     func forward() { web.goForward() }
+
+    /// What of the page the status bar and the pill cover. From iOS 26 WebKit
+    /// lays fixed and sticky elements out inside what's left, and lets the
+    /// page scroll on under the covers; before, the page only learns the
+    /// sizes its viewport can take (for lvh/svh), and the scroll view keeps
+    /// room at the foot.
+    func cover(top: CGFloat, bottom: CGFloat, least: CGFloat, most: CGFloat) {
+        if #available(iOS 26.0, *) {
+            let insets = UIEdgeInsets(top: top, left: 0, bottom: bottom, right: 0)
+            if web.obscuredContentInsets != insets { web.obscuredContentInsets = insets }
+            web.scrollView.verticalScrollIndicatorInsets = UIEdgeInsets(top: top, left: 0, bottom: bottom, right: 0)
+        }
+        let low = UIEdgeInsets(top: top, left: 0, bottom: least, right: 0)
+        let high = UIEdgeInsets(top: top, left: 0, bottom: most, right: 0)
+        if web.minimumViewportInset != low || web.maximumViewportInset != high {
+            web.setMinimumViewportInset(low, maximumViewportInset: high)
+        }
+    }
+
+    /// The page as it is this instant, as a view of its own: what moves in
+    /// its place while it's walked or shrinks under the sheet, so the page
+    /// itself is never resized and never re-lays itself out.
+    func freeze() -> UIView? {
+        guard !isBlank, web.window != nil else { return nil }
+        return web.snapshotView(afterScreenUpdates: false)
+    }
 
     /// Keeps a picture of the page as it is now. Only a page on screen can be
     /// pictured; the last picture stays until then.

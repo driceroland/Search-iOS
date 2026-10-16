@@ -125,3 +125,99 @@ final class StageView: UIView {
         setNeedsLayout()
     }
 }
+
+/// The page as it was the instant it started to move: a snapshot view of the
+/// web view, which shrinks and slides without asking the page to lay itself
+/// out again.
+struct Still: View {
+    let view: UIView?
+    var tint: UIColor?
+    var top: CGFloat
+
+    var body: some View {
+        Holder(view: view)
+            .background(Palette.ground)
+            .ignoresSafeArea()
+            .overlay(alignment: .top) { Band(tint: tint, height: top) }
+    }
+
+    private struct Holder: UIViewRepresentable {
+        let view: UIView?
+
+        func makeUIView(context: Context) -> UIView {
+            let holder = UIView()
+            holder.clipsToBounds = true
+            return holder
+        }
+
+        func updateUIView(_ holder: UIView, context: Context) {
+            guard let view, view.superview !== holder else { return }
+            holder.subviews.forEach { $0.removeFromSuperview() }
+            view.frame = holder.bounds
+            view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            holder.addSubview(view)
+        }
+    }
+}
+
+/// A blur that grows toward the bottom edge: two layers of material, each
+/// masked by a gradient, the lighter one reaching higher. With Reduce
+/// Transparency on, the ground instead, fading in the same way.
+struct Fade: UIViewRepresentable {
+    func makeUIView(context: Context) -> FadeView { FadeView() }
+    func updateUIView(_ view: FadeView, context: Context) {}
+}
+
+final class FadeView: UIView {
+    private let soft = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterial))
+    private let firm = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterial))
+    private let plain = UIView()
+    private let softMask = CAGradientLayer()
+    private let firmMask = CAGradientLayer()
+    private let plainMask = CAGradientLayer()
+
+    override init(frame: CGRect) {
+        super.init(frame: frame)
+        isUserInteractionEnabled = false
+        for layer in [softMask, firmMask, plainMask] {
+            layer.startPoint = CGPoint(x: 0.5, y: 0)
+            layer.endPoint = CGPoint(x: 0.5, y: 1)
+        }
+        softMask.colors = [UIColor.clear.cgColor, UIColor.black.cgColor, UIColor.black.cgColor]
+        softMask.locations = [0, 0.45, 1]
+        firmMask.colors = [UIColor.clear.cgColor, UIColor.black.withAlphaComponent(0.8).cgColor]
+        firmMask.locations = [0.35, 1]
+        plainMask.colors = [UIColor.clear.cgColor, UIColor.black.withAlphaComponent(0.92).cgColor]
+        plainMask.locations = [0, 0.7]
+        soft.layer.mask = softMask
+        firm.layer.mask = firmMask
+        plain.layer.mask = plainMask
+        [soft, firm, plain].forEach(addSubview)
+        update()
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(update),
+            name: UIAccessibility.reduceTransparencyStatusDidChangeNotification, object: nil
+        )
+    }
+
+    required init?(coder: NSCoder) { fatalError() }
+
+    @objc private func update() {
+        let solid = UIAccessibility.isReduceTransparencyEnabled
+        soft.isHidden = solid
+        firm.isHidden = solid
+        plain.isHidden = !solid
+        plain.backgroundColor = UIColor(Palette.ground)
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        for view in [soft, firm, plain] { view.frame = bounds }
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        softMask.frame = bounds
+        firmMask.frame = bounds
+        plainMask.frame = bounds
+        CATransaction.commit()
+    }
+}

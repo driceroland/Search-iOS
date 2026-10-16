@@ -6,6 +6,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA11BB22CC33DD44EE550401 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550402 /* Assets.xcassets */; };
 		AA11BB22CC33DD44EE550301 /* Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550302 /* Downloads.swift */; };
 		AA11BB22CC33DD44EE550203 /* Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550204 /* Reader.swift */; };
 		AA11BB22CC33DD44EE550201 /* Shield.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550202 /* Shield.swift */; };
@@ -26,6 +27,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		AA11BB22CC33DD44EE550402 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550302 /* Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Downloads.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550204 /* Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reader.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550202 /* Shield.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shield.swift; sourceTree = "<group>"; };
@@ -77,6 +79,7 @@
 				EA870B8CDF2D5CE6AC9C75E1 /* Tab.swift */,
 				BC52428BD328590F9419F77D /* Views.swift */,
 				AA11BB22CC33DD44EE550002 /* Mock.swift */,
+				AA11BB22CC33DD44EE550402 /* Assets.xcassets */,
 				AA11BB22CC33DD44EE550302 /* Downloads.swift */,
 				AA11BB22CC33DD44EE550204 /* Reader.swift */,
 				AA11BB22CC33DD44EE550202 /* Shield.swift */,
@@ -143,7 +146,9 @@
 		B986D822225D524AA98CED23 = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
-			files = ();
+			files = (
+				AA11BB22CC33DD44EE550401 /* Assets.xcassets in Resources */,
+			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */

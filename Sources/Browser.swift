@@ -10,7 +10,17 @@ final class Browser: NSObject, ObservableObject {
     @Published private(set) var tabs: [Tab] = []
     @Published private(set) var activeID: Tab.ID?
 
-    @Published var editing = false
+    @Published var editing = false {
+        didSet {
+            // The keyboard leaves the moment the field is put away, not when
+            // the field's own exit has finished animating: until then the
+            // field would still be first responder, and the keyboard would
+            // wait for it.
+            if oldValue, !editing {
+                UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+            }
+        }
+    }
     @Published var typed = "" { didSet { guess() } }
     @Published private(set) var offers: [Suggestion] = []
     @Published private(set) var ending: String?
@@ -29,6 +39,9 @@ final class Browser: NSObject, ObservableObject {
     /// How far the pill is folded. Its own object, so that a page scrolling
     /// redraws the pill and nothing else.
     let chrome = Chrome()
+    /// The screen's safe area, for telling each page how much of it the
+    /// status bar and the pill cover.
+    var safe = EdgeInsets() { didSet { if safe != oldValue { cover() } } }
 
     private var bag = Set<AnyCancellable>()
     private var saving = false
@@ -48,6 +61,7 @@ final class Browser: NSObject, ObservableObject {
     override init() {
         super.init()
         Shield.shared.compile()
+        chrome.settled = { [weak self] in self?.cover() }
         Favicons.shared.arrived = { [weak self] key, image in
             for tab in self?.tabs ?? [] where tab.address.flatMap(Favicons.key) == key {
                 tab.icon = image
@@ -180,9 +194,26 @@ final class Browser: NSObject, ObservableObject {
         if activeID == nil { activeID = tab.id }
     }
 
+    /// Tells every page what the status bar and the pill cover, so a page's
+    /// fixed bar or button at the bottom sits above the pill, as it does
+    /// above Safari's, while the page itself still runs under it.
+    func cover() {
+        let open = safe.bottom + 8 + Metrics.pill + 6
+        let folded = safe.bottom + Metrics.pillFolded + 4
+        let bottom = chrome.folded ? folded : open
+        for tab in tabs {
+            tab.cover(top: safe.top, bottom: bottom, least: folded, most: open)
+        }
+    }
+
     private func prepare(_ tab: Tab) {
         tab.web.navigationDelegate = self
         tab.web.uiDelegate = self
+        if safe.bottom > 0 {
+            let open = safe.bottom + 8 + Metrics.pill + 6
+            let folded = safe.bottom + Metrics.pillFolded + 4
+            tab.cover(top: safe.top, bottom: chrome.folded ? folded : open, least: folded, most: open)
+        }
         tab.scrolled = { [weak self, weak tab] event in
             guard let self, let tab, tab.id == self.activeID else { return }
             self.chrome.follow(event)
@@ -474,6 +505,12 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
 @MainActor
 final class Chrome: ObservableObject {
     @Published private(set) var fold: CGFloat = 0
+    /// Where the fold came to rest: folded or open. Pages are told only
+    /// when it settles, so a fixed button doesn't jitter with every scroll.
+    private(set) var folded = false {
+        didSet { if folded != oldValue { settled?() } }
+    }
+    var settled: (() -> Void)?
 
     /// How far a page has to travel to fold the pill all the way.
     private let travel: CGFloat = 44
@@ -487,12 +524,14 @@ final class Chrome: ObservableObject {
             unfold(animated: true)
         case .rest:
             let target: CGFloat = fold > 0.5 ? 1 : 0
+            folded = target == 1
             guard target != fold else { return }
             withAnimation(Motion.settle) { fold = target }
         }
     }
 
     func unfold(animated: Bool) {
+        folded = false
         guard fold != 0 else { return }
         if animated {
             withAnimation(Motion.settle) { fold = 0 }

@@ -42,6 +42,9 @@ struct ContentView: View {
     /// How far the sheet of tabs is up: 0 down, 1 up.
     @State private var lift: CGFloat = 0
     @State private var sheetHeight: CGFloat = 420
+    /// The page, as a picture, while it's walked or shrunk for the sheet:
+    /// the web view itself stays where it is, at its size, untouched.
+    @State private var frozen: UIView?
 
     var body: some View {
         GeometryReader { geo in
@@ -52,6 +55,14 @@ struct ContentView: View {
                 Palette.backdrop.ignoresSafeArea()
 
                 deck(width: width, top: geo.safeAreaInsets.top)
+
+                // The page fades into a blur toward the bottom edge, under
+                // the pill, the way iOS's own bars sit on what scrolls.
+                Fade()
+                    .frame(height: geo.safeAreaInsets.bottom + Metrics.pill + 52)
+                    .opacity(Double(1 - min(1, lift)))
+                    .allowsHitTesting(false)
+                    .ignoresSafeArea(edges: .bottom)
 
                 if browser.editing {
                     Palette.ground.opacity(0.74)
@@ -146,8 +157,12 @@ struct ContentView: View {
         .onChange(of: browser.showingTabs) { _, open in
             let target: CGFloat = open ? 1 : 0
             guard lift != target else { return }
-            withAnimation(still ? Motion.quick : Motion.glide) { lift = target }
+            if open, lift == 0 { freeze() }
+            withAnimation(still ? Motion.quick : Motion.glide) { lift = target } completion: {
+                thaw()
+            }
         }
+        .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { browser.safe = $0 }
         .onOpenURL { browser.open($0) }
     }
 
@@ -161,23 +176,33 @@ struct ContentView: View {
         let scale = 1 - 0.08 * lift - 0.04 * away
         let corner = 44 * max(lift, away)
         return ZStack {
-            if walk < 0 {
-                Card(tab: browser.neighbour(1), top: top)
-                    .offset(x: width + Metrics.gap + walk)
-            }
-            if walk > 0 {
-                Card(tab: browser.neighbour(-1), top: top)
-                    .offset(x: -(width + Metrics.gap) + walk)
-            }
+            // The live page, always at its full size. Hidden, not moved,
+            // while its picture stands in for it.
             if let tab = browser.active {
                 Page(tab: tab, top: top)
-                    .offset(x: walk)
+                    .opacity(frozen == nil ? 1 : 0)
+            }
+
+            if frozen != nil {
+                ZStack {
+                    if walk < 0 {
+                        Card(tab: browser.neighbour(1), top: top)
+                            .offset(x: width + Metrics.gap + walk)
+                    }
+                    if walk > 0 {
+                        Card(tab: browser.neighbour(-1), top: top)
+                            .offset(x: -(width + Metrics.gap) + walk)
+                    }
+                    Still(view: frozen, tint: browser.active?.tint, top: top)
+                        .offset(x: walk)
+                }
+                .frame(width: width)
+                .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
+                .scaleEffect(scale, anchor: lift > 0 ? .top : .center)
+                .offset(y: 54 * lift)
             }
         }
         .frame(width: width)
-        .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
-        .scaleEffect(scale, anchor: lift > 0 ? .top : .center)
-        .offset(y: 54 * lift)
         .overlay {
             Color.black
                 .opacity(0.08 * lift)
@@ -186,6 +211,19 @@ struct ContentView: View {
                 .onTapGesture { browser.showingTabs = false }
         }
         .ignoresSafeArea()
+    }
+
+    /// The page in front becomes a picture, for as long as something moves it.
+    private func freeze() {
+        guard frozen == nil else { return }
+        browser.active?.capture()
+        frozen = browser.active?.freeze() ?? UIView()
+    }
+
+    /// Nothing moving any more: the live page again.
+    private func thaw() {
+        guard walk == 0, lift == 0, !landing else { return }
+        frozen = nil
     }
 
     /// The site the pill names while a walk is far enough to land on another
@@ -198,7 +236,7 @@ struct ContentView: View {
 
     private func walking(_ moved: CGFloat, width: CGFloat) {
         guard !landing else { return }
-        if walk == 0 { browser.active?.capture() }
+        if walk == 0 { freeze() }
         let reach = moved < 0 ? 1 : -1
         // Past the first page there is nothing: the page gives, and comes
         // back. Past the last there is a new one.
@@ -216,7 +254,9 @@ struct ContentView: View {
         let open = there != nil || reach == 1
         let landingAt = moved + speed * 0.15
         guard open, abs(landingAt) > width * 0.5, (landingAt < 0) == (moved < 0) else {
-            withAnimation(Motion.thrown(velocity: speed, distance: -walk)) { walk = 0 }
+            withAnimation(Motion.thrown(velocity: speed, distance: -walk)) { walk = 0 } completion: {
+                thaw()
+            }
             return
         }
         let end = CGFloat(-reach) * (width + Metrics.gap)
@@ -233,15 +273,16 @@ struct ContentView: View {
                     browser.newTab()
                 }
                 walk = 0
+                landing = false
+                frozen = nil
             }
-            landing = false
         }
     }
 
     // MARK: - the sheet
 
     private func lifting(_ moved: CGFloat) {
-        if !browser.showingTabs, lift == 0 { browser.active?.capture() }
+        if !browser.showingTabs, lift == 0 { freeze() }
         let up = -moved
         lift = up <= sheetHeight ? max(0, up / sheetHeight) : 1 + Self.give(up - sheetHeight) / sheetHeight
     }
@@ -272,6 +313,8 @@ struct ContentView: View {
             )
         ) {
             lift = target
+        } completion: {
+            thaw()
         }
         if browser.showingTabs != open {
             if open { Feel.tick() }
