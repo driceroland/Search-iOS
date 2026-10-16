@@ -92,6 +92,10 @@ struct ContentView: View {
                         browser.read(tab)
                     } shield: {
                         browser.shield(tab)
+                    } share: {
+                        browser.share(tab)
+                    } find: {
+                        browser.find(tab)
                     }
                     .padding(.bottom, Metrics.pill + 18)
                     .transition(.scale(0.9, anchor: .bottom).combined(with: .opacity))

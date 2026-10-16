@@ -113,7 +113,7 @@ struct Field: View {
         HStack(spacing: 10) {
             ZStack(alignment: .leading) {
                 if browser.typed.isEmpty {
-                    Text("Search or enter an address")
+                    Text(browser.active?.isPrivate == true ? "Private: search or enter an address" : "Search or enter an address")
                         .foregroundStyle(Palette.ink.opacity(0.3))
                 }
                 // What it guessed, after what you typed, in the selection's

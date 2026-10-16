@@ -89,9 +89,11 @@ final class Browser: NSObject, ObservableObject {
 
     // MARK: - tabs
 
-    func newTab() {
+    func newTab(private: Bool = false) {
         active?.capture()
-        let tab = Tab()
+        let tab = `private`
+            ? Tab(configuration: Web.configuration(private: true), isPrivate: true)
+            : Tab()
         adopt(tab)
         activeID = tab.id
         chrome.unfold(animated: false)
@@ -145,6 +147,8 @@ final class Browser: NSObject, ObservableObject {
         }
         tab.close()
         tabs.remove(at: index)
+        // The last private tab gone: its cookie jar goes with it.
+        if tab.isPrivate, !tabs.contains(where: \.isPrivate) { Web.forgetPrivate() }
         if tabs.isEmpty {
             newTab()
             return
@@ -227,6 +231,18 @@ final class Browser: NSObject, ObservableObject {
         tab.web.reload()
     }
 
+    /// The share sheet, with the page itself among the things shared, so
+    /// iOS can offer to add it to the Home Screen.
+    func share(_ tab: Tab) {
+        guard let url = tab.address else { return }
+        Present.share([url, tab.web])
+    }
+
+    /// The system's own find bar, over the keyboard.
+    func find(_ tab: Tab) {
+        tab.web.findInteraction?.presentFindNavigator(showingReplace: false)
+    }
+
     func say(_ words: String) {
         toastTimer?.cancel()
         withAnimation(Motion.settle) { toast = words }
@@ -235,6 +251,26 @@ final class Browser: NSObject, ObservableObject {
         }
         toastTimer = gone
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.7, execute: gone)
+    }
+
+    /// A link held and sent to a tab of its own, in front or behind.
+    func open(_ url: URL, private: Bool, behind: Bool) {
+        let tab = `private`
+            ? Tab(configuration: Web.configuration(private: true), isPrivate: true)
+            : Tab()
+        prepare(tab)
+        let here = activeIndex.map { $0 + 1 } ?? tabs.count
+        tabs.insert(tab, at: min(here, tabs.count))
+        tab.go(to: url)
+        if behind {
+            Feel.tick()
+            say("Opened behind")
+        } else {
+            active?.capture()
+            activeID = tab.id
+            chrome.unfold(animated: false)
+        }
+        remember()
     }
 
     // MARK: - the field
@@ -338,6 +374,60 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         decisionHandler(.allow)
     }
 
+    /// What a page can't show is a download.
+    func webView(
+        _ webView: WKWebView,
+        decidePolicyFor response: WKNavigationResponse,
+        decisionHandler: @escaping @MainActor (WKNavigationResponsePolicy) -> Void
+    ) {
+        let attachment = (response.response as? HTTPURLResponse)?
+            .value(forHTTPHeaderField: "Content-Disposition")?.lowercased().hasPrefix("attachment") ?? false
+        decisionHandler(response.canShowMIMEType && !attachment ? .allow : .download)
+    }
+
+    func webView(_ webView: WKWebView, navigationResponse: WKNavigationResponse, didBecome download: WKDownload) {
+        Downloads.shared.take(download, from: self)
+        // A tab that only ever held the download has nothing to show: it
+        // goes, and the page that offered the file is in front again.
+        if let tab = tabs.first(where: { $0.web === webView }), webView.backForwardList.currentItem == nil {
+            close(tab)
+        }
+    }
+
+    func webView(_ webView: WKWebView, navigationAction: WKNavigationAction, didBecome download: WKDownload) {
+        Downloads.shared.take(download, from: self)
+    }
+
+    /// Holding a link: open it in a new tab here or behind, copy it, share it.
+    func webView(
+        _ webView: WKWebView,
+        contextMenuConfigurationFor element: WKContextMenuElementInfo,
+        completionHandler: @escaping @MainActor (UIContextMenuConfiguration?) -> Void
+    ) {
+        guard let url = element.linkURL else {
+            completionHandler(nil)
+            return
+        }
+        let opener = tabs.first { $0.web === webView }
+        let menu = UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
+            UIMenu(children: [
+                UIAction(title: "Open in New Tab", image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in
+                    self?.open(url, private: opener?.isPrivate ?? false, behind: false)
+                },
+                UIAction(title: "Open Behind", image: UIImage(systemName: "square.on.square")) { [weak self] _ in
+                    self?.open(url, private: opener?.isPrivate ?? false, behind: true)
+                },
+                UIAction(title: "Copy Link", image: UIImage(systemName: "link")) { _ in
+                    UIPasteboard.general.url = url
+                },
+                UIAction(title: "Share…", image: UIImage(systemName: "square.and.arrow.up")) { _ in
+                    Present.share([url])
+                },
+            ])
+        }
+        completionHandler(menu)
+    }
+
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         tabs.first { $0.web === webView }?.reading = false
     }
@@ -362,7 +452,10 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         // The child must not share the opener's content controller: closing
         // the child would strip the opener's scripts (the Mac learned this).
         configuration.userContentController = WKUserContentController()
-        let tab = Tab(configuration: configuration)
+        // A window opened from a private tab is private too: it shares the
+        // opener's store, which WebKit has already put in the configuration.
+        let opener = tabs.first { $0.web === webView }
+        let tab = Tab(configuration: configuration, isPrivate: opener?.isPrivate ?? false)
         active?.capture()
         adopt(tab)
         activeID = tab.id

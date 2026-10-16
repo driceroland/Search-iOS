@@ -116,23 +116,42 @@ struct Sheet: View {
                     }
             }
 
-            Button {
-                Feel.tick()
-                browser.newTab()
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: "plus")
-                        .font(.system(size: 14, weight: .medium))
-                        .frame(width: 18)
-                    Text("New tab").font(.system(size: 15))
-                    Spacer()
+            HStack(spacing: 0) {
+                Button {
+                    Feel.tick()
+                    browser.newTab()
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "plus")
+                            .font(.system(size: 14, weight: .medium))
+                            .frame(width: 18)
+                        Text("New tab").font(.system(size: 15))
+                        Spacer()
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(height: row)
+                    .contentShape(Rectangle())
                 }
-                .foregroundStyle(Palette.muted)
-                .padding(.horizontal, 14)
-                .frame(height: row)
-                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+
+                // A tab that keeps nothing: no history, no cookies once
+                // the last private tab closes, never written down.
+                Button {
+                    Feel.tick()
+                    browser.newTab(private: true)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "eyeglasses")
+                            .font(.system(size: 12, weight: .medium))
+                        Text("Private").font(.system(size: 14))
+                    }
+                    .padding(.horizontal, 14)
+                    .frame(height: row)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            .foregroundStyle(Palette.muted)
             .listRowInsets(EdgeInsets(top: 1, leading: 8, bottom: 1, trailing: 8))
             .listRowSeparator(.hidden)
             .listRowBackground(Color.clear)
@@ -259,6 +278,12 @@ struct Sheet: View {
                     .font(.system(size: 15))
                     .foregroundStyle(live ? Palette.ink : Palette.muted)
                     .lineLimit(1)
+
+                if tab.isPrivate {
+                    Image(systemName: "eyeglasses")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Palette.muted)
+                }
 
                 Spacer(minLength: 8)
 

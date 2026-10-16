@@ -41,6 +41,11 @@ struct Pill: View {
 
     private func address(_ f: CGFloat) -> some View {
         HStack(spacing: 7) {
+            if heading == nil, tab.isPrivate {
+                Image(systemName: "eyeglasses")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Palette.muted)
+            }
             if heading == nil, !tab.isBlank {
                 if tab.loading {
                     Ring()
@@ -168,6 +173,8 @@ struct Held: View {
     var pin: () -> Void
     var read: () -> Void
     var shield: () -> Void
+    var share: () -> Void
+    var find: () -> Void
 
     private var blocking: Bool {
         Shield.shared.enabled && !Shield.shared.isPaused(on: tab.address?.host()?.lowercased())
@@ -181,6 +188,10 @@ struct Held: View {
             }
             Rectangle().fill(Palette.hairline).frame(height: 1)
             item("arrow.clockwise", "Reload") { tab.reload() }
+            line
+            item("square.and.arrow.up", "Share", action: share)
+            line
+            item("text.magnifyingglass", "Find on page", action: find)
             line
             item("doc.plaintext", tab.reading ? "Leave Reader" : "Reader", action: read)
             if Shield.shared.enabled {

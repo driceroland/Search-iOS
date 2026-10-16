@@ -5,15 +5,26 @@ import WebKit
 // swap, not a reload.
 
 enum Web {
-    static func configuration() -> WKWebViewConfiguration {
+    @MainActor static func configuration(private: Bool = false) -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
-        config.websiteDataStore = .default()
+        config.websiteDataStore = `private` ? privateStore : .default()
         config.allowsInlineMediaPlayback = true
         config.allowsPictureInPictureMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = .audio
         config.applicationNameForUserAgent = userAgentTail
         return config
     }
+
+    /// One cookie jar for every private tab open now, kept in memory only and
+    /// let go when the last of them closes.
+    @MainActor static var privateStore: WKWebsiteDataStore {
+        if let kept = privateKept { return kept }
+        let fresh = WKWebsiteDataStore.nonPersistent()
+        privateKept = fresh
+        return fresh
+    }
+    @MainActor private static var privateKept: WKWebsiteDataStore?
+    @MainActor static func forgetPrivate() { privateKept = nil }
 
     /// Left alone, WKWebView names no browser at all, and sites serve it their
     /// oldest layout or a captcha. This is the tail Safari sends, with
@@ -90,13 +101,13 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     }
 
     init(
-        configuration: WKWebViewConfiguration = Web.configuration(),
+        configuration: WKWebViewConfiguration? = nil,
         isPrivate: Bool = false,
         key: String = UUID().uuidString
     ) {
         self.isPrivate = isPrivate
         self.key = key
-        web = WKWebView(frame: .zero, configuration: configuration)
+        web = WKWebView(frame: .zero, configuration: configuration ?? Web.configuration())
         super.init()
         web.allowsBackForwardNavigationGestures = true
         web.allowsLinkPreview = true
@@ -105,6 +116,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         web.scrollView.contentInset.bottom = Metrics.pillRoom
         web.scrollView.verticalScrollIndicatorInsets.bottom = Metrics.pillRoom
         web.scrollView.delegate = self
+        web.isFindInteractionEnabled = true
         Shield.shared.protect(web.configuration.userContentController)
 
         watch = [
