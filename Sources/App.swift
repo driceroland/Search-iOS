@@ -45,7 +45,15 @@ struct ContentView: View {
     @State private var sheetHeight: CGFloat = 420
     /// The page, as a picture, while it's walked or shrunk for the sheet:
     /// the web view itself stays where it is, at its size, untouched.
-    @State private var frozen: UIView?
+    @State private var frozen: UIImage?
+    /// Asked for and on its way: the page's picture takes a frame or two.
+    @State private var freezing = false
+    /// How far the finger had gone when the picture arrived: the motion
+    /// starts from there, so nothing leaps when the picture takes over.
+    @State private var walkFrom: CGFloat = 0
+    @State private var liftFrom: CGFloat = 0
+    /// A finger is walking or lifting the page.
+    @State private var dragging = false
 
     var body: some View {
         GeometryReader { geo in
@@ -62,43 +70,48 @@ struct ContentView: View {
                 Color.clear
                     .overlay(alignment: .bottom) {
                         Fade()
-                            .frame(height: geo.safeAreaInsets.bottom + 8 + Metrics.pill + 24)
+                            .frame(height: Metrics.foot(geo.safeAreaInsets.bottom))
                     }
                     .opacity(Double(1 - min(1, lift)))
                     .allowsHitTesting(false)
                     .ignoresSafeArea()
 
-                if browser.editing {
-                    Palette.ground.opacity(0.74)
-                        .ignoresSafeArea()
-                        .onTapGesture { browser.dismiss() }
-                        .transition(.opacity)
-                }
+                // The dim, the pill and the field are always there, shown and
+                // hidden by opacity rather than put in and taken out: a view
+                // taken out mid-change was leaving in one frame.
+                Palette.ground.opacity(0.74)
+                    .ignoresSafeArea()
+                    .onTapGesture { browser.dismiss() }
+                    .opacity(browser.editing ? 1 : 0)
+                    .allowsHitTesting(browser.editing)
 
-                if !browser.editing, let tab = browser.active {
+                if let tab = browser.active {
                     Pill(
                         tab: tab,
                         chrome: browser.chrome,
                         count: browser.tabs.count,
                         heading: heading(width: width),
                         space: space,
-                        type: { withAnimation(Motion.glide) { browser.edit() } },
+                        type: { withAnimation(still ? Motion.quick : keyboard.curve) { browser.edit() } },
                         tabs: { Feel.tick(); browser.showingTabs = true },
                         hold: { withAnimation(Motion.settle) { browser.holding = true } },
                         walk: { walking($0, width: width) },
                         walked: { walked($0, speed: $1, width: width) },
                         lift: { lifting($0) },
-                        lifted: { lifted($0, speed: $1) }
+                        lifted: { lifted($0, speed: $1) },
+                        source: !browser.editing
                     )
-                    .opacity(browser.finding ? 0 : 1 - lift)
-                    .allowsHitTesting(lift == 0 && !landing && !browser.holding && !browser.finding)
-                    .transition(.opacity)
+                    .opacity(browser.finding || browser.editing ? 0 : 1 - lift)
+                    .allowsHitTesting(lift == 0 && !landing && !browser.holding && !browser.finding && !browser.editing)
                 }
 
-                if browser.holding, let tab = browser.active {
+                // Always there, shown by scale and opacity: put in and taken
+                // out, it arrived animated and left in one frame.
+                if let tab = browser.active {
                     Color.black.opacity(0.001)
                         .ignoresSafeArea()
                         .onTapGesture { withAnimation(Motion.settle) { browser.holding = false } }
+                        .allowsHitTesting(browser.holding)
                     Held(tab: tab, pinned: tab.pin != nil) {
                         withAnimation(Motion.settle) { browser.holding = false }
                     } pin: {
@@ -113,7 +126,10 @@ struct ContentView: View {
                         browser.find(tab)
                     }
                     .padding(.bottom, Metrics.pill + 18)
-                    .transition(.scale(0.9, anchor: .bottom).combined(with: .opacity))
+                    .scaleEffect(browser.holding ? 1 : 0.9, anchor: .bottom)
+                    .opacity(browser.holding ? 1 : 0)
+                    .allowsHitTesting(browser.holding)
+                    .accessibilityHidden(!browser.holding)
                 }
 
                 // Always there, below the edge when down, so that letting it
@@ -129,14 +145,14 @@ struct ContentView: View {
                     .allowsHitTesting(browser.showingTabs)
                     .accessibilityHidden(!browser.showingTabs)
 
-                if browser.editing {
-                    Field(browser: browser, space: space)
-                        // Above the keyboard, by the keyboard's own measure:
-                        // this view ignores it, so nothing else moves when
-                        // it comes and goes.
-                        .padding(.bottom, max(0, keyboard.height - geo.safeAreaInsets.bottom))
-                        .transition(.opacity)
-                }
+                Field(browser: browser, space: space)
+                    // Above the keyboard, by the keyboard's own measure: this
+                    // view ignores it, so nothing else moves when it comes
+                    // and goes.
+                    .padding(.bottom, max(0, keyboard.height - geo.safeAreaInsets.bottom))
+                    .opacity(browser.editing ? 1 : 0)
+                    .allowsHitTesting(browser.editing)
+                    .accessibilityHidden(!browser.editing)
 
                 if let words = browser.toast {
                     Text(words)
@@ -161,9 +177,23 @@ struct ContentView: View {
         .onChange(of: browser.showingTabs) { _, open in
             let target: CGFloat = open ? 1 : 0
             guard lift != target else { return }
-            if open, lift == 0 { freeze() }
-            withAnimation(still ? Motion.quick : Motion.glide) { lift = target } completion: {
-                thaw()
+            let go = {
+                withAnimation(still ? Motion.quick : Motion.glide) { lift = target } completion: {
+                    thaw()
+                }
+            }
+            if open, lift == 0 {
+                freeze(then: go)
+            } else if !open, frozen != nil, let tab = browser.active {
+                // The page went on living under its picture (a carousel, a
+                // video): pictured again before it grows back, so the live
+                // page takes over from what it really looks like now.
+                tab.snap { image in
+                    if let image { frozen = image }
+                    go()
+                }
+            } else {
+                go()
             }
         }
         .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { browser.safe = $0 }
@@ -180,7 +210,12 @@ struct ContentView: View {
     /// back into a card while the sheet is up, and while it is being walked,
     /// so the edge between two pages reads as an edge.
     private func deck(width: CGFloat, top: CGFloat) -> some View {
-        let away = min(1, abs(walk) / 60)
+        // How far the nearest page is from filling the screen: nothing at
+        // rest and nothing again once a walk has landed on the next one, so
+        // the landed picture is already full size when the live page takes
+        // its place.
+        let reach = width + Metrics.gap
+        let away = min(1, min(abs(walk), max(0, reach - abs(walk))) / 60)
         let scale = 1 - 0.08 * lift - 0.04 * away
         let corner = 44 * max(lift, away)
         return ZStack {
@@ -201,7 +236,7 @@ struct ContentView: View {
                         Card(tab: browser.neighbour(-1), top: top)
                             .offset(x: -(width + Metrics.gap) + walk)
                     }
-                    Still(view: frozen, tint: browser.active?.tint, top: top)
+                    Still(image: frozen, tint: browser.active?.tint, top: top)
                         .offset(x: walk)
                 }
                 .frame(width: width)
@@ -222,10 +257,25 @@ struct ContentView: View {
     }
 
     /// The page in front becomes a picture, for as long as something moves it.
-    private func freeze() {
-        guard frozen == nil else { return }
-        browser.active?.capture()
-        frozen = browser.active?.freeze() ?? UIView()
+    /// The page in front becomes its picture, for as long as something
+    /// moves it; `then` runs once the picture is in place. Until then the
+    /// live page stays, still.
+    private func freeze(then: (() -> Void)? = nil) {
+        guard frozen == nil else { then?(); return }
+        guard !freezing else { return }
+        guard let tab = browser.active, !tab.isBlank else {
+            frozen = UIImage()
+            then?()
+            return
+        }
+        freezing = true
+        tab.snap { image in
+            freezing = false
+            frozen = image ?? tab.snapshot ?? UIImage()
+            then?()
+            // A drag that ended before the picture came: nothing to move.
+            if then == nil, !dragging { thaw() }
+        }
     }
 
     /// Nothing moving any more: the live page again.
@@ -244,7 +294,13 @@ struct ContentView: View {
 
     private func walking(_ moved: CGFloat, width: CGFloat) {
         guard !landing else { return }
-        if walk == 0 { freeze() }
+        dragging = true
+        if frozen == nil {
+            freeze()
+            walkFrom = moved
+            return
+        }
+        let moved = moved - walkFrom
         let reach = moved < 0 ? 1 : -1
         // Past the first page there is nothing: the page gives, and comes
         // back. Past the last there is a new one.
@@ -256,7 +312,10 @@ struct ContentView: View {
     }
 
     private func walked(_ moved: CGFloat, speed: CGFloat, width: CGFloat) {
+        dragging = false
         guard !landing else { return }
+        guard frozen != nil else { return }
+        let moved = moved - walkFrom
         let reach = moved < 0 ? 1 : -1
         let there = browser.neighbour(reach)
         let open = there != nil || reach == 1
@@ -290,12 +349,19 @@ struct ContentView: View {
     // MARK: - the sheet
 
     private func lifting(_ moved: CGFloat) {
-        if !browser.showingTabs, lift == 0 { freeze() }
-        let up = -moved
+        dragging = true
+        if frozen == nil {
+            freeze()
+            liftFrom = moved
+            return
+        }
+        let up = -(moved - liftFrom)
         lift = up <= sheetHeight ? max(0, up / sheetHeight) : 1 + Self.give(up - sheetHeight) / sheetHeight
     }
 
     private func lifted(_ moved: CGFloat, speed: CGFloat) {
+        dragging = false
+        guard frozen != nil else { return }
         settle(open: lift + (-speed * 0.15) / sheetHeight > 0.5, speed: -speed)
     }
 

@@ -41,12 +41,12 @@ struct Card: View {
             Palette.ground
             if let image = tab?.snapshot {
                 // Laid over the ground, not beside it: a picture never gets
-                // to decide how big the card is.
-                Color.clear.overlay(alignment: .top) {
-                    Image(uiImage: image)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                }
+                // to decide how big the card is. The picture is the whole
+                // screen, so filling it scales it evenly and crops nothing.
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             } else {
                 Text(tab?.label ?? "New tab")
                     .font(.system(size: 15))
@@ -57,6 +57,7 @@ struct Card: View {
         }
         .clipped()
         .ignoresSafeArea()
+        .overlay(alignment: .top) { Band(tint: tab?.tint, height: top) }
     }
 }
 
@@ -125,39 +126,33 @@ final class StageView: UIView {
     }
 }
 
-/// The page as it was the instant it started to move: a snapshot view of the
-/// web view, which shrinks and slides without asking the page to lay itself
-/// out again.
+/// The page as it was the instant it started to move, exactly as it was on
+/// screen: its picture, and the band behind the clock over it, at the size
+/// they had, so the two shrink and slide as one thing and nothing appears or
+/// goes when the motion ends.
 struct Still: View {
-    let view: UIView?
+    let image: UIImage?
     var tint: UIColor?
     var top: CGFloat
 
     var body: some View {
-        // No band laid over it: the picture has the page's own top, and a
-        // band of fixed height would end up on the page's content as the
-        // picture shrinks.
-        Holder(view: view)
-            .background(Palette.ground)
-            .ignoresSafeArea()
-    }
-
-    private struct Holder: UIViewRepresentable {
-        let view: UIView?
-
-        func makeUIView(context: Context) -> UIView {
-            let holder = UIView()
-            holder.clipsToBounds = true
-            return holder
+        ZStack(alignment: .top) {
+            Palette.ground
+            if let image {
+                // The screen's own width, the picture's own proportions,
+                // from the top: never filled into a frame of another shape,
+                // which scaled it up and cropped it.
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            }
+            // The band the live page has behind the clock, part of the card:
+            // it shrinks and slides with the page and is there when the live
+            // page takes over again, so nothing pops in at the end.
+            Band(tint: tint, height: top)
         }
-
-        func updateUIView(_ holder: UIView, context: Context) {
-            guard let view, view.superview !== holder else { return }
-            holder.subviews.forEach { $0.removeFromSuperview() }
-            view.frame = holder.bounds
-            view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
-            holder.addSubview(view)
-        }
+        .ignoresSafeArea()
     }
 }
 

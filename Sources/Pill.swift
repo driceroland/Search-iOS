@@ -22,6 +22,9 @@ struct Pill: View {
     var walked: (CGFloat, CGFloat) -> Void
     var lift: (CGFloat) -> Void
     var lifted: (CGFloat, CGFloat) -> Void
+    /// Whether the pill's shape is the one the field takes its place from
+    /// (on a page), or the one that follows the field's (while typing).
+    var source = true
 
     private enum Axis { case none, walk, lift, ignored }
     @State private var axis: Axis = .none
@@ -71,7 +74,7 @@ struct Pill: View {
                     // where the eye already is.
                     Loading(tab: tab).clipShape(Capsule())
                 }
-                .matchedGeometryEffect(id: "pill", in: space)
+                .matchedGeometryEffect(id: "pill", in: space, isSource: source)
         }
         .contentShape(Capsule())
         .gesture(Tap {

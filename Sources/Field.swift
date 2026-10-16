@@ -48,8 +48,11 @@ struct Field: View {
                     withAnimation(Motion.settle) { drop = 0 }
                 }
         )
-        .onAppear {
-            typing = true
+        // Always there, hidden while the pill shows: it takes the caret when
+        // it's raised and gives it back when it's put away.
+        .onChange(of: browser.editing, initial: true) { _, raised in
+            typing = raised
+            guard raised else { return }
             // Selected once the field has the caret: a selection set before
             // it does is dropped by the focus change.
             DispatchQueue.main.async {
@@ -165,7 +168,7 @@ struct Field: View {
                             )
                     )
                     .shadow(color: .black.opacity(0.06), radius: 24, y: 8)
-                    .matchedGeometryEffect(id: "pill", in: space)
+                    .matchedGeometryEffect(id: "pill", in: space, isSource: browser.editing)
             }
         }
         .modifier(Shake(travel: shake))

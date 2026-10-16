@@ -210,25 +210,50 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// The page as it is this instant, as a view of its own: what moves in
     /// its place while it's walked or shrinks under the sheet, so the page
     /// itself is never resized and never re-lays itself out.
-    func freeze() -> UIView? {
-        guard !isBlank, web.window != nil else { return nil }
-        return web.snapshotView(afterScreenUpdates: false)
-    }
-
-    /// Keeps a picture of the page as it is now. Only a page on screen can be
-    /// pictured; the last picture stays until then.
-    func capture() {
-        guard !isBlank, web.window != nil, web.bounds.width > 0 else { return }
+    /// The page as it is on screen this instant, as a bitmap: WebKit's own
+    /// snapshot of what it has drawn. (A picture drawn from the view
+    /// hierarchy, or a snapshot view, isn't a bitmap of a web view at all: it
+    /// keeps showing the page live, at its place on screen, whatever scale
+    /// or offset it is given — the card that looked "re-laid out".)
+    func snap(_ done: @escaping @MainActor (UIImage?) -> Void) {
+        guard !isBlank, web.window != nil, web.bounds.width > 0 else {
+            done(nil)
+            return
+        }
         let config = WKSnapshotConfiguration()
         config.afterScreenUpdates = false
         config.snapshotWidth = NSNumber(value: Double(web.bounds.width))
-        web.takeSnapshot(with: config) { [weak self] image, _ in
+        web.takeSnapshot(with: config) { [weak self] taken, _ in
             MainActor.assumeIsolated {
-                guard let self, let image else { return }
-                self.snapshot = image
-                if !self.isPrivate { Snapshots.write(image, for: self.key) }
+                // Copied into pixels of its own: what WebKit hands back can
+                // go on tracking the live page.
+                let image = taken.flatMap(Tab.copy)
+                if let self, let image {
+                    self.snapshot = image
+                    if !self.isPrivate { Snapshots.write(image, for: self.key) }
+                }
+                done(image)
             }
         }
+    }
+
+    /// A picture drawn into a bitmap of its own.
+    private static func copy(_ image: UIImage) -> UIImage? {
+        guard image.size.width > 0 else { return nil }
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = image.scale
+        format.opaque = true
+        let out = UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
+            image.draw(at: .zero)
+        }
+        return out.cgImage.map { UIImage(cgImage: $0, scale: image.scale, orientation: .up) }
+    }
+
+    /// Keeps a picture of the page as it is now, for walking past it and for
+    /// the next launch. Only a page on screen can be pictured; the last
+    /// picture stays until then.
+    func capture() {
+        snap { _ in }
     }
 
     func close() {

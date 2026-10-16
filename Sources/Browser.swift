@@ -65,7 +65,6 @@ final class Browser: NSObject, ObservableObject {
     override init() {
         super.init()
         Shield.shared.compile()
-        chrome.settled = { [weak self] in self?.cover() }
         Favicons.shared.arrived = { [weak self] key, image in
             for tab in self?.tabs ?? [] where tab.address.flatMap(Favicons.key) == key {
                 tab.icon = image
@@ -202,22 +201,19 @@ final class Browser: NSObject, ObservableObject {
     /// fixed bar or button at the bottom sits above the pill, as it does
     /// above Safari's, while the page itself still runs under it.
     func cover() {
-        let open = safe.bottom + 8 + Metrics.pill + 6
-        let folded = safe.bottom + Metrics.pillFolded + 4
-        let bottom = chrome.folded ? folded : open
-        for tab in tabs {
-            tab.cover(top: safe.top, bottom: bottom, least: folded, most: open)
-        }
+        for tab in tabs { cover(tab) }
+    }
+
+    private func cover(_ tab: Tab) {
+        guard safe.bottom > 0 || safe.top > 0 else { return }
+        let foot = Metrics.foot(safe.bottom)
+        tab.cover(top: safe.top, bottom: foot, least: safe.bottom + Metrics.pillFolded, most: foot)
     }
 
     private func prepare(_ tab: Tab) {
         tab.web.navigationDelegate = self
         tab.web.uiDelegate = self
-        if safe.bottom > 0 {
-            let open = safe.bottom + 8 + Metrics.pill + 6
-            let folded = safe.bottom + Metrics.pillFolded + 4
-            tab.cover(top: safe.top, bottom: chrome.folded ? folded : open, least: folded, most: open)
-        }
+        cover(tab)
         tab.scrolled = { [weak self, weak tab] event in
             guard let self, let tab, tab.id == self.activeID else { return }
             self.chrome.follow(event)
@@ -329,8 +325,24 @@ final class Browser: NSObject, ObservableObject {
     }
 
     func dismiss() {
-        editing = false
-        typed = ""
+        putAway()
+    }
+
+    /// The field goes back to being the pill, on the keyboard's own curve,
+    /// whichever way it was put away: tapped outside, dragged down, Go, or a
+    /// suggestion. Said here rather than left to whoever watches `editing`,
+    /// so no way out of the field can skip the animation.
+    private func putAway() {
+        // The keyboard is let go first, on its own: giving up the caret
+        // inside the animated change made SwiftUI settle the field's exit
+        // there and then, unanimated (the field vanished in one frame).
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        withAnimation(UIAccessibility.isReduceMotionEnabled ? Motion.quick : Keyboard.curve(0.3)) {
+            editing = false
+        }
+        // What was typed stays while the field fades: emptied now, the
+        // placeholder would flash in it on the way out. `edit` and `newTab`
+        // set it afresh.
     }
 
     func submit() {
@@ -343,14 +355,12 @@ final class Browser: NSObject, ObservableObject {
         }
         if active == nil { newTab() }
         active?.go(to: url)
-        editing = false
-        typed = ""
+        putAway()
     }
 
     func take(_ offer: Suggestion) {
         active?.go(to: offer.url)
-        editing = false
-        typed = ""
+        putAway()
     }
 
     private func guess() {

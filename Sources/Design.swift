@@ -56,6 +56,13 @@ enum Metrics {
     static let pillFolded: CGFloat = 30
     /// Room left at the foot of a page so its end can scroll clear of the pill.
     static let pillRoom: CGFloat = 64
+    /// How much of the screen's foot the pill holds, the home bar included:
+    /// what pages are told is covered, and how tall the blur under the pill
+    /// is. One number for both, and it doesn't change when the pill folds, so
+    /// a page's fixed button never moves while the page scrolls and never
+    /// sits under the pill or the blur.
+    static func foot(_ safeBottom: CGFloat) -> CGFloat { safeBottom + 8 + pill + 14 }
+
     /// Between two pages while they're being walked.
     static let gap: CGFloat = 12
 }
