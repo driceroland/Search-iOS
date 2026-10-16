@@ -6,6 +6,7 @@ import SwiftUI
 @main
 struct SearchApp: App {
     @StateObject private var browser = Browser()
+    @Environment(\.scenePhase) private var phase
 
     var body: some Scene {
         WindowGroup {
@@ -20,6 +21,9 @@ struct SearchApp: App {
             ContentView(browser: browser)
                 .preferredColorScheme(.light)
             #endif
+        }
+        .onChange(of: phase) { _, now in
+            if now == .background { browser.rest() }
         }
     }
 }

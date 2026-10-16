@@ -19,6 +19,14 @@ struct Page: View {
                 .ignoresSafeArea()
             Band(tint: tab.tint, height: top)
         }
+        .overlay {
+            if tab.waking {
+                Card(tab: tab, top: top)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeOut(duration: 0.2), value: tab.waking)
     }
 }
 

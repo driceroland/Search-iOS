@@ -55,16 +55,32 @@ final class Browser: NSObject, ObservableObject {
             editing = true
             return
         }
+        // Every tab comes back with its address, title and picture, and
+        // none loads until it's shown: the one in front now, the rest when
+        // they're reached. Nine tabs from yesterday cost nothing today.
         for entry in saved.tabs {
             guard let url = URL(string: entry.url) else { continue }
-            let tab = Tab()
+            let tab = Tab(key: entry.key ?? UUID().uuidString)
             prepare(tab)
             tab.pin = entry.pin
+            tab.restore(url, title: entry.title)
             tabs.append(tab)
-            tab.go(to: url)
         }
         if tabs.isEmpty { adopt(Tab()) }
         activeID = tabs[min(max(0, saved.active), tabs.count - 1)].id
+        active?.wake()
+        Snapshots.prune(keeping: Set(tabs.map(\.key)))
+        $activeID
+            .removeDuplicates()
+            .sink { [weak self] id in self?.tabs.first { $0.id == id }?.wake() }
+            .store(in: &bag)
+    }
+
+    /// The app going to the background: the page in front is pictured, so it
+    /// is what comes back first next time.
+    func rest() {
+        active?.capture()
+        remember(now: true)
     }
 
     // MARK: - tabs
@@ -221,26 +237,32 @@ final class Browser: NSObject, ObservableObject {
 
     // MARK: - between launches
 
-    private func remember() {
+    private func remember(now: Bool = false) {
+        if now {
+            Session.write(shape)
+            return
+        }
         guard !saving else { return }
         saving = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1) { [weak self] in
             guard let self else { return }
             saving = false
-            Session.write(
-                .init(
-                    tabs: self.tabs.compactMap { tab in
-                        guard let url = tab.address,
-                              url.scheme?.hasPrefix("http") == true
-                        else { return nil }
-                        return Session.Entry(
-                            url: url.absoluteString, title: tab.title, pin: tab.pin
-                        )
-                    },
-                    active: self.tabs.firstIndex { $0.id == self.activeID } ?? 0
-                )
-            )
+            Session.write(shape)
         }
+    }
+
+    /// What is written down: every tab that has a web address, private
+    /// ones never.
+    private var shape: Session.Shape {
+        let kept = tabs.filter { !$0.isPrivate && $0.address?.scheme?.hasPrefix("http") == true }
+        return Session.Shape(
+            tabs: kept.map { tab in
+                Session.Entry(
+                    url: tab.address!.absoluteString, title: tab.title, pin: tab.pin, key: tab.key
+                )
+            },
+            active: kept.firstIndex { $0.id == activeID } ?? 0
+        )
     }
 }
 
@@ -317,6 +339,8 @@ enum Session {
         var url: String
         var title: String
         var pin: String?
+        /// The name of its picture on disk.
+        var key: String?
     }
 
     struct Shape: Codable {

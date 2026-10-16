@@ -35,6 +35,8 @@ enum Scrolled {
 @MainActor
 final class Tab: NSObject, ObservableObject, Identifiable {
     let id = UUID()
+    /// The name its picture is kept under between launches.
+    let key: String
     let web: WKWebView
 
     @Published private(set) var title = ""
@@ -60,6 +62,12 @@ final class Tab: NSObject, ObservableObject, Identifiable {
 
     private var watch: [NSKeyValueObservation] = []
     private var lastY: CGFloat = 0
+    /// Brought back from the last launch and not shown since: it has an
+    /// address, a title and a picture, and no page until it's looked at.
+    private(set) var pending: URL?
+    /// Woken and not drawn yet: its picture stays over the page until the
+    /// page has something to show, so waking a tab never flashes white.
+    @Published private(set) var waking = false
 
     var isBlank: Bool { address == nil }
 
@@ -79,8 +87,13 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         address.map { Address.host($0) } ?? "Search or enter an address"
     }
 
-    init(configuration: WKWebViewConfiguration = Web.configuration(), isPrivate: Bool = false) {
+    init(
+        configuration: WKWebViewConfiguration = Web.configuration(),
+        isPrivate: Bool = false,
+        key: String = UUID().uuidString
+    ) {
         self.isPrivate = isPrivate
+        self.key = key
         web = WKWebView(frame: .zero, configuration: configuration)
         super.init()
         web.allowsBackForwardNavigationGestures = true
@@ -104,10 +117,18 @@ final class Tab: NSObject, ObservableObject, Identifiable {
                 }
             },
             web.observe(\.estimatedProgress, options: [.new]) { [weak self] _, _ in
-                MainActor.assumeIsolated { self?.progress = self?.web.estimatedProgress ?? 0 }
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.progress = self.web.estimatedProgress
+                    if self.waking, self.progress >= 0.6 { self.waking = false }
+                }
             },
             web.observe(\.isLoading, options: [.new]) { [weak self] _, _ in
-                MainActor.assumeIsolated { self?.loading = self?.web.isLoading ?? false }
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    self.loading = self.web.isLoading
+                    if !self.loading { self.waking = false }
+                }
             },
             web.observe(\.canGoBack, options: [.new]) { [weak self] _, _ in
                 MainActor.assumeIsolated { self?.canGoBack = self?.web.canGoBack ?? false }
@@ -122,8 +143,25 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     }
 
     func go(to url: URL) {
+        pending = nil
         address = url
         title = ""
+        web.load(URLRequest(url: url))
+    }
+
+    /// A tab from the last launch: everything but the page.
+    func restore(_ url: URL, title: String) {
+        pending = url
+        address = url
+        self.title = title
+        snapshot = Snapshots.read(key)
+    }
+
+    /// Loads the page a restored tab has been holding a place for.
+    func wake() {
+        guard let url = pending else { return }
+        pending = nil
+        waking = snapshot != nil
         web.load(URLRequest(url: url))
     }
 
@@ -140,12 +178,15 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         config.snapshotWidth = NSNumber(value: Double(web.bounds.width))
         web.takeSnapshot(with: config) { [weak self] image, _ in
             MainActor.assumeIsolated {
-                if let image { self?.snapshot = image }
+                guard let self, let image else { return }
+                self.snapshot = image
+                if !self.isPrivate { Snapshots.write(image, for: self.key) }
             }
         }
     }
 
     func close() {
+        Snapshots.remove(key)
         watch = []
         scrolled = nil
         web.scrollView.delegate = nil
@@ -185,5 +226,43 @@ extension Tab: UIScrollViewDelegate {
 
     func scrollViewDidScrollToTop(_ view: UIScrollView) {
         scrolled?(.top)
+    }
+}
+
+/// Each tab's last picture, kept between launches so a restored tab can be
+/// walked past and seen in the sheet before its page has loaded. Small JPEGs,
+/// one per tab, gone when the tab is closed.
+enum Snapshots {
+    private static let folder = Store.folder.appendingPathComponent("snapshots", isDirectory: true)
+    private static func file(_ key: String) -> URL { folder.appendingPathComponent(key + ".jpg") }
+
+    static func read(_ key: String) -> UIImage? {
+        guard let data = try? Data(contentsOf: file(key)) else { return nil }
+        return UIImage(data: data, scale: UIScreen.main.scale)
+    }
+
+    static func write(_ image: UIImage, for key: String) {
+        let file = file(key)
+        DispatchQueue.global(qos: .utility).async {
+            guard let data = image.jpegData(compressionQuality: 0.7) else { return }
+            try? FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+            try? data.write(to: file, options: .atomic)
+        }
+    }
+
+    static func remove(_ key: String) {
+        let file = file(key)
+        DispatchQueue.global(qos: .utility).async { try? FileManager.default.removeItem(at: file) }
+    }
+
+    /// Every picture whose tab is gone: left over from a launch that ended
+    /// before it could clear up after itself.
+    static func prune(keeping keys: Set<String>) {
+        DispatchQueue.global(qos: .utility).async {
+            let files = (try? FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)) ?? []
+            for file in files where !keys.contains(file.deletingPathExtension().lastPathComponent) {
+                try? FileManager.default.removeItem(at: file)
+            }
+        }
     }
 }
