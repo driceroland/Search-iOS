@@ -32,6 +32,7 @@ struct ContentView: View {
     @ObservedObject var browser: Browser
 
     @Namespace private var space
+    @StateObject private var keyboard = Keyboard()
     @Environment(\.accessibilityReduceMotion) private var still
 
     /// How far the pages are walked sideways, in points.
@@ -76,9 +77,7 @@ struct ContentView: View {
                     )
                     .opacity(1 - lift)
                     .allowsHitTesting(lift == 0 && !landing && !browser.holding)
-                    // A page's own field raises the keyboard; the pill stays
-                    // where it is, under it, as Safari's does.
-                    .ignoresSafeArea(.keyboard)
+                    .transition(.opacity)
                 }
 
                 if browser.holding, let tab = browser.active {
@@ -103,17 +102,20 @@ struct ContentView: View {
                 Sheet(
                         browser: browser,
                         space: space,
-                        drag: { moved in lift = 1 - max(-0.15, moved / sheetHeight) },
+                        drag: { moved in lift = moved < 0 ? 1 + Self.give(-moved) / sheetHeight : 1 - moved / sheetHeight },
                         dropped: { moved, speed in dropped(moved, speed: speed) },
                         height: { sheetHeight = max(200, $0) }
                     )
                     .offset(y: (1 - lift) * (sheetHeight + 40))
                     .allowsHitTesting(browser.showingTabs)
-                    .ignoresSafeArea(.keyboard)
                     .accessibilityHidden(!browser.showingTabs)
 
                 if browser.editing {
                     Field(browser: browser, space: space)
+                        // Above the keyboard, by the keyboard's own measure:
+                        // this view ignores it, so nothing else moves when
+                        // it comes and goes.
+                        .padding(.bottom, max(0, keyboard.height - geo.safeAreaInsets.bottom))
                         .transition(.opacity)
                 }
 
@@ -127,11 +129,16 @@ struct ContentView: View {
                         .padding(.bottom, Metrics.pill + 22)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                         .allowsHitTesting(false)
-                        .ignoresSafeArea(.keyboard)
                 }
             }
-            .animation(Motion.glide, value: browser.editing)
+            // The pill becomes the field, and the field the pill, on the
+            // keyboard's curve and in its time.
+            .animation(still ? Motion.quick : keyboard.curve, value: browser.editing)
         }
+        // Nothing here makes room for the keyboard by itself: the field
+        // follows it (above), and the pill stays under it, as Safari's does,
+        // when a page's own form raises it.
+        .ignoresSafeArea(.keyboard)
         .onChange(of: browser.showingTabs) { _, open in
             let target: CGFloat = open ? 1 : 0
             guard lift != target else { return }
@@ -231,7 +238,8 @@ struct ContentView: View {
 
     private func lifting(_ moved: CGFloat) {
         if !browser.showingTabs, lift == 0 { browser.active?.capture() }
-        lift = min(1.08, max(0, -moved / sheetHeight))
+        let up = -moved
+        lift = up <= sheetHeight ? max(0, up / sheetHeight) : 1 + Self.give(up - sheetHeight) / sheetHeight
     }
 
     private func lifted(_ moved: CGFloat, speed: CGFloat) {
@@ -240,6 +248,11 @@ struct ContentView: View {
 
     private func dropped(_ moved: CGFloat, speed: CGFloat) {
         settle(open: lift - (speed * 0.15) / sheetHeight > 0.5, speed: -speed)
+    }
+
+    /// Past its resting place the sheet gives a few points, and no more.
+    static func give(_ over: CGFloat) -> CGFloat {
+        8 * (1 - exp(-over / 40))
     }
 
     /// Lets the sheet go, up or down, at the speed it was let go at.

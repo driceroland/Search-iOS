@@ -38,6 +38,9 @@ struct Sheet: View {
             UnevenRoundedRectangle(topLeadingRadius: 30, topTrailingRadius: 30, style: .continuous)
                 .fill(Palette.ground)
                 .shadow(color: .black.opacity(0.12), radius: 30, y: -6)
+                // Runs on below the screen's edge, so the few points it gives
+                // when pulled up never show what's under it.
+                .padding(.bottom, -200)
                 .ignoresSafeArea(edges: .bottom)
         )
         .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height($0) }
@@ -245,7 +248,8 @@ struct Sheet: View {
                 Group {
                     if tab.loading {
                         Ring(size: 12)
-                    } else {
+                    } else if !tab.isBlank {
+                        // A new tab isn't a site: no icon, no letter.
                         Mark(icon: tab.icon, letter: tab.letter, size: 18)
                     }
                 }

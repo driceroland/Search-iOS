@@ -183,3 +183,48 @@ struct Hold: UIGestureRecognizerRepresentable {
         if recognizer.state == .began { action() }
     }
 }
+
+// MARK: - the keyboard
+
+/// Where the keyboard is, moved the way the keyboard moves. The field rides on
+/// it and the pill turns into the field and back on the same curve and in the
+/// same time, so the two travel as one thing instead of the field snapping
+/// while the keyboard is still on its way.
+@MainActor
+final class Keyboard: ObservableObject {
+    /// How far the keyboard reaches up from the bottom of the screen.
+    @Published private(set) var height: CGFloat = 0
+    /// How long the keyboard's last move took; the next one is the same.
+    private(set) var duration: Double = 0.25
+
+    private var watching: [NSObjectProtocol] = []
+
+    init() {
+        let center = NotificationCenter.default
+        for name in [UIResponder.keyboardWillShowNotification, UIResponder.keyboardWillHideNotification,
+                     UIResponder.keyboardWillChangeFrameNotification] {
+            watching.append(center.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
+                let info = note.userInfo ?? [:]
+                let end = (info[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue ?? .zero
+                let duration = (info[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0.25
+                let hiding = note.name == UIResponder.keyboardWillHideNotification
+                MainActor.assumeIsolated {
+                    guard let self else { return }
+                    let screen = UIScreen.main.bounds.height
+                    let reach = hiding ? 0 : max(0, screen - end.minY)
+                    if duration > 0 { self.duration = duration }
+                    guard reach != self.height else { return }
+                    withAnimation(Keyboard.curve(self.duration)) { self.height = reach }
+                }
+            })
+        }
+    }
+
+    /// The keyboard's own curve (UIKit's private curve 7), as SwiftUI can
+    /// say it.
+    static func curve(_ duration: Double) -> Animation {
+        .timingCurve(0.380, 0.700, 0.125, 1.000, duration: max(0.2, duration))
+    }
+
+    var curve: Animation { Keyboard.curve(duration) }
+}
