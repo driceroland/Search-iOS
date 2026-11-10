@@ -40,6 +40,12 @@ struct Settings: View {
                     Text("Third-party ad networks and trackers are stopped before they load. If a site breaks, hold the address and allow ads on that site alone.")
                 }
 
+                Section {
+                    Toggle("Handoff", isOn: $prefs.handoff)
+                } footer: {
+                    Text("The page you're on shows up on your Mac, and your Mac's page here, through Apple's Handoff: your own devices, nearby, on the same Apple Account. Private tabs never. Nothing is kept or synced.")
+                }
+
                 Section("Appearance") {
                     Picker("Appearance", selection: $prefs.look) {
                         ForEach(Look.allCases) { look in

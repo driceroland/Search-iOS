@@ -51,6 +51,12 @@ final class Prefs: ObservableObject {
         didSet { Shield.shared.enabled = shield }
     }
 
+    /// Offer the page on screen to one's own Mac, and take up the Mac's.
+    /// Off until turned on.
+    @Published var handoff: Bool {
+        didSet { store.set(handoff, forKey: "handoff") }
+    }
+
     var searchTemplate: String { engine.template(custom: customEngine) }
 
     private init() {
@@ -58,5 +64,6 @@ final class Prefs: ObservableObject {
         engine = store.string(forKey: "search.engine").flatMap(Engine.init) ?? Engine.standard
         customEngine = store.string(forKey: "search.custom") ?? ""
         shield = Shield.shared.enabled
+        handoff = store.bool(forKey: "handoff")
     }
 }

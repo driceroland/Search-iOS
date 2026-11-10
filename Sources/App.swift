@@ -198,6 +198,9 @@ struct ContentView: View {
         }
         .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { browser.safe = $0 }
         .onOpenURL { browser.open($0) }
+        .onContinueUserActivity(Handoff.browsing) { activity in
+            if let url = Handoff.address(in: activity) { browser.open(url) }
+        }
         .sheet(isPresented: $browser.settings) {
             Settings(browser: browser)
                 .presentationDetents([.large])

@@ -70,6 +70,7 @@ logosystem.co (light top, sign-up modal with a form), news.ycombinator.com
 | 30 | Long page | scrolls under the pill to the end; the end clears the pill |
 | 31 | Form page | the field in the page raises the keyboard; the pill stays at the bottom under it |
 | 32 | Download | Save to Files; a tab that only held the file closes |
+| 33 | Handoff | off by default; on: the active tab's page is offered and follows tab changes, a private tab offers nothing, off takes the offer back; a page from the Mac opens in a tab (device + Mac only) |
 
 ## Last run
 

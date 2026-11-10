@@ -64,6 +64,7 @@ final class Browser: NSObject, ObservableObject {
 
     override init() {
         super.init()
+        defer { offering = Offering(self, prefs: .shared) }
         Shield.shared.compile()
         Favicons.shared.arrived = { [weak self] key, image in
             for tab in self?.tabs ?? [] where tab.address.flatMap(Favicons.key) == key {
@@ -96,6 +97,9 @@ final class Browser: NSObject, ObservableObject {
             .sink { [weak self] id in self?.tabs.first { $0.id == id }?.wake() }
             .store(in: &bag)
     }
+
+    /// The page offered to one's own Mac, while Handoff is on.
+    private(set) var offering: Offering?
 
     /// The app going to the background: the page in front is pictured, so it
     /// is what comes back first next time.
