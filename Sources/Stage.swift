@@ -174,10 +174,13 @@ struct Still: View {
             // The band the live page has behind the clock, part of the card:
             // it shrinks and slides with the page and is there when the live
             // page takes over again, so nothing pops in at the end.
-            Band(tint: tint, height: top)
-                .opacity(Double(band))
+            // The fade the live page has under the clock, only while the
+            // card still sits where the page does.
+            if band > 0.01 {
+                Band(tint: tint, height: top)
+                    .opacity(Double(band))
+            }
         }
-        .ignoresSafeArea()
     }
 }
 

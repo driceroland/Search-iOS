@@ -277,16 +277,11 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         // came out shifted up with a sliver of the band at its edge.
         config.rect = web.bounds
         config.snapshotWidth = NSNumber(value: Double(web.bounds.width))
-        // At the top the page sits below the clock, but WebKit pictures it
-        // from its own top: the picture is moved down by that much and the
-        // page's colour fills the gap, so the card is the screen as it was.
-        let gap = max(0, -web.scrollView.contentOffset.y)
-        let fill = web.underPageBackgroundColor ?? .white
         web.takeSnapshot(with: config) { [weak self] taken, _ in
             MainActor.assumeIsolated {
                 // Copied into pixels of its own: what WebKit hands back can
                 // go on tracking the live page.
-                let image = taken.flatMap { Tab.copy($0, down: gap, fill: fill) }
+                let image = taken.flatMap { Tab.copy($0) }
                 if let self, let image {
                     self.snapshot = image
                     if !self.isPrivate { Snapshots.write(image, for: self.key) }
