@@ -632,6 +632,8 @@ extension Browser {
                 tab.pinName = def.name
                 tab.pinHome = home
                 tab.restore(home, title: def.title)
+                tab.icon = Favicons.shared.cached(home)
+                if tab.icon == nil { Favicons.shared.prefetch(home) }
                 kept.append(tab)
             }
         }

@@ -17,7 +17,7 @@ struct Page: View {
             WebStage(page: tab.isBlank ? nil : tab.web)
                 .background(Palette.ground)
                 .ignoresSafeArea()
-            Band(tint: tab.tint, height: top)
+            Band(tint: tab.tint ?? tab.ground, height: top)
         }
         .overlay {
             if tab.waking {
@@ -57,32 +57,50 @@ struct Card: View {
         }
         .clipped()
         .ignoresSafeArea()
-        .overlay(alignment: .top) { Band(tint: tab?.tint, height: top) }
+        .overlay(alignment: .top) { Band(tint: tab?.tint ?? tab?.ground, height: top) }
     }
 }
 
-/// The strip behind the status bar.
+/// Behind the status bar: the page's own colour, so the page reads as
+/// running up to the top edge. Where the clock wouldn't read on it (a white
+/// page in dark mode, a black one in light), a soft fade of the app's ground
+/// under the clock instead of a hard band.
 struct Band: View {
     var tint: UIColor?
     var height: CGFloat
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        colour
-            .frame(height: height)
-            .frame(maxWidth: .infinity)
-            .allowsHitTesting(false)
+        let page = resolved
+        ZStack(alignment: .top) {
+            Color(uiColor: page ?? UIColor(Palette.ground))
+                .frame(height: height)
+            if let page, !readable(page) {
+                LinearGradient(
+                    colors: [Palette.ground.opacity(0.92), Palette.ground.opacity(0.6), Palette.ground.opacity(0)],
+                    startPoint: .top, endPoint: .bottom
+                )
+                .frame(height: height + 18)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: height, alignment: .top)
+        .allowsHitTesting(false)
     }
 
-    /// The page's colour when the clock can be read on it, the ground when it
-    /// can't: the status bar's text follows the app's appearance, not the page.
-    private var colour: Color {
-        guard let tint else { return Palette.ground }
+    private var resolved: UIColor? {
+        guard let tint else { return nil }
+        let colour = tint.resolvedColor(with: UITraitCollection(userInterfaceStyle: scheme == .dark ? .dark : .light))
         var white: CGFloat = 0, alpha: CGFloat = 0
-        let resolved = tint.resolvedColor(with: UITraitCollection(userInterfaceStyle: scheme == .dark ? .dark : .light))
-        guard resolved.getWhite(&white, alpha: &alpha), alpha > 0.9 else { return Palette.ground }
-        let readable = scheme == .dark ? white < 0.4 : white > 0.6
-        return readable ? Color(uiColor: resolved) : Palette.ground
+        guard colour.getWhite(&white, alpha: &alpha), alpha > 0.9 else { return nil }
+        return colour
+    }
+
+    /// The clock follows the app's appearance: light text in dark mode.
+    private func readable(_ colour: UIColor) -> Bool {
+        var white: CGFloat = 0, alpha: CGFloat = 0
+        colour.getWhite(&white, alpha: &alpha)
+        return scheme == .dark ? white < 0.45 : white > 0.55
     }
 }
 

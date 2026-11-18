@@ -61,6 +61,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// The colour the page asks to be framed in, for the band under the
     /// status bar.
     @Published private(set) var tint: UIColor?
+    /// The page's own background, for when it names no colour of its own.
+    @Published private(set) var ground: UIColor?
     /// What the page last looked like, for walking past it and the sheet.
     @Published private(set) var snapshot: UIImage?
     /// One letter, when the tab has been pinned.
@@ -201,6 +203,12 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         pending = nil
         waking = snapshot != nil
         web.load(URLRequest(url: url))
+    }
+
+    /// The colour the page is painted, read once it has drawn.
+    func readGround() {
+        let colour = web.underPageBackgroundColor
+        if colour != ground { ground = colour }
     }
 
     func reload() { web.reload() }

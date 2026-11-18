@@ -89,6 +89,12 @@ final class Browser: NSObject, ObservableObject {
                 tab.icon = image
             }
         }
+        // Whichever tab comes to the front loads, if it hasn't yet: one
+        // brought back from yesterday, or a pin from another device.
+        $activeID
+            .removeDuplicates()
+            .sink { [weak self] id in self?.tabs.first { $0.id == id }?.wake() }
+            .store(in: &bag)
         let saved = Session.read()
         guard !saved.tabs.isEmpty else {
             adopt(Tab())
@@ -115,6 +121,7 @@ final class Browser: NSObject, ObservableObject {
             tab.pinName = entry.pinName
             tab.seen = entry.seen ?? Date()
             tab.restore(url, title: entry.title)
+            if tab.icon == nil { Favicons.shared.prefetch(url) }
             tabs.append(tab)
         }
         closed = Session.readClosed()
@@ -122,10 +129,6 @@ final class Browser: NSObject, ObservableObject {
         activeID = tabs[min(max(0, min(saved.active, tabs.count - 1)), tabs.count - 1)].id
         active?.wake()
         Snapshots.prune(keeping: Set(tabs.map(\.key)))
-        $activeID
-            .removeDuplicates()
-            .sink { [weak self] id in self?.tabs.first { $0.id == id }?.wake() }
-            .store(in: &bag)
     }
 
     /// The page offered to one's own Mac, while Handoff is on.
@@ -652,6 +655,7 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
         guard let tab = tabs.first(where: { $0.web === webView }) else { return }
         apply(Sites.shared.prefs(tab.address), to: tab)
+        tab.readGround()
     }
 
     /// The camera and the microphone: as decided for the site, or asked.
@@ -756,6 +760,7 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         else { return }
         if !tab.isPrivate { history.record(url, title: tab.title) }
         Favicons.shared.fetch(for: tab)
+        tab.readGround()
         // Again once the page is built: a page can set its own text size.
         apply(Sites.shared.prefs(url), to: tab)
     }

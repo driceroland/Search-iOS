@@ -76,8 +76,10 @@ struct Pill: View {
                     // where the eye already is.
                     Loading(tab: tab).clipShape(Capsule())
                 }
-                .matchedGeometryEffect(id: "pill", in: space, isSource: source)
         }
+        // The whole pill, its words with it, takes the field's place and
+        // gives it back: the words travel with the capsule, not after it.
+        .matchedGeometryEffect(id: "pill", in: space, isSource: source)
         .contentShape(Capsule())
         .gesture(Tap {
             if chrome.fold > 0.5 {

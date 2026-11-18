@@ -34,7 +34,7 @@ struct Sheet: View {
     private let row: CGFloat = 48
 
     /// More lines than the sheet has room for.
-    private var overflows: Bool { CGFloat(loose.count + 1) * (row + 2) + 4 > 420 }
+    private var overflows: Bool { CGFloat(loose.count) * (row + 2) + 4 > 420 }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -141,96 +141,6 @@ struct Sheet: View {
                     .transition(.opacity.combined(with: .scale(0.96, anchor: .leading)))
                 }
 
-                HStack(spacing: 0) {
-                    Button {
-                        Feel.tick()
-                        browser.newTab()
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "plus")
-                                .font(.scaled(14, weight: .medium))
-                                .frame(width: 18)
-                            Text("New tab").font(.scaled(15))
-                            Spacer()
-                        }
-                        .padding(.horizontal, 14)
-                        .frame(height: row)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    // Held: the pages closed lately, to bring one back.
-                    .contextMenu {
-                        if browser.closed.isEmpty {
-                            Text("Nothing closed lately")
-                        } else {
-                            Section("Recently Closed") {
-                                ForEach(Array(browser.closed.prefix(12).enumerated()), id: \.offset) { _, entry in
-                                    Button {
-                                        browser.reopen(entry)
-                                    } label: {
-                                        let site = URL(string: entry.url).map { Address.host($0) } ?? entry.url
-                                        Text(entry.title.isEmpty ? site : entry.title)
-                                        Text(site)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Button {
-                        browser.showingBookmarks = true
-                    } label: {
-                        Image(systemName: "book")
-                            .font(.scaled(15))
-                            .frame(width: 40, height: row)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Bookmarks")
-
-                    if Prefs.shared.sync {
-                        Button {
-                            browser.showingOthers = true
-                        } label: {
-                            Image(systemName: "laptopcomputer.and.iphone")
-                                .font(.scaled(15))
-                                .frame(width: 40, height: row)
-                                .contentShape(Rectangle())
-                        }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Other devices")
-                    }
-
-                    Button {
-                        browser.settings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                            .font(.scaled(15))
-                            .frame(width: 40, height: row)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Settings")
-
-                    // A tab that keeps nothing: no history, no cookies once
-                    // the last private tab closes, never written down.
-                    Button {
-                        Feel.tick()
-                        browser.newTab(private: true)
-                    } label: {
-                        HStack(spacing: 6) {
-                            Image(systemName: "eyeglasses")
-                                .font(.scaled(12, weight: .medium))
-                            Text("Private").font(.scaled(14))
-                        }
-                        .padding(.horizontal, 14)
-                        .frame(height: row)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-                .foregroundStyle(Palette.muted)
-                .padding(.horizontal, 0)
             }
             .padding(.horizontal, 8)
         }
@@ -240,7 +150,7 @@ struct Sheet: View {
         .scrollDisabled(!overflows)
         // Hugs what it holds. A sheet that always reserves room for ten tabs
         // looks broken when it is showing one.
-        .frame(height: min(CGFloat(loose.count + 1) * (row + 2) + 4, 420))
+        .frame(height: min(CGFloat(loose.count) * (row + 2) + 4, 420))
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             geo.contentOffset.y + geo.contentInsets.top
         } action: { _, offset in
@@ -255,10 +165,60 @@ struct Sheet: View {
         }
     }
 
+    /// What the sheet does besides the tabs, as a row of round buttons
+    /// along its foot: a new tab, a private one, the bookmarks, the other
+    /// devices' tabs, Settings. Icons only; each says what it is to
+    /// VoiceOver, and the new tab button, held, lists what was closed.
     private var foot: some View {
-        Color.clear
-            .frame(height: 14)
-            .contentShape(Rectangle())
+        HStack(spacing: 14) {
+            round("plus", "New tab") {
+                Feel.tick()
+                browser.newTab()
+            }
+            .contextMenu {
+                if browser.closed.isEmpty {
+                    Text("Nothing closed lately")
+                } else {
+                    Section("Recently Closed") {
+                        ForEach(Array(browser.closed.prefix(12).enumerated()), id: \.offset) { _, entry in
+                            Button {
+                                browser.reopen(entry)
+                            } label: {
+                                let site = URL(string: entry.url).map { Address.host($0) } ?? entry.url
+                                Text(entry.title.isEmpty ? site : entry.title)
+                                Text(site)
+                            }
+                        }
+                    }
+                }
+            }
+            round("eyeglasses", "New private tab") {
+                Feel.tick()
+                browser.newTab(private: true)
+            }
+            round("book", "Bookmarks") { browser.showingBookmarks = true }
+            if Prefs.shared.sync {
+                round("laptopcomputer.and.iphone", "Other devices") { browser.showingOthers = true }
+            }
+            round("gearshape", "Settings") { browser.settings = true }
+        }
+        .padding(.top, 10)
+        .padding(.bottom, 6)
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+    }
+
+    private func round(_ symbol: String, _ name: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.scaled(16, weight: .medium))
+                .foregroundStyle(Palette.ink)
+                .frame(width: 50, height: 50)
+                .background(Palette.wash, in: Circle())
+                .contentShape(Circle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(name)
     }
 
     // MARK: - moving

@@ -86,6 +86,27 @@ final class Favicons {
         }
     }
 
+    /// A site's icon without its page: a pin from another device, a tab
+    /// brought back before it has loaded. The places icons usually are.
+    func prefetch(_ url: URL) {
+        guard url.scheme?.hasPrefix("http") == true, let key = Favicons.key(url) else { return }
+        if let known = cached(url) {
+            arrived?(key, known)
+            return
+        }
+        guard !busy.contains(key), !missing.contains(key), let host = url.host() else { return }
+        busy.insert(key)
+        var root = URLComponents()
+        root.scheme = url.scheme
+        root.host = host
+        root.port = url.port
+        let candidates = ["/apple-touch-icon.png", "/favicon.ico"].compactMap { path -> URL? in
+            root.path = path
+            return root.url
+        }
+        Task { await self.download(candidates, key: key, keep: true) }
+    }
+
     private func download(_ candidates: [URL], key: String, keep: Bool) async {
         defer { busy.remove(key) }
         let session = URLSession(configuration: {

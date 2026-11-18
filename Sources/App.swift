@@ -224,7 +224,15 @@ struct ContentView: View {
                 withAnimation(Motion.settle) { browser.closeAll() }
             }
         }
-        .onAppear { Shortcuts.browser = browser }
+        .onAppear {
+            Shortcuts.browser = browser
+            #if DEBUG
+            // Test runs: `-open https://…` opens it, no typing needed.
+            if let address = UserDefaults.standard.string(forKey: "open"), let url = URL(string: address) {
+                browser.open(url)
+            }
+            #endif
+        }
     }
 
     private var loose: Int { browser.tabs.filter { $0.pin == nil }.count }
@@ -268,7 +276,7 @@ struct ContentView: View {
                         Card(tab: browser.neighbour(-1), top: top)
                             .offset(x: -(width + Metrics.gap) + walk)
                     }
-                    Still(image: frozen, tint: browser.active?.tint, top: top)
+                    Still(image: frozen, tint: browser.active?.tint ?? browser.active?.ground, top: top)
                         .overlay {
                             if browser.locked, browser.active?.isPrivate == true { Locked(browser: browser) }
                         }
