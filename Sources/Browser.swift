@@ -84,6 +84,10 @@ final class Browser: NSObject, ObservableObject {
             if Prefs.shared.sync { Sync.shared.start() }
         }
         Shield.shared.compile()
+        chrome.moved = { [weak self] in
+            guard let self, let tab = self.active else { return }
+            self.cover(tab)
+        }
         Favicons.shared.arrived = { [weak self] key, image in
             for tab in self?.tabs ?? [] where tab.address.flatMap(Favicons.key) == key {
                 tab.icon = image
@@ -333,7 +337,11 @@ final class Browser: NSObject, ObservableObject {
     private func cover(_ tab: Tab) {
         guard safe.bottom > 0 || safe.top > 0 else { return }
         let foot = Metrics.foot(safe.bottom)
-        tab.cover(top: safe.top, bottom: foot, least: safe.bottom + Metrics.pillFolded, most: foot)
+        let least = Metrics.footFolded(safe.bottom)
+        // As in Safari: what the bar covers follows the bar as it folds, so
+        // a page's fixed button at the bottom goes down with it.
+        let now = foot - (foot - least) * chrome.fold
+        tab.cover(top: safe.top, bottom: now, least: least, most: foot)
     }
 
     private func prepare(_ tab: Tab) {
@@ -862,13 +870,17 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
 /// The pill's fold: 0 open, 1 folded down to the site's name.
 @MainActor
 final class Chrome: ObservableObject {
-    @Published private(set) var fold: CGFloat = 0
+    @Published private(set) var fold: CGFloat = 0 {
+        didSet { if fold != oldValue { moved?() } }
+    }
     /// Where the fold came to rest: folded or open. Pages are told only
     /// when it settles, so a fixed button doesn't jitter with every scroll.
     private(set) var folded = false {
         didSet { if folded != oldValue { settled?() } }
     }
     var settled: (() -> Void)?
+    /// Told whenever the fold changes, for what the page is told it covers.
+    var moved: (() -> Void)?
 
     /// How far a page has to travel to fold the pill all the way.
     private let travel: CGFloat = 44

@@ -34,18 +34,29 @@ struct Pill: View {
     /// side buttons melt into the pill and out of it again.
     @Namespace private var glass
 
-    /// While the page scrolls down: the side buttons go, the pill narrows a
-    /// little. Its height and its words stay as they are.
-    private var tucked: Bool { chrome.fold > 0.5 }
+    /// How far the bar has folded, following the page as Safari's does: 0
+    /// open, 1 the small capsule with the site's name alone.
+    private var f: CGFloat { chrome.fold }
+    private var tucked: Bool { f > 0.5 }
+    /// The site's name at the folded size, measured, so the capsule can
+    /// close in around it.
+    @State private var nameWidth: CGFloat = 80
 
     var body: some View {
-        bar
-            .padding(.horizontal, tucked ? 40 : 16)
-            .padding(.bottom, 8)
-            .animation(Motion.glide, value: tucked)
-            .contentShape(Rectangle())
-            .gesture(Pan(action: pan))
-            .gesture(Hold { if !tucked { Feel.nudge(); hold() } })
+        GeometryReader { geo in
+            let full = geo.size.width - 32
+            let small = min(full, nameWidth + 36)
+            // Open: the whole width. Folded: just round the name.
+            let inset = 16 + (full - small) / 2 * f
+            bar
+                .padding(.horizontal, inset)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+        }
+        .frame(height: Metrics.pill)
+        .padding(.bottom, 8 - 6 * f)
+        .contentShape(Rectangle())
+        .gesture(Pan(action: pan))
+        .gesture(Hold { if !tucked { Feel.nudge(); hold() } })
     }
 
     @ViewBuilder
@@ -58,55 +69,66 @@ struct Pill: View {
     }
 
     private var row: some View {
-        HStack(spacing: 8) {
-            if !tucked {
+        HStack(alignment: .bottom, spacing: 8 * (1 - f)) {
+            // Gone altogether once folded: glass merged into the pill would
+            // otherwise keep showing their symbols beside it.
+            if f < 0.95 {
                 side("chevron.left", "Back", id: "back", enabled: tab.canGoBack) {
                     guard tab.canGoBack else { return }
                     Feel.tick()
                     tab.back()
                 }
-                .transition(.scale(0.6).combined(with: .opacity))
             }
             address
-            if !tucked {
+            if f < 0.95 {
                 side("square.on.square", "Tabs", id: "tabs", enabled: true) { tabs() }
                     .accessibilityValue(Text("\(count)"))
-                    .transition(.scale(0.6).combined(with: .opacity))
             }
         }
     }
 
     private var address: some View {
-        HStack(spacing: 7) {
-            if heading == nil, tab.isPrivate {
+        let height = Metrics.pill - (Metrics.pill - Metrics.pillFolded) * f
+        return HStack(spacing: 7) {
+            if heading == nil, tab.isPrivate, !tucked {
                 Image(systemName: "eyeglasses")
                     .font(.scaled(12, weight: .medium))
                     .foregroundStyle(.secondary)
             }
-            if heading == nil, !tab.isBlank {
+            if heading == nil, !tab.isBlank, !tucked {
                 if tab.loading {
                     Ring()
                 } else {
                     Mark(icon: tab.icon, letter: tab.letter, size: 15)
                 }
             }
-            if heading == nil, tab.address?.scheme?.lowercased() == "http" {
+            if heading == nil, tab.address?.scheme?.lowercased() == "http", !tucked {
                 // Safari's word for a page sent in the clear.
                 Text("Not secure")
                     .font(.scaled(13, weight: .medium))
                     .foregroundStyle(.secondary)
             }
             Text(heading ?? tab.short)
-                .font(.scaled(15.5))
+                .font(.scaled(15.5 - 3 * f))
                 .foregroundStyle(tab.isBlank && heading == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .id(heading ?? tab.short)
                 .transition(.opacity)
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, 14 - 4 * f)
         .frame(maxWidth: .infinity)
-        .frame(height: Metrics.pill)
+        .frame(height: height)
+        .background {
+            // The name at its folded size, never shown: how narrow the
+            // capsule may get.
+            Text(heading ?? tab.short)
+                .font(.scaled(12.5))
+                .lineLimit(1)
+                .fixedSize()
+                .hidden()
+                .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { nameWidth = $0 }
+        }
         .surface(Capsule(), id: "pill", in: glass)
         .overlay(alignment: .bottom) {
             // The loading line lives in the pill, along its foot, where the
@@ -125,6 +147,7 @@ struct Pill: View {
             }
         })
         .animation(Motion.quick, value: heading)
+        .animation(Motion.quick, value: tucked)
     }
 
     /// A round glass button either side of the pill: Back on the left, as in
@@ -134,11 +157,17 @@ struct Pill: View {
         Image(systemName: symbol)
             .font(.scaled(17, weight: .medium))
             .foregroundStyle(.primary)
-            .opacity(enabled ? 1 : 0.35)
+            .opacity((enabled ? 1 : 0.35) * Double(max(0, 1 - f * 1.8)))
             .frame(width: Metrics.pill, height: Metrics.pill)
             .surface(Circle(), id: id, in: glass)
             .contentShape(Circle())
             .gesture(Tap(action: action))
+            // Folding: it shrinks and fades into the pill, giving its room
+            // back as it goes.
+            .scaleEffect(1 - 0.5 * f, anchor: .center)
+            .opacity(Double(max(0, 1 - f * 1.8)))
+            .frame(width: Metrics.pill * (1 - f))
+            .allowsHitTesting(!tucked)
             .accessibilityLabel(name)
             .accessibilityAddTraits(.isButton)
     }

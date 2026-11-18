@@ -62,6 +62,8 @@ enum Metrics {
     /// a page's fixed button never moves while the page scrolls and never
     /// sits under the pill or the blur.
     static func foot(_ safeBottom: CGFloat) -> CGFloat { safeBottom + 8 + pill + 14 }
+    /// The same, with the bar folded to Safari's small capsule.
+    static func footFolded(_ safeBottom: CGFloat) -> CGFloat { safeBottom + pillFolded + 6 }
 
     /// Between two pages while they're being walked.
     static let gap: CGFloat = 12
