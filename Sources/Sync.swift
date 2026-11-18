@@ -130,7 +130,7 @@ final class Sync: NSObject, ObservableObject {
             engine.state.add(pendingDatabaseChanges: [.saveZone(CKRecordZone(zoneID: Sync.zoneID))])
         }
         UIApplication.shared.registerForRemoteNotifications()
-        Task { await self.join() }
+        Task.detached { await self.join() }
     }
 
     /// Off: this device's tabs leave the others, and nothing more goes up.
@@ -139,12 +139,14 @@ final class Sync: NSObject, ObservableObject {
         let key = "device.\(meta.device)"
         meta.values[key] = nil
         engine.state.add(pendingRecordZoneChanges: [.deleteRecord(Sync.record(key))])
-        Task {
+        Task.detached {
             try? await engine.sendChanges()
-            self.engine = nil
-            self.others = [:]
-            self.meta.joined = false
-            self.save()
+            await MainActor.run {
+                self.engine = nil
+                self.others = [:]
+                self.meta.joined = false
+                self.save()
+            }
         }
     }
 
@@ -155,13 +157,15 @@ final class Sync: NSObject, ObservableObject {
             stateSerialization: meta.state, delegate: self
         ))
         engine.state.add(pendingDatabaseChanges: [.deleteZone(Sync.zoneID)])
-        Task {
+        Task.detached {
             try? await engine.sendChanges()
-            self.engine = nil
-            self.meta = Meta(device: self.meta.device)
-            self.others = [:]
-            self.spaces = []
-            self.save()
+            await MainActor.run {
+                self.engine = nil
+                self.meta = Meta(device: self.meta.device)
+                self.others = [:]
+                self.spaces = []
+                self.save()
+            }
         }
     }
 
@@ -169,10 +173,10 @@ final class Sync: NSObject, ObservableObject {
     func refresh() {
         guard let engine else { return }
         if !meta.joined {
-            Task { await join() }
+            Task.detached { await self.join() }
             return
         }
-        Task { try? await engine.fetchChanges() }
+        Task.detached { try? await engine.fetchChanges() }
     }
 
     /// The first fetch, then what is here goes up.
@@ -384,7 +388,7 @@ final class Sync: NSObject, ObservableObject {
         switch change.changeType {
         case .signIn:
             problem = nil
-            Task { await join() }
+            Task.detached { await self.join() }
         case .signOut, .switchAccounts:
             // Another person's iCloud, or none: nothing of the last one stays.
             meta = Meta(device: meta.device)
