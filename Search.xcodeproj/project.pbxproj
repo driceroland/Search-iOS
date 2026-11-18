@@ -25,6 +25,8 @@
 		7DE3E7CBBF17562AB6503F0D /* Stage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28D643F97B5056D1B342A8FD /* Stage.swift */; };
 		5943FF98A9A452149B359458 /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7807EE2E079D5685A54B5084 /* Store.swift */; };
 		A1B2C3D4E5F6A7B8C9D0E1F2 /* Handoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E1D0C9B8A7F6E5D4C3B2A1 /* Handoff.swift */; };
+		B2C3D4E5F6A7B8C9D0E1F2A3 /* Keys.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D3E4F5A6B7C8D9E0F1A2B3 /* Keys.swift */; };
+		B1C2D3E4F5A6B7C8D9E0F1A2 /* Site.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1D2E3F4A5B6C7D8E9F0A1B2 /* Site.swift */; };
 		C146817CE1CA52479F9AE9A4 /* Tab.swift in Sources */ = {isa = PBXBuildFile; fileRef = EA870B8CDF2D5CE6AC9C75E1 /* Tab.swift */; };
 		782A0D32A3A35CEF96B045A1 /* Views.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC52428BD328590F9419F77D /* Views.swift */; };
 		AA11BB22CC33DD44EE550001 /* Mock.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550002 /* Mock.swift */; };
@@ -50,6 +52,8 @@
 		28D643F97B5056D1B342A8FD /* Stage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stage.swift; sourceTree = "<group>"; };
 		7807EE2E079D5685A54B5084 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
 		F2E1D0C9B8A7F6E5D4C3B2A1 /* Handoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Handoff.swift; sourceTree = "<group>"; };
+		C2D3E4F5A6B7C8D9E0F1A2B3 /* Keys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keys.swift; sourceTree = "<group>"; };
+		C1D2E3F4A5B6C7D8E9F0A1B2 /* Site.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Site.swift; sourceTree = "<group>"; };
 		EA870B8CDF2D5CE6AC9C75E1 /* Tab.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Tab.swift; sourceTree = "<group>"; };
 		BC52428BD328590F9419F77D /* Views.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Views.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550002 /* Mock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mock.swift; sourceTree = "<group>"; };
@@ -85,6 +89,8 @@
 				28D643F97B5056D1B342A8FD /* Stage.swift */,
 				7807EE2E079D5685A54B5084 /* Store.swift */,
 				F2E1D0C9B8A7F6E5D4C3B2A1 /* Handoff.swift */,
+				C2D3E4F5A6B7C8D9E0F1A2B3 /* Keys.swift */,
+				C1D2E3F4A5B6C7D8E9F0A1B2 /* Site.swift */,
 				EA870B8CDF2D5CE6AC9C75E1 /* Tab.swift */,
 				BC52428BD328590F9419F77D /* Views.swift */,
 				AA11BB22CC33DD44EE550002 /* Mock.swift */,
@@ -178,6 +184,8 @@
 				7DE3E7CBBF17562AB6503F0D /* Stage.swift in Sources */,
 				5943FF98A9A452149B359458 /* Store.swift in Sources */,
 				A1B2C3D4E5F6A7B8C9D0E1F2 /* Handoff.swift in Sources */,
+				B2C3D4E5F6A7B8C9D0E1F2A3 /* Keys.swift in Sources */,
+				B1C2D3E4F5A6B7C8D9E0F1A2 /* Site.swift in Sources */,
 				C146817CE1CA52479F9AE9A4 /* Tab.swift in Sources */,
 				782A0D32A3A35CEF96B045A1 /* Views.swift in Sources */,
 				AA11BB22CC33DD44EE550001 /* Mock.swift in Sources */,

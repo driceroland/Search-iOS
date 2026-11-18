@@ -5,6 +5,7 @@ import SwiftUI
 
 @main
 struct SearchApp: App {
+    @UIApplicationDelegateAdaptor(Shortcuts.self) private var shortcuts
     @StateObject private var browser = Browser()
     @ObservedObject private var prefs = Prefs.shared
     @Environment(\.scenePhase) private var phase
@@ -24,7 +25,11 @@ struct SearchApp: App {
             #endif
         }
         .onChange(of: phase) { _, now in
-            if now == .background { browser.rest() }
+            if now == .background {
+                browser.rest()
+                browser.lock()
+            }
+            if now == .active { browser.askToUnlock() }
         }
     }
 }
@@ -95,6 +100,7 @@ struct ContentView: View {
                         type: { withAnimation(still ? Motion.quick : keyboard.curve) { browser.edit() } },
                         tabs: { Feel.tick(); browser.showingTabs = true },
                         hold: { withAnimation(Motion.settle) { browser.holding = true } },
+                        closeAll: { browser.askingCloseAll = true },
                         walk: { walking($0, width: width) },
                         walked: { walked($0, speed: $1, width: width) },
                         lift: { lifting($0) },
@@ -112,18 +118,8 @@ struct ContentView: View {
                         .ignoresSafeArea()
                         .onTapGesture { withAnimation(Motion.settle) { browser.holding = false } }
                         .allowsHitTesting(browser.holding)
-                    Held(tab: tab, pinned: tab.pin != nil) {
+                    Held(browser: browser, tab: tab) {
                         withAnimation(Motion.settle) { browser.holding = false }
-                    } pin: {
-                        browser.pin(tab)
-                    } read: {
-                        browser.read(tab)
-                    } shield: {
-                        browser.shield(tab)
-                    } share: {
-                        browser.share(tab)
-                    } find: {
-                        browser.find(tab)
                     }
                     .padding(.bottom, Metrics.pill + 18)
                     .scaleEffect(browser.holding ? 1 : 0.9, anchor: .bottom)
@@ -156,7 +152,7 @@ struct ContentView: View {
 
                 if let words = browser.toast {
                     Text(words)
-                        .font(.system(size: 13))
+                        .font(.scaled(13))
                         .foregroundStyle(Palette.ink)
                         .padding(.horizontal, 15)
                         .padding(.vertical, 9)
@@ -205,7 +201,28 @@ struct ContentView: View {
             Settings(browser: browser)
                 .presentationDetents([.large])
         }
+        .sheet(isPresented: $browser.siteSheet) {
+            if let tab = browser.active {
+                SiteSheet(browser: browser, tab: tab)
+                    .presentationDetents([.medium, .large])
+            }
+        }
+        .confirmationDialog(
+            closeAllTitle, isPresented: $browser.askingCloseAll, titleVisibility: .visible
+        ) {
+            Button(closeAllButton, role: .destructive) {
+                Feel.nudge()
+                withAnimation(Motion.settle) { browser.closeAll() }
+            }
+        }
+        .onAppear { Shortcuts.browser = browser }
     }
+
+    private var loose: Int { browser.tabs.filter { $0.pin == nil }.count }
+    private var closeAllTitle: String {
+        browser.pinnedCount > 0 ? "Close every tab but the pinned ones?" : "Close every tab?"
+    }
+    private var closeAllButton: String { loose == 1 ? "Close 1 Tab" : "Close \(loose) Tabs" }
 
     // MARK: - the pages
 
@@ -227,6 +244,9 @@ struct ContentView: View {
             if let tab = browser.active {
                 Page(tab: tab, top: top)
                     .opacity(frozen == nil ? 1 : 0)
+                    .overlay {
+                        if browser.locked, tab.isPrivate { Locked(browser: browser) }
+                    }
             }
 
             if frozen != nil {
@@ -240,6 +260,9 @@ struct ContentView: View {
                             .offset(x: -(width + Metrics.gap) + walk)
                     }
                     Still(image: frozen, tint: browser.active?.tint, top: top)
+                        .overlay {
+                            if browser.locked, browser.active?.isPrivate == true { Locked(browser: browser) }
+                        }
                         .offset(x: walk)
                 }
                 .frame(width: width)

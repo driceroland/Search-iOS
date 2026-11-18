@@ -26,6 +26,31 @@ enum Look: String, CaseIterable, Identifiable {
     }
 }
 
+/// How long a tab may be left alone before it closes by itself.
+enum AutoClose: String, CaseIterable, Identifiable {
+    case never, day, week, month
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .never: return "Never"
+        case .day: return "After a day"
+        case .week: return "After a week"
+        case .month: return "After a month"
+        }
+    }
+
+    var interval: TimeInterval? {
+        switch self {
+        case .never: return nil
+        case .day: return 86_400
+        case .week: return 7 * 86_400
+        case .month: return 30 * 86_400
+        }
+    }
+}
+
 @MainActor
 final class Prefs: ObservableObject {
     static let shared = Prefs()
@@ -57,6 +82,22 @@ final class Prefs: ObservableObject {
         didSet { store.set(handoff, forKey: "handoff") }
     }
 
+    /// Tabs not looked at for a while close by themselves. Off until chosen.
+    @Published var autoClose: AutoClose {
+        didSet { store.set(autoClose.rawValue, forKey: "tabs.autoclose") }
+    }
+
+    /// Private tabs ask for Face ID when Search comes back. Off until on.
+    @Published var lockPrivate: Bool {
+        didSet { store.set(lockPrivate, forKey: "private.lock") }
+    }
+
+    /// The engine's own suggestions while typing. Off until on: it sends
+    /// what is typed to the engine before Go.
+    @Published var engineSuggestions: Bool {
+        didSet { store.set(engineSuggestions, forKey: "search.suggest") }
+    }
+
     var searchTemplate: String { engine.template(custom: customEngine) }
 
     private init() {
@@ -65,5 +106,8 @@ final class Prefs: ObservableObject {
         customEngine = store.string(forKey: "search.custom") ?? ""
         shield = Shield.shared.enabled
         handoff = store.bool(forKey: "handoff")
+        autoClose = store.string(forKey: "tabs.autoclose").flatMap(AutoClose.init) ?? .never
+        lockPrivate = store.bool(forKey: "private.lock")
+        engineSuggestions = store.bool(forKey: "search.suggest")
     }
 }

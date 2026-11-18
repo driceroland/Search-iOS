@@ -7,7 +7,11 @@ struct Suggestion: Identifiable, Equatable {
     let key: String
     let title: String
     let url: URL
-    var id: String { key }
+    /// A tab already open on it: taking it goes there.
+    var tab: UUID? = nil
+    /// Words the search engine proposed, not a place from history.
+    var search = false
+    var id: String { (tab != nil ? "tab:" : search ? "search:" : "") + key }
 }
 
 private struct Visit: Codable {
@@ -88,6 +92,13 @@ final class History: ObservableObject {
 
     func forget() {
         visits = [:]
+        save()
+    }
+
+    /// What was visited since a moment: its places go. A place visited
+    /// before and again since goes too; there is no telling the visits apart.
+    func forget(since moment: Date) {
+        visits = visits.filter { $0.value.last < moment }
         save()
     }
 

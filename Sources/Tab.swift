@@ -12,6 +12,8 @@ enum Web {
         config.allowsPictureInPictureMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = .audio
         config.applicationNameForUserAgent = userAgentTail
+        // A video's own full-screen button takes the whole screen.
+        config.preferences.isElementFullscreenEnabled = true
         return config
     }
 
@@ -69,6 +71,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published var icon: UIImage?
     /// A private tab keeps nothing: no history, no icons on disk, no cookies.
     let isPrivate: Bool
+    /// The page's text size, 1 for the site's own.
+    @Published var textZoom: Double = 1
+    /// When it was last the one in front, for closing tabs left alone.
+    var seen = Date()
 
     /// Told how the page scrolls, while a finger is on it or it is coasting.
     var scrolled: ((Scrolled) -> Void)?
@@ -123,6 +129,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         web.scrollView.delegate = self
         web.isFindInteractionEnabled = true
         Shield.shared.protect(web.configuration.userContentController)
+        // Pull the page down past its top to load it again.
+        let refresh = UIRefreshControl()
+        refresh.addTarget(self, action: #selector(pulled), for: .valueChanged)
+        web.scrollView.refreshControl = refresh
 
         watch = [
             web.observe(\.title, options: [.new]) { [weak self] _, _ in
@@ -147,7 +157,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
                 MainActor.assumeIsolated {
                     guard let self else { return }
                     self.loading = self.web.isLoading
-                    if !self.loading { self.waking = false }
+                    if !self.loading {
+                        self.waking = false
+                        self.web.scrollView.refreshControl?.endRefreshing()
+                    }
                 }
             },
             web.observe(\.canGoBack, options: [.new]) { [weak self] _, _ in
@@ -186,6 +199,15 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     }
 
     func reload() { web.reload() }
+    func stop() { web.stopLoading() }
+
+    @objc private func pulled() {
+        #if DEBUG
+        Probe.note("pulled")
+        #endif
+        Feel.tick()
+        if pending != nil { wake() } else { web.reload() }
+    }
     func back() { web.goBack() }
     func forward() { web.goForward() }
 
@@ -337,3 +359,14 @@ enum Snapshots {
         }
     }
 }
+
+#if DEBUG
+/// Test runs read what happened from a file in the app's tmp folder.
+enum Probe {
+    static func note(_ line: String) {
+        let file = FileManager.default.temporaryDirectory.appendingPathComponent("probe.txt")
+        let text = (try? String(contentsOf: file, encoding: .utf8)) ?? ""
+        try? (text + line + "\n").write(to: file, atomically: true, encoding: .utf8)
+    }
+}
+#endif

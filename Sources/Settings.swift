@@ -9,6 +9,7 @@ struct Settings: View {
     @Environment(\.dismiss) private var done
 
     @State private var askingData = false
+    @State private var askingHistory = false
 
     var body: some View {
         NavigationStack {
@@ -24,11 +25,23 @@ struct Settings: View {
                             .keyboardType(.URL)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
-                            .font(.system(size: 15))
+                            .font(.scaled(15))
                             .foregroundStyle(Engine.accepts(prefs.customEngine) || prefs.customEngine.isEmpty ? Palette.ink : .red)
                     }
+                    Toggle("Search suggestions", isOn: $prefs.engineSuggestions)
                 } footer: {
-                    Text("Words typed in the field go to this search when they aren't an address. Nothing you type is sent anywhere until you press Go.")
+                    Text(prefs.engineSuggestions
+                         ? "What you type is sent to \(prefs.engine.name(custom: prefs.customEngine)) as you type, so it can suggest searches. Never from private tabs."
+                         : "Words typed in the field go to this search when they aren't an address. Nothing you type is sent anywhere until you press Go.")
+                }
+
+                Section {
+                    Picker("Close tabs", selection: $prefs.autoClose) {
+                        ForEach(AutoClose.allCases) { Text($0.title).tag($0) }
+                    }
+                    Toggle("Lock private tabs", isOn: $prefs.lockPrivate)
+                } footer: {
+                    Text("Tabs you haven't looked at for that long close by themselves; pinned tabs never do. Locked private tabs ask for Face ID when you come back to Search.")
                 }
 
                 Section {
@@ -57,11 +70,8 @@ struct Settings: View {
                 }
 
                 Section {
-                    Button("Clear History") {
-                        browser.history.forget()
-                        Favicons.shared.forgetAll()
-                        Feel.tick()
-                        browser.say("History cleared")
+                    Button("Clear History…") {
+                        askingHistory = true
                     }
                     Button("Clear Cookies and Website Data", role: .destructive) {
                         askingData = true
@@ -85,6 +95,16 @@ struct Settings: View {
                 }
             }
             .confirmationDialog(
+                "Clear the history of…", isPresented: $askingHistory, titleVisibility: .visible
+            ) {
+                Button("The last hour") { clear(since: Date().addingTimeInterval(-3600)) }
+                Button("Today") { clear(since: Calendar.current.startOfDay(for: Date())) }
+                Button("Today and yesterday") {
+                    clear(since: Calendar.current.date(byAdding: .day, value: -1, to: Calendar.current.startOfDay(for: Date()))!)
+                }
+                Button("All time", role: .destructive) { clear(since: nil) }
+            }
+            .confirmationDialog(
                 "Every site you're signed in to will sign you out.",
                 isPresented: $askingData, titleVisibility: .visible
             ) {
@@ -99,6 +119,19 @@ struct Settings: View {
         }
         .tint(Palette.ink)
         .preferredColorScheme(prefs.look.scheme)
+    }
+
+    /// History from a moment on, or all of it; all of it takes the icons too.
+    private func clear(since moment: Date?) {
+        if let moment {
+            browser.history.forget(since: moment)
+        } else {
+            browser.history.forget()
+            Favicons.shared.forgetAll()
+        }
+        browser.forgetClosed()
+        Feel.tick()
+        browser.say("History cleared")
     }
 
     static var version: String {

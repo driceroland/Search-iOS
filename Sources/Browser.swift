@@ -32,6 +32,17 @@ final class Browser: NSObject, ObservableObject {
     /// The system's find bar is up; the pill steps aside for it.
     @Published var finding = false
     @Published var settings = false
+    /// "This site", out of the page's menu.
+    @Published var siteSheet = false
+    /// Held the count: close every tab?
+    @Published var askingCloseAll = false
+    /// Private tabs behind Face ID until it's given.
+    @Published var locked = false
+    /// What the search engine proposes for the words typed, when asked to.
+    @Published private(set) var searches: [Suggestion] = []
+    private var asking: URLSessionDataTask?
+    /// Pages closed lately, newest first, to bring back.
+    @Published private(set) var closed: [Session.Entry] = []
     private var findWatch: NSObjectProtocol?
     /// Bumped when what was typed can't be anywhere. The field shivers.
     @Published private(set) var refusals = 0
@@ -80,16 +91,25 @@ final class Browser: NSObject, ObservableObject {
         // Every tab comes back with its address, title and picture, and
         // none loads until it's shown: the one in front now, the rest when
         // they're reached. Nine tabs from yesterday cost nothing today.
+        // Tabs left alone longer than asked are closed on the way in;
+        // pinned ones never.
+        let limit = Prefs.shared.autoClose.interval
         for entry in saved.tabs {
             guard let url = URL(string: entry.url) else { continue }
+            if let limit, entry.pin == nil, let seen = entry.seen, Date().timeIntervalSince(seen) > limit {
+                Snapshots.remove(entry.key ?? "")
+                continue
+            }
             let tab = Tab(key: entry.key ?? UUID().uuidString)
             prepare(tab)
             tab.pin = entry.pin
+            tab.seen = entry.seen ?? Date()
             tab.restore(url, title: entry.title)
             tabs.append(tab)
         }
+        closed = Session.readClosed()
         if tabs.isEmpty { adopt(Tab()) }
-        activeID = tabs[min(max(0, saved.active), tabs.count - 1)].id
+        activeID = tabs[min(max(0, min(saved.active, tabs.count - 1)), tabs.count - 1)].id
         active?.wake()
         Snapshots.prune(keeping: Set(tabs.map(\.key)))
         $activeID
@@ -146,6 +166,7 @@ final class Browser: NSObject, ObservableObject {
         showingTabs = false
         guard tab.id != activeID else { return }
         active?.capture()
+        tab.seen = Date()
         activeID = tab.id
         editing = false
         chrome.unfold(animated: false)
@@ -166,15 +187,82 @@ final class Browser: NSObject, ObservableObject {
             remember()
             return
         }
+        bury(tab)
         tab.close()
         tabs.remove(at: index)
         // The last private tab gone: its cookie jar goes with it.
         if tab.isPrivate, !tabs.contains(where: \.isPrivate) { Web.forgetPrivate() }
         if tabs.isEmpty {
+            activeID = nil
             newTab()
             return
         }
         if activeID == tab.id { activeID = tabs[min(index, tabs.count - 1)].id }
+        if !tabs.contains(where: \.isPrivate) { locked = false }
+        remember()
+    }
+
+    /// A closed page, kept to be brought back. Never a private one.
+    private func bury(_ tab: Tab) {
+        guard !tab.isPrivate, let url = tab.address, url.scheme?.hasPrefix("http") == true else { return }
+        closed.insert(Session.Entry(url: url.absoluteString, title: tab.title, pin: nil, key: nil), at: 0)
+        if closed.count > 20 { closed.removeLast(closed.count - 20) }
+        Session.writeClosed(closed)
+    }
+
+    /// The last page closed, or the one picked, open again in front.
+    func reopen(_ entry: Session.Entry? = nil) {
+        guard let entry = entry ?? closed.first, let url = URL(string: entry.url) else {
+            say("Nothing to reopen")
+            return
+        }
+        closed.removeAll { $0.url == entry.url && $0.title == entry.title }
+        Session.writeClosed(closed)
+        // An empty tab in front takes it; otherwise it comes back beside it.
+        if let here = active, here.isBlank, !here.isPrivate {
+            here.go(to: url)
+        } else {
+            active?.capture()
+            let tab = Tab()
+            prepare(tab)
+            let here = activeIndex.map { $0 + 1 } ?? tabs.count
+            tabs.insert(tab, at: min(here, tabs.count))
+            tab.go(to: url)
+            activeID = tab.id
+        }
+        editing = false
+        showingTabs = false
+        chrome.unfold(animated: false)
+        remember()
+    }
+
+    /// The list of closed pages, gone with the history.
+    func forgetClosed() {
+        closed = []
+        Session.writeClosed([])
+    }
+
+    /// Every tab but the pinned ones.
+    func closeAll() {
+        let going = tabs.filter { $0.pin == nil }
+        for tab in going.reversed() { bury(tab) }
+        for tab in going { tab.close() }
+        tabs.removeAll { $0.pin == nil }
+        Web.forgetPrivate()
+        locked = false
+        activeID = nil
+        newTab()
+        remember()
+    }
+
+    /// A tab dragged to another place among the others.
+    func move(_ tab: Tab, before target: Tab) {
+        guard tab.id != target.id,
+              let from = tabs.firstIndex(where: { $0.id == tab.id }),
+              let to = tabs.firstIndex(where: { $0.id == target.id }),
+              (tab.pin == nil) == (target.pin == nil)
+        else { return }
+        tabs.move(fromOffsets: IndexSet(integer: from), toOffset: to > from ? to + 1 : to)
         remember()
     }
 
@@ -217,6 +305,9 @@ final class Browser: NSObject, ObservableObject {
     private func prepare(_ tab: Tab) {
         tab.web.navigationDelegate = self
         tab.web.uiDelegate = self
+        let controller = tab.web.configuration.userContentController
+        controller.removeScriptMessageHandler(forName: Zap.handler)
+        controller.add(ZapRelay(self), name: Zap.handler)
         cover(tab)
         tab.scrolled = { [weak self, weak tab] event in
             guard let self, let tab, tab.id == self.activeID else { return }
@@ -270,7 +361,10 @@ final class Browser: NSObject, ObservableObject {
     /// iOS can offer to add it to the Home Screen.
     func share(_ tab: Tab) {
         guard let url = tab.address else { return }
-        Present.share([url, tab.web])
+        let info = UIPrintInfo(dictionary: nil)
+        info.jobName = tab.label
+        info.outputType = .general
+        Present.share([url, tab.web, info, tab.web.viewPrintFormatter()], extra: [PDFActivity(tab: tab)])
     }
 
     /// The system's own find bar, over the keyboard.
@@ -322,6 +416,26 @@ final class Browser: NSObject, ObservableObject {
 
     // MARK: - the field
 
+    /// The address in front, to paste somewhere else.
+    func copyAddress(_ tab: Tab) {
+        guard let url = tab.address else { return }
+        UIPasteboard.general.url = url
+        say("Address copied")
+    }
+
+    /// What was copied: gone to, or searched for.
+    func pasteAndGo() {
+        let words = UIPasteboard.general.url?.absoluteString ?? UIPasteboard.general.string ?? ""
+        guard let url = Address.destination(for: words) else {
+            say("Nothing to paste")
+            return
+        }
+        holding = false
+        if active == nil { newTab() }
+        active?.go(to: url)
+        putAway()
+    }
+
     func edit() {
         typed = active?.address.map { Address.pretty($0) } ?? ""
         holding = false
@@ -363,18 +477,82 @@ final class Browser: NSObject, ObservableObject {
     }
 
     func take(_ offer: Suggestion) {
+        if let id = offer.tab, let there = tabs.first(where: { $0.id == id }) {
+            putAway()
+            // A blank tab that was only ever for typing goes.
+            if let here = active, here.isBlank, here.id != there.id {
+                tabs.removeAll { $0.id == here.id }
+                here.close()
+            }
+            select(there)
+            return
+        }
         active?.go(to: offer.url)
         putAway()
     }
 
     private func guess() {
-        guard !typed.trimmingCharacters(in: .whitespaces).isEmpty else {
+        let words = typed.trimmingCharacters(in: .whitespaces)
+        guard !words.isEmpty else {
             offers = []
+            searches = []
             ending = nil
+            asking?.cancel()
             return
         }
-        offers = history.suggestions(for: typed)
-        ending = history.completion(for: typed, among: offers)
+        let open = openTabs(for: words)
+        let taken = Set(open.map(\.key))
+        let places = history.suggestions(for: typed, limit: 4).filter { !taken.contains($0.key) }
+        offers = Array((open + places).prefix(4))
+        ending = history.completion(for: typed, among: places)
+        suggestSearches(for: words)
+    }
+
+    /// Tabs already open on what is being typed, other than this one.
+    private func openTabs(for words: String) -> [Suggestion] {
+        let needle = words.lowercased()
+        guard needle.count >= 2 else { return [] }
+        let privately = active?.isPrivate ?? false
+        return tabs.compactMap { tab -> Suggestion? in
+            guard tab.id != activeID, tab.isPrivate == privately, let url = tab.address else { return nil }
+            let key = Address.pretty(url).lowercased()
+            let bare = key.hasPrefix("www.") ? String(key.dropFirst(4)) : key
+            guard bare.hasPrefix(needle) || bare.contains("." + needle) || tab.title.lowercased().contains(needle)
+            else { return nil }
+            return Suggestion(key: bare, title: tab.title, url: url, tab: tab.id)
+        }
+        .prefix(2)
+        .map { $0 }
+    }
+
+    /// The engine's own suggestions, when they were asked for, and never
+    /// from a private tab: what is typed goes to the engine as it is typed.
+    private func suggestSearches(for words: String) {
+        asking?.cancel()
+        guard Prefs.shared.engineSuggestions, active?.isPrivate == false,
+              Address.url(from: words) == nil,
+              let url = Prefs.shared.engine.suggestions(for: words)
+        else {
+            searches = []
+            return
+        }
+        let template = Prefs.shared.searchTemplate
+        let task = URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
+            let found = data.map(Engine.parseSuggestions) ?? []
+            DispatchQueue.main.async {
+                guard let self, self.typed.trimmingCharacters(in: .whitespaces) == words else { return }
+                self.searches = found.prefix(4).compactMap { phrase in
+                    Engine.url(for: phrase, template: template).map {
+                        Suggestion(key: phrase, title: "", url: $0, search: true)
+                    }
+                }
+            }
+        }
+        asking = task
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { [weak self] in
+            guard self?.asking === task else { return }
+            task.resume()
+        }
     }
 
     // MARK: - between launches
@@ -400,7 +578,8 @@ final class Browser: NSObject, ObservableObject {
         return Session.Shape(
             tabs: kept.map { tab in
                 Session.Entry(
-                    url: tab.address!.absoluteString, title: tab.title, pin: tab.pin, key: tab.key
+                    url: tab.address!.absoluteString, title: tab.title, pin: tab.pin, key: tab.key,
+                    seen: tab.id == activeID ? Date() : tab.seen
                 )
             },
             active: kept.firstIndex { $0.id == activeID } ?? 0
@@ -416,14 +595,15 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
     func webView(
         _ webView: WKWebView,
         decidePolicyFor action: WKNavigationAction,
-        decisionHandler: @escaping @MainActor (WKNavigationActionPolicy) -> Void
+        preferences: WKWebpagePreferences,
+        decisionHandler: @escaping @MainActor (WKNavigationActionPolicy, WKWebpagePreferences) -> Void
     ) {
         guard let url = action.request.url, let scheme = url.scheme?.lowercased() else {
-            decisionHandler(.allow)
+            decisionHandler(.allow, preferences)
             return
         }
         if !["http", "https", "about", "data", "blob", "file"].contains(scheme) {
-            decisionHandler(.cancel)
+            decisionHandler(.cancel, preferences)
             if action.navigationType == .linkActivated || action.targetFrame?.isMainFrame != false {
                 UIApplication.shared.open(url)
             }
@@ -431,8 +611,41 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         }
         if action.targetFrame?.isMainFrame == true {
             Shield.shared.tune(webView.configuration.userContentController, for: url.host()?.lowercased())
+            // The computer's version of the site, when it was asked for.
+            preferences.preferredContentMode = Sites.shared.prefs(url).desktop == true ? .desktop : .mobile
         }
-        decisionHandler(.allow)
+        decisionHandler(.allow, preferences)
+    }
+
+    /// The site's text size and hidden bits, as soon as the page is its own.
+    func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        guard let tab = tabs.first(where: { $0.web === webView }) else { return }
+        apply(Sites.shared.prefs(tab.address), to: tab)
+    }
+
+    /// The camera and the microphone: as decided for the site, or asked.
+    func webView(
+        _ webView: WKWebView,
+        requestMediaCapturePermissionFor origin: WKSecurityOrigin,
+        initiatedByFrame frame: WKFrameInfo,
+        type: WKMediaCaptureType,
+        decisionHandler: @escaping @MainActor (WKPermissionDecision) -> Void
+    ) {
+        let site = URL(string: "\(origin.protocol)://\(origin.host)")
+        let prefs = Sites.shared.prefs(site)
+        let asked: [Choice]
+        switch type {
+        case .camera: asked = [prefs.camera ?? .ask]
+        case .microphone: asked = [prefs.microphone ?? .ask]
+        default: asked = [prefs.camera ?? .ask, prefs.microphone ?? .ask]
+        }
+        if asked.contains(.deny) {
+            decisionHandler(.deny)
+        } else if asked.allSatisfy({ $0 == .allow }) {
+            decisionHandler(.grant)
+        } else {
+            decisionHandler(.prompt)
+        }
     }
 
     /// What a page can't show is a download.
@@ -470,6 +683,7 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
             return
         }
         let opener = tabs.first { $0.web === webView }
+        // No preview of our own: WebKit shows the page itself above the menu.
         let menu = UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
             UIMenu(children: [
                 UIAction(title: "Open in New Tab", image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in
@@ -489,6 +703,18 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         completionHandler(menu)
     }
 
+    /// The preview tapped: the link opens here.
+    func webView(
+        _ webView: WKWebView,
+        contextMenuForElement element: WKContextMenuElementInfo,
+        willCommitWithAnimator animator: UIContextMenuInteractionCommitAnimating
+    ) {
+        guard let url = element.linkURL else { return }
+        animator.addCompletion { [weak webView] in
+            webView?.load(URLRequest(url: url))
+        }
+    }
+
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
         tabs.first { $0.web === webView }?.reading = false
     }
@@ -499,6 +725,8 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         else { return }
         if !tab.isPrivate { history.record(url, title: tab.title) }
         Favicons.shared.fetch(for: tab)
+        // Again once the page is built: a page can set its own text size.
+        apply(Sites.shared.prefs(url), to: tab)
     }
 
     /// A link asking for a new window gets a new tab — a real one, built on
@@ -578,6 +806,8 @@ enum Session {
         var pin: String?
         /// The name of its picture on disk.
         var key: String?
+        /// When it was last the one in front.
+        var seen: Date? = nil
     }
 
     struct Shape: Codable {
@@ -592,6 +822,23 @@ enum Session {
               let shape = try? JSONDecoder().decode(Shape.self, from: data)
         else { return Shape(tabs: [], active: 0) }
         return shape
+    }
+
+    private static var closedFile: URL { Store.file("closed.json") }
+
+    static func readClosed() -> [Entry] {
+        guard let data = try? Data(contentsOf: closedFile),
+              let list = try? JSONDecoder().decode([Entry].self, from: data)
+        else { return [] }
+        return list
+    }
+
+    static func writeClosed(_ list: [Entry]) {
+        let file = closedFile
+        DispatchQueue.global(qos: .utility).async {
+            guard let data = try? JSONEncoder().encode(list) else { return }
+            try? data.write(to: file, options: .atomic)
+        }
     }
 
     static func write(_ shape: Shape) {

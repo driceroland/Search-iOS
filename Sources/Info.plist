@@ -25,6 +25,14 @@
 	<array>
 		<string>com.officecommun.search.browsing</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>A site you open asks for the camera, for a video call or a photo. Search asks you first, every time unless you choose otherwise in This site.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>A site you open asks for the microphone, for a call or a voice message. Search asks you first, every time unless you choose otherwise in This site.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>A site you open asks where you are, for a map or a nearby shop. It is passed to that site only, never kept by Search.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>Locked private tabs open with Face ID.</string>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>

@@ -25,6 +25,8 @@ struct Sheet: View {
     /// The drag under way is the sheet's (true), someone else's (false), or
     /// not decided yet (nil).
     @State private var dragging: Bool?
+    /// A line lifted to be put somewhere else.
+    @State private var carried: Tab?
 
     private var pinned: [Tab] { browser.tabs.filter { $0.pin != nil } }
     private var loose: [Tab] { browser.tabs.filter { $0.pin == nil } }
@@ -125,10 +127,17 @@ struct Sheet: View {
                         Feel.nudge()
                         withAnimation(Motion.settle) { browser.pin(tab) }
                     } content: {
-                        Line(tab: tab, live: tab.id == browser.activeID, space: space)
+                        Line(tab: tab, live: tab.id == browser.activeID, hidden: browser.locked && tab.isPrivate, space: space)
                             .contentShape(Rectangle())
                             .onTapGesture { pick(tab) }
                     }
+                    // Held and dragged: the line goes where it's let go.
+                    .onDrag {
+                        carried = tab
+                        Feel.nudge()
+                        return NSItemProvider(object: tab.id.uuidString as NSString)
+                    }
+                    .onDrop(of: [.text], delegate: Reorder(target: tab, carried: $carried, browser: browser))
                     .transition(.opacity.combined(with: .scale(0.96, anchor: .leading)))
                 }
 
@@ -139,9 +148,9 @@ struct Sheet: View {
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "plus")
-                                .font(.system(size: 14, weight: .medium))
+                                .font(.scaled(14, weight: .medium))
                                 .frame(width: 18)
-                            Text("New tab").font(.system(size: 15))
+                            Text("New tab").font(.scaled(15))
                             Spacer()
                         }
                         .padding(.horizontal, 14)
@@ -149,12 +158,30 @@ struct Sheet: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    // Held: the pages closed lately, to bring one back.
+                    .contextMenu {
+                        if browser.closed.isEmpty {
+                            Text("Nothing closed lately")
+                        } else {
+                            Section("Recently Closed") {
+                                ForEach(Array(browser.closed.prefix(12).enumerated()), id: \.offset) { _, entry in
+                                    Button {
+                                        browser.reopen(entry)
+                                    } label: {
+                                        let site = URL(string: entry.url).map { Address.host($0) } ?? entry.url
+                                        Text(entry.title.isEmpty ? site : entry.title)
+                                        Text(site)
+                                    }
+                                }
+                            }
+                        }
+                    }
 
                     Button {
                         browser.settings = true
                     } label: {
                         Image(systemName: "gearshape")
-                            .font(.system(size: 15))
+                            .font(.scaled(15))
                             .frame(width: 40, height: row)
                             .contentShape(Rectangle())
                     }
@@ -169,8 +196,8 @@ struct Sheet: View {
                     } label: {
                         HStack(spacing: 6) {
                             Image(systemName: "eyeglasses")
-                                .font(.system(size: 12, weight: .medium))
-                            Text("Private").font(.system(size: 14))
+                                .font(.scaled(12, weight: .medium))
+                            Text("Private").font(.scaled(14))
                         }
                         .padding(.horizontal, 14)
                         .frame(height: row)
@@ -270,7 +297,7 @@ struct Sheet: View {
                             Label("Close", systemImage: "xmark").padding(.trailing, 18)
                         }
                     }
-                    .font(.system(size: 13, weight: .medium))
+                    .font(.scaled(13, weight: .medium))
                     .labelStyle(.titleAndIcon)
                     .foregroundStyle(abs(shift) > reach ? Palette.ink : Palette.muted)
                     .opacity(Double(min(1, abs(shift) / 40)))
@@ -301,6 +328,25 @@ struct Sheet: View {
         }
     }
 
+    /// Where a carried line goes: before the line it's over.
+    private struct Reorder: DropDelegate {
+        let target: Tab
+        @Binding var carried: Tab?
+        let browser: Browser
+
+        func dropEntered(info: DropInfo) {
+            guard let carried, carried.id != target.id else { return }
+            withAnimation(Motion.settle) { browser.move(carried, before: target) }
+        }
+
+        func dropUpdated(info: DropInfo) -> DropProposal? { DropProposal(operation: .move) }
+
+        func performDrop(info: DropInfo) -> Bool {
+            carried = nil
+            return true
+        }
+    }
+
     /// A pinned tab: one letter, and its place at the head.
     private struct Letter: View {
         @ObservedObject var tab: Tab
@@ -320,7 +366,7 @@ struct Sheet: View {
                         .opacity(live ? 1 : 0.8)
                 } else {
                     Text(tab.pin ?? "")
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.scaled(16, weight: .medium))
                         .foregroundStyle(live ? Palette.ink : Palette.muted)
                 }
             }
@@ -343,6 +389,8 @@ struct Sheet: View {
     private struct Line: View {
         @ObservedObject var tab: Tab
         let live: Bool
+        /// A private tab while private tabs are locked: no title, no site.
+        var hidden = false
         let space: Namespace.ID
 
         var body: some View {
@@ -350,21 +398,21 @@ struct Sheet: View {
                 Group {
                     if tab.loading {
                         Ring(size: 12)
-                    } else if !tab.isBlank {
+                    } else if !tab.isBlank, !hidden {
                         // A new tab isn't a site: no icon, no letter.
                         Mark(icon: tab.icon, letter: tab.letter, size: 18)
                     }
                 }
                 .frame(width: 18, height: 18)
 
-                Text(tab.label)
-                    .font(.system(size: 15))
+                Text(hidden ? "Private tab" : tab.label)
+                    .font(.scaled(15))
                     .foregroundStyle(live ? Palette.ink : Palette.muted)
                     .lineLimit(1)
 
                 if tab.isPrivate {
                     Image(systemName: "eyeglasses")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.scaled(11, weight: .medium))
                         .foregroundStyle(Palette.muted)
                 }
 
@@ -373,9 +421,9 @@ struct Sheet: View {
                 // The domain keeps its room: it is the shorter of the two and
                 // the one that tells you which of three tabs on the same site
                 // you are looking at.
-                if let url = tab.address {
+                if let url = tab.address, !hidden {
                     Text(Address.host(url))
-                        .font(.system(size: 12.5))
+                        .font(.scaled(12.5))
                         .foregroundStyle(Palette.faint)
                         .lineLimit(1)
                         .truncationMode(.middle)

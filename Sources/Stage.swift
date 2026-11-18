@@ -49,7 +49,7 @@ struct Card: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             } else {
                 Text(tab?.label ?? "New tab")
-                    .font(.system(size: 15))
+                    .font(.scaled(15))
                     .foregroundStyle(Palette.muted)
                     .lineLimit(1)
                     .padding(.horizontal, 40)

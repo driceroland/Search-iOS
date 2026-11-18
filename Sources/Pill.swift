@@ -1,4 +1,5 @@
 import SwiftUI
+import WebKit
 
 /// The one thing on a page: where you are, and how many pages are open.
 ///
@@ -18,6 +19,7 @@ struct Pill: View {
     var type: () -> Void
     var tabs: () -> Void
     var hold: () -> Void
+    var closeAll: () -> Void = {}
     var walk: (CGFloat) -> Void
     var walked: (CGFloat, CGFloat) -> Void
     var lift: (CGFloat) -> Void
@@ -46,7 +48,7 @@ struct Pill: View {
         HStack(spacing: 7) {
             if heading == nil, tab.isPrivate {
                 Image(systemName: "eyeglasses")
-                    .font(.system(size: 12, weight: .medium))
+                    .font(.scaled(12, weight: .medium))
                     .foregroundStyle(Palette.muted)
             }
             if heading == nil, !tab.isBlank {
@@ -57,7 +59,7 @@ struct Pill: View {
                 }
             }
             Text(heading ?? tab.short)
-                .font(.system(size: 15.5))
+                .font(.scaled(15.5))
                 .foregroundStyle(tab.isBlank && heading == nil ? Palette.muted : Palette.ink)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -89,7 +91,7 @@ struct Pill: View {
 
     private func counter(_ f: CGFloat) -> some View {
         Text("\(count)")
-            .font(.system(size: 14, weight: .medium))
+            .font(.scaled(14, weight: .medium))
             .foregroundStyle(Palette.ink)
             .contentTransition(.numericText())
             .frame(width: Metrics.pill * (1 - f), height: Metrics.pill)
@@ -99,6 +101,8 @@ struct Pill: View {
             .frame(width: Metrics.pill * (1 - f))
             .contentShape(Circle())
             .gesture(Tap { tabs() })
+            // Held: close every tab, once asked.
+            .gesture(Hold { Feel.nudge(); closeAll() })
             .allowsHitTesting(f < 0.5)
             .animation(Motion.quick, value: count)
     }
@@ -170,43 +174,49 @@ private struct Loading: View {
 
 /// The page's own menu, out of the held pill.
 struct Held: View {
+    @ObservedObject var browser: Browser
     @ObservedObject var tab: Tab
-    var pinned: Bool
+    @ObservedObject private var sites = Sites.shared
     var done: () -> Void
-    var pin: () -> Void
-    var read: () -> Void
-    var shield: () -> Void
-    var share: () -> Void
-    var find: () -> Void
 
-    private var blocking: Bool {
-        Shield.shared.enabled && !Shield.shared.isPaused(on: tab.address?.host()?.lowercased())
-    }
+    private var zoom: Double { tab.textZoom }
 
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
-                arrow("chevron.left", enabled: tab.canGoBack) { tab.back() }
-                arrow("chevron.right", enabled: tab.canGoForward) { tab.forward() }
+                arrow("chevron.left", enabled: tab.canGoBack, list: tab.web.backForwardList.backList.reversed()) { tab.back() }
+                arrow("chevron.right", enabled: tab.canGoForward, list: tab.web.backForwardList.forwardList) { tab.forward() }
             }
             Rectangle().fill(Palette.hairline).frame(height: 1)
-            item("arrow.clockwise", "Reload") { tab.reload() }
-            line
-            item("square.and.arrow.up", "Share", action: share)
-            line
-            item("text.magnifyingglass", "Find on page", action: find)
-            line
-            item("doc.plaintext", tab.reading ? "Leave Reader" : "Reader", action: read)
-            if Shield.shared.enabled {
-                line
-                item(
-                    blocking ? "shield.slash" : "shield",
-                    blocking ? "Allow ads on this site" : "Block ads on this site",
-                    action: shield
-                )
+            HStack(spacing: 0) {
+                half("doc.on.doc", "Copy address", enabled: !tab.isBlank) { browser.copyAddress(tab) }
+                Rectangle().fill(Palette.hairline).frame(width: 1, height: 26)
+                half("doc.on.clipboard", "Paste and go", enabled: UIPasteboard.general.hasStrings || UIPasteboard.general.hasURLs) {
+                    browser.pasteAndGo()
+                }
             }
             line
-            item(pinned ? "pin.slash" : "pin", pinned ? "Unpin" : "Pin", action: pin)
+            if !tab.isBlank {
+                sizes
+                line
+            }
+            item(tab.loading ? "xmark" : "arrow.clockwise", tab.loading ? "Stop" : "Reload") {
+                tab.loading ? tab.stop() : tab.reload()
+            }
+            line
+            item("square.and.arrow.up", "Share") { browser.share(tab) }
+            line
+            item("text.magnifyingglass", "Find on page") { browser.find(tab) }
+            line
+            item("doc.plaintext", tab.reading ? "Leave Reader" : "Reader") { browser.read(tab) }
+            if !tab.isBlank {
+                line
+                item("eye.slash", "Hide an element") { browser.zap(tab) }
+                line
+                item("slider.horizontal.3", "This site") { browser.siteSheet = true }
+            }
+            line
+            item(tab.pin != nil ? "pin.slash" : "pin", tab.pin != nil ? "Unpin" : "Pin") { browser.pin(tab) }
         }
         .background(Palette.ground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
         .overlay(
@@ -221,20 +231,85 @@ struct Held: View {
         Rectangle().fill(Palette.hairline).frame(height: 1).padding(.leading, 54)
     }
 
-    private func arrow(_ name: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+    /// The text size, smaller and larger, and the size now: tapping it
+    /// goes back to 100 %. Kept for the site.
+    private var sizes: some View {
+        HStack(spacing: 0) {
+            Button {
+                Feel.tick()
+                browser.zoom(tab, step: -1)
+            } label: {
+                Text("A").font(.scaled(13)).frame(maxWidth: .infinity).frame(height: 46).contentShape(Rectangle())
+            }
+            .buttonStyle(Pressed())
+            Button {
+                Feel.tick()
+                browser.zoom(tab, step: 0)
+            } label: {
+                Text("\(Int((zoom * 100).rounded())) %")
+                    .font(.scaled(14))
+                    .monospacedDigit()
+                    .foregroundStyle(Palette.muted)
+                    .frame(maxWidth: .infinity).frame(height: 46).contentShape(Rectangle())
+            }
+            .buttonStyle(Pressed())
+            Button {
+                Feel.tick()
+                browser.zoom(tab, step: 1)
+            } label: {
+                Text("A").font(.scaled(19)).frame(maxWidth: .infinity).frame(height: 46).contentShape(Rectangle())
+            }
+            .buttonStyle(Pressed())
+        }
+        .foregroundStyle(Palette.ink)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Text size")
+    }
+
+    /// Back or forward; held, every page that way.
+    private func arrow(_ name: String, enabled: Bool, list: [WKBackForwardListItem], action: @escaping () -> Void) -> some View {
         Button {
             Feel.tick()
             action()
             done()
         } label: {
             Image(systemName: name)
-                .font(.system(size: 17, weight: .medium))
+                .font(.scaled(17, weight: .medium))
                 .foregroundStyle(enabled ? Palette.ink : Palette.faint)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .disabled(!enabled)
+        .contextMenu {
+            ForEach(Array(list.prefix(20).enumerated()), id: \.offset) { _, item in
+                Button {
+                    tab.web.go(to: item)
+                    done()
+                } label: {
+                    Text(item.title?.isEmpty == false ? item.title! : Address.pretty(item.url))
+                }
+            }
+        }
+    }
+
+    private func half(_ symbol: String, _ title: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Button {
+            Feel.tick()
+            action()
+            done()
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: symbol).font(.scaled(14))
+                Text(title).font(.scaled(14.5)).lineLimit(1).minimumScaleFactor(0.8)
+            }
+            .foregroundStyle(enabled ? Palette.ink : Palette.faint)
+            .frame(maxWidth: .infinity)
+            .frame(height: 46)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(Pressed())
         .disabled(!enabled)
     }
 
@@ -246,14 +321,14 @@ struct Held: View {
         } label: {
             HStack(spacing: 14) {
                 Image(systemName: symbol)
-                    .font(.system(size: 16))
+                    .font(.scaled(16))
                     .frame(width: 22)
-                Text(title).font(.system(size: 16))
+                Text(title).font(.scaled(16))
                 Spacer()
             }
             .foregroundStyle(Palette.ink)
             .padding(.horizontal, 18)
-            .frame(height: 50)
+            .frame(height: 48)
             .contentShape(Rectangle())
         }
         .buttonStyle(Pressed())

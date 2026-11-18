@@ -71,6 +71,27 @@ logosystem.co (light top, sign-up modal with a form), news.ycombinator.com
 | 31 | Form page | the field in the page raises the keyboard; the pill stays at the bottom under it |
 | 32 | Download | Save to Files; a tab that only held the file closes |
 | 33 | Handoff | off by default; on: the active tab's page is offered and follows tab changes, a private tab offers nothing, off takes the offer back; a page from the Mac opens in a tab (device + Mac only) |
+| 34 | Copy address / Paste and go | hold the pill: the row under the arrows; paste goes or searches |
+| 35 | Pull to refresh | pull the page past its top: it loads again |
+| 36 | Stop | while loading, Reload in the menu reads Stop |
+| 37 | Reopen a closed tab | hold New tab in the sheet: Recently Closed, title and site; an empty tab in front takes it |
+| 38 | Link preview | hold a link: the page above the menu; tap the preview, it opens here |
+| 39 | Text size | menu A / % / A: text grows and wraps, nothing runs off the side; kept for the site |
+| 40 | Desktop version | This site: the switch reloads the site as a computer sees it; kept for the site |
+| 41 | Switch to tab | type part of an open tab's site or title: "Switch to tab", takes you there, the empty tab goes |
+| 42 | Video full screen | a video's full-screen button fills the screen |
+| 43 | Tab history | hold a menu arrow: every page that way |
+| 44 | Reorder tabs | hold a line in the sheet and drag it |
+| 45 | Close all tabs | hold the count: confirm; pinned tabs stay |
+| 46 | This site | camera, microphone (Ask/Allow/Deny), ads, text size, desktop, hidden elements back |
+| 47 | Hide an element | menu, then tap it: gone now and on every visit to the site |
+| 48 | Print / PDF | share sheet: Print and Save as PDF |
+| 49 | Clear by period | Settings, Clear History: last hour, today, today and yesterday, all time |
+| 50 | Keyboard shortcuts | hardware keyboard: ⌘T ⌘W ⌘⇧T ⌘L ⌘R ⌘. ⌘[ ⌘] ⌘F ⌘1–9 ⌃Tab ⌘= ⌘- ⌘0 ⌘D (device or iPad only) |
+| 51 | Larger text | iOS text size up: the pill, sheet, menu and field grow and still fit |
+| 52 | Close tabs left alone | Settings, off by default: after a day/week/month, at launch; pins never |
+| 53 | Lock private tabs | Settings, off by default: back from the background on a private tab, Face ID (device only) |
+| 54 | Search suggestions | Settings, off by default: the engine's suggestions under history; never in private |
 
 ## Last run
 

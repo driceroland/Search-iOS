@@ -42,6 +42,39 @@ enum Engine: String, CaseIterable, Identifiable {
         return Engine.bareHost(of: custom) ?? Engine.standard.title
     }
 
+    /// Where the engine's suggestions come from, for the words so far. None
+    /// for a search address of one's own.
+    func suggestions(for words: String) -> URL? {
+        guard let q = words.addingPercentEncoding(withAllowedCharacters: Engine.unreserved) else { return nil }
+        let base: String
+        switch self {
+        case .google: base = "https://suggestqueries.google.com/complete/search?client=firefox&q="
+        case .duckduckgo: base = "https://duckduckgo.com/ac/?type=list&q="
+        case .bing: base = "https://api.bing.com/osjson.aspx?query="
+        case .ecosia: base = "https://ac.ecosia.org/autocomplete?type=list&q="
+        case .startpage: base = "https://www.startpage.com/osuggestions?q="
+        case .kagi: base = "https://kagi.com/api/autosuggest?q="
+        case .brave: base = "https://search.brave.com/api/suggest?q="
+        case .qwant: base = "https://api.qwant.com/v3/suggest?q="
+        case .custom: return nil
+        }
+        return URL(string: base + q)
+    }
+
+    /// The OpenSearch answer, ["words", ["one", "two"]], or Qwant's own.
+    static func parseSuggestions(_ data: Data) -> [String] {
+        guard let json = try? JSONSerialization.jsonObject(with: data) else { return [] }
+        if let list = json as? [Any], list.count > 1, let words = list[1] as? [String] {
+            return words
+        }
+        if let object = json as? [String: Any],
+           let inner = object["data"] as? [String: Any],
+           let items = inner["items"] as? [[String: Any]] {
+            return items.compactMap { $0["value"] as? String }
+        }
+        return []
+    }
+
     static func accepts(_ template: String) -> Bool {
         host(of: template) != nil
     }

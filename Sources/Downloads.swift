@@ -61,9 +61,9 @@ final class Downloads: NSObject, WKDownloadDelegate {
 /// UIKit's own sheets, from wherever SwiftUI is.
 @MainActor
 enum Present {
-    static func share(_ items: [Any]) {
+    static func share(_ items: [Any], extra: [UIActivity]? = nil) {
         guard let top = top() else { return }
-        let sheet = UIActivityViewController(activityItems: items, applicationActivities: nil)
+        let sheet = UIActivityViewController(activityItems: items, applicationActivities: extra)
         sheet.popoverPresentationController?.sourceView = top.view
         sheet.popoverPresentationController?.sourceRect = CGRect(
             x: top.view.bounds.midX, y: top.view.bounds.maxY - 60, width: 1, height: 1
@@ -85,5 +85,44 @@ enum Present {
         var top = scene?.keyWindow?.rootViewController
         while let next = top?.presentedViewController { top = next }
         return top
+    }
+}
+
+/// "Save as PDF" in the share sheet: the whole page, as one PDF, to Files.
+final class PDFActivity: UIActivity {
+    private weak var tab: Tab?
+
+    @MainActor init(tab: Tab) {
+        self.tab = tab
+        super.init()
+    }
+
+    override var activityTitle: String? { "Save as PDF" }
+    override var activityImage: UIImage? { UIImage(systemName: "doc.richtext") }
+    override var activityType: UIActivity.ActivityType? { .init("com.officecommun.search.pdf") }
+    override class var activityCategory: UIActivity.Category { .action }
+
+    override func canPerform(withActivityItems activityItems: [Any]) -> Bool { true }
+
+    override func perform() {
+        MainActor.assumeIsolated {
+            guard let tab else {
+                activityDidFinish(false)
+                return
+            }
+            let name = (tab.title.isEmpty ? "Page" : tab.title)
+                .replacingOccurrences(of: "/", with: "-")
+                .prefix(80)
+            tab.web.createPDF { [weak self] result in
+                guard case .success(let data) = result else {
+                    self?.activityDidFinish(false)
+                    return
+                }
+                let file = FileManager.default.temporaryDirectory.appendingPathComponent(name + ".pdf")
+                try? data.write(to: file, options: .atomic)
+                self?.activityDidFinish(true)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) { Present.export(file) }
+            }
+        }
     }
 }

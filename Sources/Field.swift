@@ -25,7 +25,7 @@ struct Field: View {
         VStack(spacing: 8) {
             Spacer(minLength: 0)
 
-            if !browser.offers.isEmpty {
+            if !(browser.offers.isEmpty && browser.searches.isEmpty) {
                 offers
                     .transition(.scale(0.98, anchor: .bottom).combined(with: .opacity))
             }
@@ -70,27 +70,41 @@ struct Field: View {
             withAnimation(Motion.quick) { refused = false }
         }
         .animation(Motion.settle, value: browser.offers)
+        .animation(Motion.settle, value: browser.searches)
     }
 
     private var offers: some View {
         VStack(spacing: 2) {
-            ForEach(Array(browser.offers.enumerated()), id: \.element.id) { index, offer in
+            ForEach(Array((browser.offers + browser.searches).enumerated()), id: \.element.id) { index, offer in
                 Button {
                     Feel.tick()
                     browser.take(offer)
                 } label: {
                     HStack(spacing: 10) {
+                        if offer.search {
+                            Image(systemName: "magnifyingglass")
+                                .font(.scaled(13))
+                                .foregroundStyle(Palette.muted)
+                        }
                         Text(offer.key)
-                            .font(.system(size: 15, weight: index == 0 ? .medium : .regular))
+                            .font(.scaled(15, weight: index == 0 ? .medium : .regular))
                             .foregroundStyle(Palette.ink)
                             .lineLimit(1)
                         if !offer.title.isEmpty {
                             Text(offer.title)
-                                .font(.system(size: 14))
+                                .font(.scaled(14))
                                 .foregroundStyle(Palette.muted)
                                 .lineLimit(1)
                         }
                         Spacer(minLength: 0)
+                        if offer.tab != nil {
+                            // Already open: taking it goes to that tab.
+                            Label("Switch to tab", systemImage: "square.on.square")
+                                .labelStyle(.titleAndIcon)
+                                .font(.scaled(12.5))
+                                .foregroundStyle(Palette.muted)
+                                .fixedSize()
+                        }
                     }
                     .padding(.horizontal, 14)
                     .frame(height: 44)
@@ -136,14 +150,14 @@ struct Field: View {
                     .submitLabel(.go)
                     .onSubmit { browser.submit() }
             }
-            .font(.system(size: 16))
+            .font(.scaled(16))
 
             if !browser.typed.isEmpty {
                 Button {
                     browser.typed = ""
                 } label: {
                     Image(systemName: "xmark.circle.fill")
-                        .font(.system(size: 16))
+                        .font(.scaled(16))
                         .foregroundStyle(Palette.faint)
                         .frame(width: 30, height: 30)
                         .contentShape(Rectangle())
