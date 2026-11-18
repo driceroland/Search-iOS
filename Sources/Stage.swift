@@ -60,7 +60,7 @@ struct Card: View {
         }
         .clipped()
         .ignoresSafeArea()
-        .overlay(alignment: .top) { Band(tint: tab?.tint ?? tab?.ground, height: top) }
+
     }
 }
 
@@ -155,6 +155,9 @@ struct Still: View {
     let image: UIImage?
     var tint: UIColor?
     var top: CGFloat
+    /// How much of the band still shows: none once the page has shrunk
+    /// away from the clock, where it has nothing left to do.
+    var band: CGFloat = 1
 
     var body: some View {
         ZStack(alignment: .top) {
@@ -172,6 +175,7 @@ struct Still: View {
             // it shrinks and slides with the page and is there when the live
             // page takes over again, so nothing pops in at the end.
             Band(tint: tint, height: top)
+                .opacity(Double(band))
         }
         .ignoresSafeArea()
     }

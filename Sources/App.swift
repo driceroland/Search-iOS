@@ -287,7 +287,7 @@ struct ContentView: View {
                         Card(tab: browser.neighbour(-1), top: top)
                             .offset(x: -(width + Metrics.gap) + walk)
                     }
-                    Still(image: frozen, tint: browser.active?.tint ?? browser.active?.ground, top: top)
+                    Still(image: frozen, tint: browser.active?.tint ?? browser.active?.ground, top: top, band: max(0, 1 - lift * 4))
                         .overlay {
                             if browser.locked, browser.active?.isPrivate == true { Locked(browser: browser) }
                         }

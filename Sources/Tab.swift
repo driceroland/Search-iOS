@@ -272,12 +272,21 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         }
         let config = WKSnapshotConfiguration()
         config.afterScreenUpdates = false
+        // The whole of it, the band under the clock included: left to
+        // itself WebKit pictures only what isn't covered, and the card
+        // came out shifted up with a sliver of the band at its edge.
+        config.rect = web.bounds
         config.snapshotWidth = NSNumber(value: Double(web.bounds.width))
+        // At the top the page sits below the clock, but WebKit pictures it
+        // from its own top: the picture is moved down by that much and the
+        // page's colour fills the gap, so the card is the screen as it was.
+        let gap = max(0, -web.scrollView.contentOffset.y)
+        let fill = web.underPageBackgroundColor ?? .white
         web.takeSnapshot(with: config) { [weak self] taken, _ in
             MainActor.assumeIsolated {
                 // Copied into pixels of its own: what WebKit hands back can
                 // go on tracking the live page.
-                let image = taken.flatMap(Tab.copy)
+                let image = taken.flatMap { Tab.copy($0, down: gap, fill: fill) }
                 if let self, let image {
                     self.snapshot = image
                     if !self.isPrivate { Snapshots.write(image, for: self.key) }
@@ -288,13 +297,17 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     }
 
     /// A picture drawn into a bitmap of its own.
-    private static func copy(_ image: UIImage) -> UIImage? {
+    private static func copy(_ image: UIImage, down: CGFloat = 0, fill: UIColor = .white) -> UIImage? {
         guard image.size.width > 0 else { return nil }
         let format = UIGraphicsImageRendererFormat()
         format.scale = image.scale
         format.opaque = true
-        let out = UIGraphicsImageRenderer(size: image.size, format: format).image { _ in
-            image.draw(at: .zero)
+        let out = UIGraphicsImageRenderer(size: image.size, format: format).image { context in
+            if down > 0 {
+                fill.setFill()
+                context.fill(CGRect(origin: .zero, size: image.size))
+            }
+            image.draw(at: CGPoint(x: 0, y: down))
         }
         return out.cgImage.map { UIImage(cgImage: $0, scale: image.scale, orientation: .up) }
     }
