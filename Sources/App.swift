@@ -62,6 +62,8 @@ struct ContentView: View {
     @State private var liftFrom: CGFloat = 0
     /// A finger is walking or lifting the page.
     @State private var dragging = false
+    /// The first launch's three screens.
+    @State private var welcoming = !Prefs.shared.welcomed
 
     var body: some View {
         GeometryReader { geo in
@@ -203,6 +205,15 @@ struct ContentView: View {
         .sheet(isPresented: $browser.settings) {
             Settings(browser: browser)
                 .presentationDetents([.large])
+        }
+        .fullScreenCover(isPresented: $welcoming) {
+            Welcome {
+                Prefs.shared.welcomed = true
+                welcoming = false
+                if browser.active?.isBlank == true { browser.editing = true }
+            }
+            .onAppear { browser.editing = false }
+            .preferredColorScheme(Prefs.shared.look.scheme)
         }
         .sheet(isPresented: $browser.showingBookmarks) {
             BookmarksView(browser: browser)

@@ -532,11 +532,29 @@ final class Browser: NSObject, ObservableObject {
             return
         }
         let open = openTabs(for: words)
-        let taken = Set(open.map(\.key))
+        var taken = Set(open.map(\.key))
+        let marked = bookmarked(words).filter { !taken.contains($0.key) }
+        taken.formUnion(marked.map(\.key))
         let places = history.suggestions(for: typed, limit: 4).filter { !taken.contains($0.key) }
-        offers = Array((open + places).prefix(4))
+        offers = Array((open + marked + places).prefix(4))
         ending = history.completion(for: typed, among: places)
         suggestSearches(for: words)
+    }
+
+    /// Bookmarks whose name or address has the words in it.
+    private func bookmarked(_ words: String) -> [Suggestion] {
+        let needle = words.lowercased()
+        guard needle.count >= 2 else { return [] }
+        return Bookmarks.flat(Bookmarks.shared.roots).compactMap { mark -> Suggestion? in
+            guard let raw = mark.url, let url = URL(string: raw) else { return nil }
+            let key = Address.pretty(url).lowercased()
+            let bare = key.hasPrefix("www.") ? String(key.dropFirst(4)) : key
+            guard bare.hasPrefix(needle) || bare.contains("." + needle) || mark.title.lowercased().contains(needle)
+            else { return nil }
+            return Suggestion(key: bare, title: mark.title, url: url)
+        }
+        .prefix(2)
+        .map { $0 }
     }
 
     /// Tabs already open on what is being typed, other than this one.
@@ -751,7 +769,50 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
     }
 
     func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
-        tabs.first { $0.web === webView }?.reading = false
+        let tab = tabs.first { $0.web === webView }
+        tab?.reading = false
+        tab?.failure = nil
+    }
+
+    /// A page that couldn't be reached: said, with a way to try again.
+    func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+        failed(webView, error)
+    }
+
+    func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+        failed(webView, error)
+    }
+
+    private func failed(_ webView: WKWebView, _ error: Error) {
+        let error = error as NSError
+        // Stopped, replaced by another page, or handed to a download or an
+        // app: not failures.
+        if error.domain == NSURLErrorDomain, error.code == NSURLErrorCancelled { return }
+        if error.domain == "WebKitErrorDomain", [102, 204].contains(error.code) { return }
+        guard let tab = tabs.first(where: { $0.web === webView }) else { return }
+        let url = (error.userInfo[NSURLErrorFailingURLErrorKey] as? URL) ?? tab.address
+        guard let url else { return }
+        tab.failure = Tab.Failure(url: url, reason: Browser.reason(error))
+    }
+
+    private static func reason(_ error: NSError) -> String {
+        guard error.domain == NSURLErrorDomain else { return error.localizedDescription }
+        switch error.code {
+        case NSURLErrorNotConnectedToInternet, NSURLErrorNetworkConnectionLost:
+            return String(localized: "You're offline.")
+        case NSURLErrorCannotFindHost, NSURLErrorDNSLookupFailed:
+            return String(localized: "This site can't be found. Check the address.")
+        case NSURLErrorTimedOut:
+            return String(localized: "The site took too long to answer.")
+        case NSURLErrorSecureConnectionFailed, NSURLErrorServerCertificateUntrusted,
+             NSURLErrorServerCertificateHasBadDate, NSURLErrorServerCertificateNotYetValid,
+             NSURLErrorServerCertificateHasUnknownRoot:
+            return String(localized: "The site's secure connection can't be trusted.")
+        case NSURLErrorCannotConnectToHost:
+            return String(localized: "The site isn't answering.")
+        default:
+            return error.localizedDescription
+        }
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {

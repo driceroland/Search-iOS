@@ -90,6 +90,16 @@ final class History: ObservableObject {
         return rest.isEmpty ? nil : rest
     }
 
+    /// The sites visited most, lately: whole sites, not pages.
+    func top(_ limit: Int) -> [Suggestion] {
+        let now = Date()
+        return visits.values
+            .filter { !$0.key.contains("/") }
+            .sorted { frecency($0, now: now) > frecency($1, now: now) }
+            .prefix(limit)
+            .compactMap { visit in URL(string: visit.url).map { Suggestion(key: visit.key, title: visit.title, url: $0) } }
+    }
+
     func forget() {
         visits = [:]
         save()

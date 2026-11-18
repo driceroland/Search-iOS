@@ -20,6 +20,9 @@ struct Page: View {
             Band(tint: tab.tint ?? tab.ground, height: top)
         }
         .overlay {
+            if let failure = tab.failure { Failed(tab: tab, failure: failure) }
+        }
+        .overlay {
             if tab.waking {
                 Card(tab: tab, top: top)
                     .allowsHitTesting(false)
@@ -265,5 +268,49 @@ final class FadeView: UIView {
 
     final class Gradient: UIView {
         override class var layerClass: AnyClass { CAGradientLayer.self }
+    }
+}
+
+/// Where a page couldn't be opened: what happened, and Try Again.
+struct Failed: View {
+    @ObservedObject var tab: Tab
+    let failure: Tab.Failure
+
+    var body: some View {
+        ZStack {
+            Palette.ground.ignoresSafeArea()
+            VStack(spacing: 14) {
+                Image(systemName: "wifi.exclamationmark")
+                    .font(.scaled(26, weight: .medium))
+                    .foregroundStyle(Palette.muted)
+                Text("Can't open this page")
+                    .font(.scaled(19, weight: .semibold))
+                    .foregroundStyle(Palette.ink)
+                Text(failure.reason)
+                    .font(.scaled(15))
+                    .foregroundStyle(Palette.muted)
+                    .multilineTextAlignment(.center)
+                Text(Address.pretty(failure.url))
+                    .font(.scaled(13))
+                    .foregroundStyle(Palette.faint)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+                Button {
+                    Feel.tick()
+                    tab.failure = nil
+                    tab.go(to: failure.url)
+                } label: {
+                    Text("Try Again")
+                        .font(.scaled(15, weight: .medium))
+                        .foregroundStyle(Palette.ink)
+                        .padding(.horizontal, 24)
+                        .frame(height: 44)
+                        .glass(Capsule(), interactive: true, else: Palette.wash)
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 6)
+            }
+            .padding(.horizontal, 40)
+        }
     }
 }

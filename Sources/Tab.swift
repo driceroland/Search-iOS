@@ -78,6 +78,13 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published var icon: UIImage?
     /// A private tab keeps nothing: no history, no icons on disk, no cookies.
     let isPrivate: Bool
+    /// A page that couldn't be opened: where, and why, said plainly.
+    struct Failure: Equatable {
+        let url: URL
+        let reason: String
+    }
+    @Published var failure: Failure?
+
     /// The page's text size, 1 for the site's own.
     @Published var textZoom: Double = 1
     /// When it was last the one in front, for closing tabs left alone.
@@ -175,6 +182,11 @@ final class Tab: NSObject, ObservableObject, Identifiable {
             },
             web.observe(\.canGoForward, options: [.new]) { [weak self] _, _ in
                 MainActor.assumeIsolated { self?.canGoForward = self?.web.canGoForward ?? false }
+            },
+            web.observe(\.fullscreenState, options: [.new]) { web, _ in
+                MainActor.assumeIsolated {
+                    Shortcuts.turning = web.fullscreenState == .inFullscreen || web.fullscreenState == .enteringFullscreen
+                }
             },
             web.observe(\.themeColor, options: [.new]) { [weak self] _, _ in
                 MainActor.assumeIsolated { self?.tint = self?.web.themeColor }

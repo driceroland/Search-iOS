@@ -58,6 +58,12 @@ struct Pill: View {
                     Mark(icon: tab.icon, letter: tab.letter, size: 15)
                 }
             }
+            if heading == nil, tab.address?.scheme?.lowercased() == "http" {
+                // Safari's word for a page sent in the clear.
+                Text("Not secure")
+                    .font(.scaled(13, weight: .medium))
+                    .foregroundStyle(Palette.muted)
+            }
             Text(heading ?? tab.short)
                 .font(.scaled(15.5))
                 .foregroundStyle(tab.isBlank && heading == nil ? Palette.muted : Palette.ink)
@@ -103,8 +109,6 @@ struct Pill: View {
             .frame(width: Metrics.pill * (1 - f))
             .contentShape(Circle())
             .gesture(Tap { tabs() })
-            // Held: close every tab, once asked.
-            .gesture(Hold { Feel.nudge(); closeAll() })
             .allowsHitTesting(f < 0.5)
             .animation(Motion.quick, value: count)
     }
@@ -140,19 +144,35 @@ struct Pill: View {
     }
 }
 
-/// The pill's surface: the ground, a little see-through over a blur of the
-/// page, so the page reads as running on under it and the address still reads
-/// in the light and in the dark.
+/// The pill's surface. On iOS 26, Liquid Glass: the system's own glass,
+/// bending the page under it and answering the finger. Before, the ground,
+/// a little see-through over a blur of the page.
 struct Glass<S: InsettableShape>: View {
     let shape: S
     var shadow: CGFloat = 1
 
     var body: some View {
-        shape
-            .fill(.regularMaterial)
-            .overlay(shape.fill(Palette.ground.opacity(0.72)))
-            .overlay(shape.strokeBorder(Palette.hairline, lineWidth: 1))
-            .shadow(color: .black.opacity(0.08 * shadow), radius: 20, y: 6)
+        if #available(iOS 26.0, *) {
+            Color.clear.glassEffect(.regular.interactive(), in: shape)
+        } else {
+            shape
+                .fill(.regularMaterial)
+                .overlay(shape.fill(Palette.ground.opacity(0.72)))
+                .overlay(shape.strokeBorder(Palette.hairline, lineWidth: 1))
+                .shadow(color: .black.opacity(0.08 * shadow), radius: 20, y: 6)
+        }
+    }
+}
+
+extension View {
+    /// Liquid Glass in this shape on iOS 26; the given colour before.
+    @ViewBuilder
+    func glass<S: Shape>(_ shape: S, interactive: Bool = false, else fallback: Color = Palette.ground) -> some View {
+        if #available(iOS 26.0, *) {
+            glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+        } else {
+            background(fallback, in: shape)
+        }
     }
 }
 
@@ -179,6 +199,7 @@ struct Held: View {
     @ObservedObject var browser: Browser
     @ObservedObject var tab: Tab
     @ObservedObject private var sites = Sites.shared
+    @ObservedObject private var bookmarks = Bookmarks.shared
     var done: () -> Void
 
     private var zoom: Double { tab.textZoom }
@@ -219,13 +240,22 @@ struct Held: View {
             }
             line
             item(tab.pin != nil ? "pin.slash" : "pin", tab.pin != nil ? "Unpin" : "Pin") { browser.pin(tab) }
+            if let url = tab.address, !tab.isPrivate {
+                line
+                if bookmarks.contains(url) {
+                    item("book.fill", "In Bookmarks") { browser.showingBookmarks = true }
+                } else {
+                    item("book", "Add to Bookmarks") {
+                        Bookmarks.shared.add(url, title: tab.title)
+                        browser.say(String(localized: "Added to Bookmarks"))
+                    }
+                }
+            }
+            line
+            item("xmark", "Close Tab") { browser.close(tab) }
         }
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 22, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.12), radius: 30, y: 10)
+        .glass(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .modifier(Edge(radius: 26))
         .padding(.horizontal, 16)
     }
 
@@ -296,7 +326,7 @@ struct Held: View {
         }
     }
 
-    private func half(_ symbol: String, _ title: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+    private func half(_ symbol: String, _ title: LocalizedStringKey, enabled: Bool, action: @escaping () -> Void) -> some View {
         Button {
             Feel.tick()
             action()
@@ -315,7 +345,7 @@ struct Held: View {
         .disabled(!enabled)
     }
 
-    private func item(_ symbol: String, _ title: String, action: @escaping () -> Void) -> some View {
+    private func item(_ symbol: String, _ title: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button {
             Feel.tick()
             action()
@@ -330,7 +360,7 @@ struct Held: View {
             }
             .foregroundStyle(Palette.ink)
             .padding(.horizontal, 18)
-            .frame(height: 48)
+            .frame(height: 46)
             .contentShape(Rectangle())
         }
         .buttonStyle(Pressed())
@@ -343,5 +373,23 @@ struct Pressed: ButtonStyle {
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
             .background(configuration.isPressed ? Palette.hover : Color.clear)
+    }
+}
+
+/// Before iOS 26, the hairline and shadow that stand in for glass.
+private struct Edge: ViewModifier {
+    let radius: CGFloat
+
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content
+        } else {
+            content
+                .overlay(
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .strokeBorder(Palette.hairline, lineWidth: 1)
+                )
+                .shadow(color: .black.opacity(0.12), radius: 30, y: 10)
+        }
     }
 }

@@ -13,6 +13,8 @@ import WebKit
 @MainActor
 final class Favicons {
     static let shared = Favicons()
+    /// Any icon arriving, for views that show sites rather than tabs.
+    static let came = Notification.Name("SearchIconArrived")
 
     /// Called with a key and its icon whenever one arrives, so every tab on
     /// that site can put it on at once.
@@ -124,6 +126,7 @@ final class Favicons {
             absent.remove(key)
             if keep { Favicons.keep(png, for: key) }
             arrived?(key, image)
+            NotificationCenter.default.post(name: Favicons.came, object: key)
             return
         }
         // Not asked again this session: hammering a site for an icon it

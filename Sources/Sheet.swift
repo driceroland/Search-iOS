@@ -85,6 +85,20 @@ struct Sheet: View {
                 .frame(width: 36, height: 5)
                 .padding(.top, 8)
                 .padding(.bottom, 14)
+                .frame(maxWidth: .infinity)
+                .overlay(alignment: .trailing) {
+                    // Every tab but the pins, once asked.
+                    if loose.count > 1 {
+                        Button("Close All") {
+                            Feel.nudge()
+                            browser.askingCloseAll = true
+                        }
+                        .font(.scaled(13.5))
+                        .foregroundStyle(Palette.muted)
+                        .padding(.horizontal, 18)
+                        .padding(.top, 6)
+                    }
+                }
 
             if !pinned.isEmpty {
                 VStack(spacing: 6) {
@@ -196,7 +210,7 @@ struct Sheet: View {
                     .foregroundStyle(Palette.ink)
                     .padding(.horizontal, 20)
                     .frame(height: 46)
-                    .background(Palette.wash, in: Capsule())
+                    .glass(Capsule(), interactive: true, else: Palette.wash)
                     .contentShape(Capsule())
             }
             .buttonStyle(.plain)
@@ -239,7 +253,7 @@ struct Sheet: View {
                 .font(.scaled(16, weight: .medium))
                 .foregroundStyle(Palette.ink)
                 .frame(width: 46, height: 46)
-                .background(Palette.wash, in: Circle())
+                .glass(Circle(), interactive: true, else: Palette.wash)
                 .contentShape(Circle())
         }
         .buttonStyle(.plain)

@@ -8,6 +8,24 @@ import LocalAuthentication
 final class Shortcuts: UIResponder, UIApplicationDelegate {
     @MainActor static weak var browser: Browser?
 
+    /// Portrait, the way the app is drawn, except while a video fills the
+    /// screen: then the phone can be turned.
+    @MainActor static var turning = false {
+        didSet {
+            guard turning != oldValue else { return }
+            let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
+            scene?.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
+            if !turning {
+                scene?.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
+            }
+        }
+    }
+
+    func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        if UIDevice.current.userInterfaceIdiom == .pad { return .all }
+        return MainActor.assumeIsolated { Shortcuts.turning } ? .allButUpsideDown : .portrait
+    }
+
     override var keyCommands: [UIKeyCommand]? {
         var keys: [UIKeyCommand] = [
             command("New Tab", "t", .command, #selector(newTab)),

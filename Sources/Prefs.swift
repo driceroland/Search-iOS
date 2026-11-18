@@ -121,6 +121,11 @@ final class Prefs: ObservableObject {
         didSet { store.set(syncSpace, forKey: "sync.space") }
     }
 
+    /// The welcome has been seen.
+    @Published var welcomed: Bool {
+        didSet { store.set(welcomed, forKey: "welcomed") }
+    }
+
     var searchTemplate: String { engine.template(custom: customEngine) }
 
     private init() {
@@ -132,6 +137,7 @@ final class Prefs: ObservableObject {
         autoClose = store.string(forKey: "tabs.autoclose").flatMap(AutoClose.init) ?? .never
         lockPrivate = store.bool(forKey: "private.lock")
         engineSuggestions = store.bool(forKey: "search.suggest")
+        welcomed = store.bool(forKey: "welcomed")
         sync = store.bool(forKey: "sync")
         syncSpace = store.string(forKey: "sync.space")
     }

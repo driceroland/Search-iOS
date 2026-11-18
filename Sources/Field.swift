@@ -28,6 +28,10 @@ struct Field: View {
             if !(browser.offers.isEmpty && browser.searches.isEmpty) {
                 offers
                     .transition(.scale(0.98, anchor: .bottom).combined(with: .opacity))
+            } else if blank, browser.typed.isEmpty {
+                // A new tab: where one usually goes, ready to be tapped.
+                Start(browser: browser)
+                    .transition(.opacity)
             }
 
             field
@@ -118,12 +122,7 @@ struct Field: View {
             }
         }
         .padding(6)
-        .background(Palette.ground, in: RoundedRectangle(cornerRadius: 18, style: .continuous))
-        .overlay(
-            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .strokeBorder(Palette.hairline, lineWidth: 1)
-        )
-        .shadow(color: .black.opacity(0.07), radius: 20, y: 6)
+        .background(Glass(shape: RoundedRectangle(cornerRadius: 24, style: .continuous)))
     }
 
     private var field: some View {
@@ -172,20 +171,93 @@ struct Field: View {
         .background {
             ZStack {
                 if blank { Breath(radius: 18) }
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(Palette.ground)
+                Glass(shape: RoundedRectangle(cornerRadius: 24, style: .continuous))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .strokeBorder(
-                                refused ? Color.red.opacity(0.35) : Palette.hairline,
-                                lineWidth: 1
-                            )
+                        RoundedRectangle(cornerRadius: 24, style: .continuous)
+                            .strokeBorder(Color.red.opacity(refused ? 0.35 : 0), lineWidth: 1)
                     )
-                    .shadow(color: .black.opacity(0.06), radius: 24, y: 8)
                     .matchedGeometryEffect(id: "pill", in: space, isSource: browser.editing)
             }
         }
         .modifier(Shake(travel: shake))
         .animation(Motion.quick, value: browser.typed.isEmpty)
+    }
+}
+
+/// A new tab's few suggestions before anything is typed: the bookmarks at
+/// the top of the list, then the sites visited most. Nothing if there are
+/// none yet: no sponsored tiles, no news.
+struct Start: View {
+    @ObservedObject var browser: Browser
+    @ObservedObject private var bookmarks = Bookmarks.shared
+    @State private var icons: [String: UIImage] = [:]
+
+    private var favourites: [Suggestion] {
+        bookmarks.roots.compactMap { mark in
+            guard let raw = mark.url, let url = URL(string: raw) else { return nil }
+            return Suggestion(key: Address.host(url), title: mark.title, url: url)
+        }
+        .prefix(8)
+        .map { $0 }
+    }
+
+    private var often: [Suggestion] {
+        let known = Set(favourites.map { Address.host($0.url) })
+        return browser.history.top(12)
+            .filter { !known.contains(Address.host($0.url)) }
+            .prefix(8)
+            .map { Suggestion(key: $0.key, title: "", url: $0.url) }
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            if !favourites.isEmpty { group("Bookmarks", favourites) }
+            if !often.isEmpty { group("Often visited", often) }
+        }
+        .padding(.horizontal, 6)
+        .padding(.bottom, 8)
+        .onAppear(perform: load)
+        .onReceive(NotificationCenter.default.publisher(for: Favicons.came)) { _ in load() }
+    }
+
+    private func group(_ title: LocalizedStringKey, _ sites: [Suggestion]) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(title)
+                .font(.scaled(13, weight: .medium))
+                .foregroundStyle(Palette.muted)
+                .padding(.leading, 8)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 12) {
+                ForEach(sites) { site in
+                    Button {
+                        Feel.tick()
+                        browser.take(site)
+                    } label: {
+                        VStack(spacing: 6) {
+                            Mark(icon: icons[Favicons.key(site.url) ?? ""], letter: String(Address.host(site.url).prefix(1)).uppercased(), size: 30)
+                                .frame(width: 58, height: 58)
+                                .glass(RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true, else: Palette.wash)
+                            Text(site.title.isEmpty ? Address.host(site.url) : site.title)
+                                .font(.scaled(11.5))
+                                .foregroundStyle(Palette.ink)
+                                .lineLimit(1)
+                        }
+                        .frame(maxWidth: .infinity)
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+
+    private func load() {
+        for site in favourites + often {
+            guard let key = Favicons.key(site.url) else { continue }
+            if let icon = Favicons.shared.cached(site.url) {
+                icons[key] = icon
+            } else {
+                Favicons.shared.prefetch(site.url)
+            }
+        }
     }
 }
