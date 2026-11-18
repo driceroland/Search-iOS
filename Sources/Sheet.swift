@@ -84,21 +84,12 @@ struct Sheet: View {
                 .fill(Palette.faint)
                 .frame(width: 36, height: 5)
                 .padding(.top, 8)
-                .padding(.bottom, 14)
+                .padding(.bottom, 6)
                 .frame(maxWidth: .infinity)
-                .overlay(alignment: .trailing) {
-                    // Every tab but the pins, once asked.
-                    if loose.count > 1 {
-                        Button("Close All") {
-                            Feel.nudge()
-                            browser.askingCloseAll = true
-                        }
-                        .font(.scaled(13.5))
-                        .foregroundStyle(Palette.muted)
-                        .padding(.horizontal, 18)
-                        .padding(.top, 6)
-                    }
-                }
+
+            header
+                .padding(.horizontal, 14)
+                .padding(.bottom, 12)
 
             if !pinned.isEmpty {
                 VStack(spacing: 6) {
@@ -234,7 +225,18 @@ struct Sheet: View {
                 }
             }
             round("book", "Bookmarks") { browser.showingBookmarks = true }
-            // The rest, less often reached for, behind one button.
+        }
+        .padding(.horizontal, 14)
+        .padding(.top, 10)
+        .padding(.bottom, 6)
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+    }
+
+    /// The sheet's head, as the system draws one: what else can be done on
+    /// the left, what this is in the middle, Done on the right.
+    private var header: some View {
+        HStack {
             Menu {
                 Button {
                     Feel.tick()
@@ -246,21 +248,50 @@ struct Sheet: View {
                     }
                 }
                 Button { browser.settings = true } label: { Label("Settings", systemImage: "gearshape") }
+                if loose.count > 1 {
+                    Divider()
+                    Button(role: .destructive) {
+                        Feel.nudge()
+                        browser.askingCloseAll = true
+                    } label: { Label("Close All", systemImage: "xmark") }
+                }
             } label: {
-                Image(systemName: "ellipsis")
-                    .font(.scaled(16, weight: .medium))
-                    .foregroundStyle(Palette.ink)
-                    .frame(width: 46, height: 46)
-                    .glass(Circle(), interactive: true, else: Palette.wash)
-                    .contentShape(Circle())
+                headerButton("ellipsis")
             }
             .accessibilityLabel("More")
+
+            Spacer(minLength: 8)
+
+            VStack(spacing: 1) {
+                Text("Search")
+                    .font(.scaled(16, weight: .semibold))
+                    .foregroundStyle(Palette.ink)
+                Text(browser.tabs.count == 1 ? String(localized: "1 tab") : String(localized: "\(browser.tabs.count) tabs"))
+                    .font(.scaled(12.5))
+                    .foregroundStyle(Palette.muted)
+                    .contentTransition(.numericText())
+            }
+
+            Spacer(minLength: 8)
+
+            Button {
+                Feel.tick()
+                browser.showingTabs = false
+            } label: {
+                headerButton("checkmark")
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Done")
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 10)
-        .padding(.bottom, 6)
-        .frame(maxWidth: .infinity)
-        .contentShape(Rectangle())
+    }
+
+    private func headerButton(_ symbol: String) -> some View {
+        Image(systemName: symbol)
+            .font(.scaled(15, weight: .semibold))
+            .foregroundStyle(Palette.ink)
+            .frame(width: 40, height: 40)
+            .glass(Circle(), interactive: true, else: Palette.wash)
+            .contentShape(Circle())
     }
 
     private func round(_ symbol: String, _ name: LocalizedStringKey, action: @escaping () -> Void) -> some View {

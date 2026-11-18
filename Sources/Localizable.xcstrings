@@ -17,6 +17,26 @@
         }
       }
     },
+    "%lld tabs": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld onglets"
+          }
+        }
+      }
+    },
+    "1 tab": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 onglet"
+          }
+        }
+      }
+    },
     "A": {
       "shouldTranslate": false
     },
@@ -906,6 +926,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Comme l'iPhone"
+          }
+        }
+      }
+    },
+    "Search": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search"
           }
         }
       }
