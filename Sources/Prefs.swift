@@ -11,9 +11,9 @@ enum Look: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .system: return "Same as iPhone"
-        case .light: return "Light"
-        case .dark: return "Dark"
+        case .system: return String(localized: "Same as iPhone")
+        case .light: return String(localized: "Light")
+        case .dark: return String(localized: "Dark")
         }
     }
 
@@ -34,10 +34,10 @@ enum AutoClose: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .never: return "Never"
-        case .day: return "After a day"
-        case .week: return "After a week"
-        case .month: return "After a month"
+        case .never: return String(localized: "Never")
+        case .day: return String(localized: "After a day")
+        case .week: return String(localized: "After a week")
+        case .month: return String(localized: "After a month")
         }
     }
 

@@ -12,9 +12,9 @@ enum Choice: String, Codable, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .ask: return "Ask"
-        case .allow: return "Allow"
-        case .deny: return "Deny"
+        case .ask: return String(localized: "Ask")
+        case .allow: return String(localized: "Allow")
+        case .deny: return String(localized: "Deny")
         }
     }
 }
@@ -109,7 +109,7 @@ extension Browser {
     /// visit to the site.
     func zap(_ tab: Tab) {
         tab.web.evaluateJavaScript(Zap.pick)
-        say("Tap what to hide")
+        say(String(localized: "Tap what to hide"))
     }
 
     /// Everything hidden on the site, back.
@@ -132,7 +132,7 @@ extension Browser {
     func zapped(_ selector: String, in web: WKWebView) {
         guard let tab = tabs.first(where: { $0.web === web }) else { return }
         guard !selector.isEmpty else {
-            say("Nothing hidden")
+            say(String(localized: "Nothing hidden"))
             return
         }
         Feel.tick()
@@ -231,7 +231,7 @@ struct SiteSheet: View {
     @Environment(\.dismiss) private var done
 
     private var prefs: SitePrefs { sites.prefs(tab.address) }
-    private var host: String { tab.address.map { Address.host($0) } ?? "This site" }
+    private var host: String { tab.address.map { Address.host($0) } ?? String(localized: "This site") }
 
     private var blocking: Bool {
         Shield.shared.enabled && !Shield.shared.isPaused(on: tab.address?.host()?.lowercased())
@@ -287,7 +287,7 @@ struct SiteSheet: View {
 
                 if let hidden = prefs.hidden, !hidden.isEmpty {
                     Section {
-                        Button(hidden.count == 1 ? "Show the hidden element" : "Show \(hidden.count) hidden elements") {
+                        Button(hidden.count == 1 ? String(localized: "Show the hidden element") : String(localized: "Show \(hidden.count) hidden elements")) {
                             browser.unzap(tab)
                         }
                     }

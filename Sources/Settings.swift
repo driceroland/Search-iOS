@@ -32,9 +32,11 @@ struct Settings: View {
                     }
                     Toggle("Search suggestions", isOn: $prefs.engineSuggestions)
                 } footer: {
-                    Text(prefs.engineSuggestions
-                         ? "What you type is sent to \(prefs.engine.name(custom: prefs.customEngine)) as you type, so it can suggest searches. Never from private tabs."
-                         : "Words typed in the field go to this search when they aren't an address. Nothing you type is sent anywhere until you press Go.")
+                    if prefs.engineSuggestions {
+                        Text("What you type is sent to \(prefs.engine.name(custom: prefs.customEngine)) as you type, so it can suggest searches. Never from private tabs.")
+                    } else {
+                        Text("Words typed in the field go to this search when they aren't an address. Nothing you type is sent anywhere until you press Go.")
+                    }
                 }
 
                 Section {
@@ -123,7 +125,7 @@ struct Settings: View {
                 Button("Delete from iCloud", role: .destructive) {
                     prefs.sync = false
                     sync.erase()
-                    browser.say("Deleted from iCloud")
+                    browser.say(String(localized: "Deleted from iCloud"))
                 }
             }
             .confirmationDialog(
@@ -144,7 +146,7 @@ struct Settings: View {
                     WKWebsiteDataStore.default().removeData(
                         ofTypes: WKWebsiteDataStore.allWebsiteDataTypes(), modifiedSince: .distantPast
                     ) {
-                        browser.say("Website data cleared")
+                        browser.say(String(localized: "Website data cleared"))
                     }
                 }
             }
@@ -163,7 +165,7 @@ struct Settings: View {
         }
         browser.forgetClosed()
         Feel.tick()
-        browser.say("History cleared")
+        browser.say(String(localized: "History cleared"))
     }
 
     static var version: String {

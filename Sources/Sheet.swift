@@ -247,7 +247,7 @@ struct Sheet: View {
         .contentShape(Rectangle())
     }
 
-    private func round(_ symbol: String, _ name: String, action: @escaping () -> Void) -> some View {
+    private func round(_ symbol: String, _ name: LocalizedStringKey, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.scaled(16, weight: .medium))
@@ -434,7 +434,7 @@ struct Sheet: View {
                 }
                 .frame(width: 18, height: 18)
 
-                Text(hidden ? "Private tab" : tab.label)
+                Text(hidden ? String(localized: "Private tab") : tab.label)
                     .font(.scaled(15))
                     .foregroundStyle(live ? Palette.ink : Palette.muted)
                     .lineLimit(1)

@@ -59,7 +59,7 @@ struct Welcome: View {
                     done()
                 }
             } label: {
-                Text(page < steps.count - 1 ? "Next" : "Start browsing")
+                Text(page < steps.count - 1 ? LocalizedStringKey("Next") : LocalizedStringKey("Start browsing"))
                     .font(.scaled(16, weight: .medium))
                     .foregroundStyle(Palette.ink)
                     .frame(maxWidth: .infinity)

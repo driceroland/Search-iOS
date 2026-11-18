@@ -92,6 +92,15 @@ logosystem.co (light top, sign-up modal with a form), news.ycombinator.com
 | 52 | Close tabs left alone | Settings, off by default: after a day/week/month, at launch; pins never |
 | 53 | Lock private tabs | Settings, off by default: back from the background on a private tab, Face ID (device only) |
 | 54 | Search suggestions | Settings, off by default: the engine's suggestions under history; never in private |
+| 55 | Liquid Glass | iOS 26: pill, count, field, suggestions, menu, sheet buttons are glass; iOS 18 the old look |
+| 56 | Error page | a dead address: "Can't open this page", the reason, Try Again |
+| 57 | Video full screen turns | full screen video rotates to landscape; back to portrait after (device) |
+| 58 | Menu: bookmark, close | hold the pill: Add to Bookmarks / In Bookmarks, Close Tab |
+| 59 | Close All | in the sheet's top right when more than one tab; confirm; pins stay |
+| 60 | Not secure | an http page says so in the pill |
+| 61 | Start page | new tab: Bookmarks and Often visited tiles above the field |
+| 62 | Welcome | first launch only: three screens, Start browsing |
+| 63 | French | iPhone in French: every word in French, Info.plist prompts too |
 
 ## Last run
 

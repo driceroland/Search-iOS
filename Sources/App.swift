@@ -248,9 +248,9 @@ struct ContentView: View {
 
     private var loose: Int { browser.tabs.filter { $0.pin == nil }.count }
     private var closeAllTitle: String {
-        browser.pinnedCount > 0 ? "Close every tab but the pinned ones?" : "Close every tab?"
+        browser.pinnedCount > 0 ? String(localized: "Close every tab but the pinned ones?") : String(localized: "Close every tab?")
     }
-    private var closeAllButton: String { loose == 1 ? "Close 1 Tab" : "Close \(loose) Tabs" }
+    private var closeAllButton: String { loose == 1 ? String(localized: "Close 1 Tab") : String(localized: "Close \(loose) Tabs") }
 
     // MARK: - the pages
 

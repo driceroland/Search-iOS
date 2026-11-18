@@ -21,7 +21,7 @@ final class Downloads: NSObject, WKDownloadDelegate {
         self.browser = browser
         download.delegate = self
         Feel.tick()
-        browser.say("Downloading…")
+        browser.say(String(localized: "Downloading…"))
     }
 
     func download(
@@ -47,14 +47,14 @@ final class Downloads: NSObject, WKDownloadDelegate {
 
     func downloadDidFinish(_ download: WKDownload) {
         guard let file = landing.removeValue(forKey: ObjectIdentifier(download)) else { return }
-        browser?.say("Downloaded \(file.lastPathComponent)")
+        browser?.say(String(localized: "Downloaded \(file.lastPathComponent)"))
         Present.export(file)
     }
 
     func download(_ download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
         landing.removeValue(forKey: ObjectIdentifier(download))
         Feel.refuse()
-        browser?.say("The download didn't finish")
+        browser?.say(String(localized: "The download didn't finish"))
     }
 }
 

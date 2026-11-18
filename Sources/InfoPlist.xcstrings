@@ -1,0 +1,46 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "NSCameraUsageDescription": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un site que vous ouvrez demande la caméra, pour un appel vidéo ou une photo. Search vous demande d'abord, à chaque fois sauf si vous en décidez autrement dans « Ce site »."
+          }
+        }
+      }
+    },
+    "NSFaceIDUsageDescription": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les onglets privés verrouillés s'ouvrent avec Face ID."
+          }
+        }
+      }
+    },
+    "NSLocationWhenInUseUsageDescription": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un site que vous ouvrez demande où vous êtes, pour une carte ou un magasin proche. Elle n'est transmise qu'à ce site, jamais conservée par Search."
+          }
+        }
+      }
+    },
+    "NSMicrophoneUsageDescription": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un site que vous ouvrez demande le micro, pour un appel ou un message vocal. Search vous demande d'abord, à chaque fois sauf si vous en décidez autrement dans « Ce site »."
+          }
+        }
+      }
+    }
+  },
+  "version": "1.0"
+}

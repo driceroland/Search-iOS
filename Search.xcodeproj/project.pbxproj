@@ -10,6 +10,8 @@
 		AA11BB22CC33DD44EE550503 /* Prefs.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550504 /* Prefs.swift */; };
 		AA11BB22CC33DD44EE550501 /* Engine.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550502 /* Engine.swift */; };
 		AA11BB22CC33DD44EE550401 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550402 /* Assets.xcassets */; };
+		B6C7D8E9F0A1B2C3D4E5F6A7 /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C6D7E8F9A0B1C2D3E4F5A6B7 /* InfoPlist.xcstrings */; };
+		B5C6D7E8F9A0B1C2D3E4F5A6 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = C5D6E7F8A9B0C1D2E3F4A5B6 /* Localizable.xcstrings */; };
 		AA11BB22CC33DD44EE550301 /* Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550302 /* Downloads.swift */; };
 		AA11BB22CC33DD44EE550203 /* Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550204 /* Reader.swift */; };
 		AA11BB22CC33DD44EE550201 /* Shield.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550202 /* Shield.swift */; };
@@ -39,6 +41,8 @@
 		AA11BB22CC33DD44EE550504 /* Prefs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Prefs.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550502 /* Engine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engine.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550402 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		C6D7E8F9A0B1C2D3E4F5A6B7 /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
+		C5D6E7F8A9B0C1D2E3F4A5B6 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550302 /* Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Downloads.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550204 /* Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reader.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550202 /* Shield.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shield.swift; sourceTree = "<group>"; };
@@ -104,6 +108,8 @@
 				AA11BB22CC33DD44EE550504 /* Prefs.swift */,
 				AA11BB22CC33DD44EE550502 /* Engine.swift */,
 				AA11BB22CC33DD44EE550402 /* Assets.xcassets */,
+				C6D7E8F9A0B1C2D3E4F5A6B7 /* InfoPlist.xcstrings */,
+				C5D6E7F8A9B0C1D2E3F4A5B6 /* Localizable.xcstrings */,
 				AA11BB22CC33DD44EE550302 /* Downloads.swift */,
 				AA11BB22CC33DD44EE550204 /* Reader.swift */,
 				AA11BB22CC33DD44EE550202 /* Shield.swift */,
@@ -155,7 +161,7 @@
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
-			knownRegions = (en, Base);
+			knownRegions = (en, Base, fr);
 			mainGroup = 6964C0E7B2F2553089A68FEC;
 			productRefGroup = D9A9174B6FD550C69B4C0878 /* Products */;
 			projectDirPath = "";
@@ -172,6 +178,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				AA11BB22CC33DD44EE550401 /* Assets.xcassets in Resources */,
+				B6C7D8E9F0A1B2C3D4E5F6A7 /* InfoPlist.xcstrings in Resources */,
+				B5C6D7E8F9A0B1C2D3E4F5A6 /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -51,7 +51,7 @@ struct Card: View {
                     .aspectRatio(contentMode: .fit)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             } else {
-                Text(tab?.label ?? "New tab")
+                Text(tab?.label ?? String(localized: "New tab"))
                     .font(.scaled(15))
                     .foregroundStyle(Palette.muted)
                     .lineLimit(1)

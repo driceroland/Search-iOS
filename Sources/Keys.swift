@@ -122,7 +122,7 @@ extension Browser {
             locked = false
             return
         }
-        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "Unlock your private tabs") { ok, _ in
+        context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: String(localized: "Unlock your private tabs")) { ok, _ in
             DispatchQueue.main.async { [weak self] in
                 if ok { withAnimation(Motion.settle) { self?.locked = false } }
             }

@@ -229,7 +229,7 @@ final class Browser: NSObject, ObservableObject {
     /// The last page closed, or the one picked, open again in front.
     func reopen(_ entry: Session.Entry? = nil) {
         guard let entry = entry ?? closed.first, let url = URL(string: entry.url) else {
-            say("Nothing to reopen")
+            say(String(localized: "Nothing to reopen"))
             return
         }
         closed.removeAll { $0.url == entry.url && $0.title == entry.title }
@@ -372,7 +372,7 @@ final class Browser: NSObject, ObservableObject {
                     tab?.reading = true
                 } else {
                     Feel.refuse()
-                    self?.say("Nothing to read here")
+                    self?.say(String(localized: "Nothing to read here"))
                 }
             }
         }
@@ -384,7 +384,7 @@ final class Browser: NSObject, ObservableObject {
         guard let host = tab.address?.host()?.lowercased() else { return }
         let off = !Shield.shared.isPaused(on: host)
         Shield.shared.pause(host, off)
-        say(off ? "Ads allowed on \(Address.host(tab.address!))" : "Ads blocked on \(Address.host(tab.address!))")
+        say(off ? String(localized: "Ads allowed on \(Address.host(tab.address!))") : String(localized: "Ads blocked on \(Address.host(tab.address!))"))
         tab.web.reload()
     }
 
@@ -436,7 +436,7 @@ final class Browser: NSObject, ObservableObject {
         tab.go(to: url)
         if behind {
             Feel.tick()
-            say("Opened behind")
+            say(String(localized: "Opened behind"))
         } else {
             active?.capture()
             activeID = tab.id
@@ -451,14 +451,14 @@ final class Browser: NSObject, ObservableObject {
     func copyAddress(_ tab: Tab) {
         guard let url = tab.address else { return }
         UIPasteboard.general.url = url
-        say("Address copied")
+        say(String(localized: "Address copied"))
     }
 
     /// What was copied: gone to, or searched for.
     func pasteAndGo() {
         let words = UIPasteboard.general.url?.absoluteString ?? UIPasteboard.general.string ?? ""
         guard let url = Address.destination(for: words) else {
-            say("Nothing to paste")
+            say(String(localized: "Nothing to paste"))
             return
         }
         holding = false

@@ -394,7 +394,7 @@ final class Sync: NSObject, ObservableObject {
             meta = Meta(device: meta.device)
             others = [:]
             spaces = []
-            problem = "Signed out of iCloud"
+            problem = String(localized: "Signed out of iCloud")
             save()
         @unknown default:
             break
@@ -416,7 +416,7 @@ final class Sync: NSObject, ObservableObject {
         save()
         engine = nil
         if Prefs.shared.sync { Prefs.shared.sync = false }
-        problem = "Sync was turned off: Search's data was deleted from iCloud."
+        problem = String(localized: "Sync was turned off: Search's data was deleted from iCloud.")
     }
 
     // MARK: kept on disk
@@ -462,9 +462,9 @@ final class Sync: NSObject, ObservableObject {
     static func say(_ error: Error) -> String {
         guard let error = error as? CKError else { return error.localizedDescription }
         switch error.code {
-        case .notAuthenticated: return "Sign in to iCloud in the iPhone's Settings to sync."
-        case .quotaExceeded: return "Your iCloud is full."
-        case .networkFailure, .networkUnavailable: return "Offline. Sync carries on when you're back."
+        case .notAuthenticated: return String(localized: "Sign in to iCloud in the iPhone's Settings to sync.")
+        case .quotaExceeded: return String(localized: "Your iCloud is full.")
+        case .networkFailure, .networkUnavailable: return String(localized: "Offline. Sync carries on when you're back.")
         default: return error.localizedDescription
         }
     }
@@ -700,7 +700,7 @@ struct OtherTabs: View {
                             }
                         }
                     } header: {
-                        Text(device.name.isEmpty ? (device.platform == "macos" ? "On your Mac" : "On another device") : "On \(device.name)")
+                        Text(device.name.isEmpty ? (device.platform == "macos" ? String(localized: "On your Mac") : String(localized: "On another device")) : String(localized: "On \(device.name)"))
                     } footer: {
                         Text(device.at.formatted(.relative(presentation: .named)))
                     }

@@ -1,0 +1,1377 @@
+{
+  "sourceLanguage": "en",
+  "strings": {
+    "": {
+      "shouldTranslate": false
+    },
+    "%lld": {
+      "shouldTranslate": false
+    },
+    "%lld %%": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld %%"
+          }
+        }
+      }
+    },
+    "A": {
+      "shouldTranslate": false
+    },
+    "Add this page": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter cette page"
+          }
+        }
+      }
+    },
+    "Add to Bookmarks": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouter aux favoris"
+          }
+        }
+      }
+    },
+    "Added to Bookmarks": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ajouté aux favoris"
+          }
+        }
+      }
+    },
+    "Address copied": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse copiée"
+          }
+        }
+      }
+    },
+    "Ads allowed on %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publicités autorisées sur %@"
+          }
+        }
+      }
+    },
+    "Ads blocked on %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Publicités bloquées sur %@"
+          }
+        }
+      }
+    },
+    "After a day": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Après un jour"
+          }
+        }
+      }
+    },
+    "After a month": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Après un mois"
+          }
+        }
+      }
+    },
+    "After a week": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Après une semaine"
+          }
+        }
+      }
+    },
+    "All time": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Depuis toujours"
+          }
+        }
+      }
+    },
+    "Allow": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autoriser"
+          }
+        }
+      }
+    },
+    "Appearance": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apparence"
+          }
+        }
+      }
+    },
+    "Ask": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Demander"
+          }
+        }
+      }
+    },
+    "Block ads": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bloquer les publicités"
+          }
+        }
+      }
+    },
+    "Block ads and trackers": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bloquer pubs et traqueurs"
+          }
+        }
+      }
+    },
+    "Bookmarks": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Favoris"
+          }
+        }
+      }
+    },
+    "By Office Commun. No telemetry, no analytics, no crash reports: the only things that leave your iPhone are the pages you ask for and their icons.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Par Office Commun. Aucune télémétrie, aucune statistique, aucun rapport de plantage : ne quittent votre iPhone que les pages que vous demandez et leurs icônes."
+          }
+        }
+      }
+    },
+    "Camera": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Caméra"
+          }
+        }
+      }
+    },
+    "Can't open this page": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible d'ouvrir cette page"
+          }
+        }
+      }
+    },
+    "Clear Cookies and Website Data": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effacer cookies et données de sites"
+          }
+        }
+      }
+    },
+    "Clear History…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effacer l'historique…"
+          }
+        }
+      }
+    },
+    "Clear the history of…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Effacer l'historique de…"
+          }
+        }
+      }
+    },
+    "Close": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer"
+          }
+        }
+      }
+    },
+    "Close %lld Tabs": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer %lld onglets"
+          }
+        }
+      }
+    },
+    "Close 1 Tab": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer 1 onglet"
+          }
+        }
+      }
+    },
+    "Close All": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout fermer"
+          }
+        }
+      }
+    },
+    "Close Tab": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer l'onglet"
+          }
+        }
+      }
+    },
+    "Close every tab but the pinned ones?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer tous les onglets sauf les épinglés ?"
+          }
+        }
+      }
+    },
+    "Close every tab?": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer tous les onglets ?"
+          }
+        }
+      }
+    },
+    "Close tabs": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermer les onglets"
+          }
+        }
+      }
+    },
+    "Copy Link": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier le lien"
+          }
+        }
+      }
+    },
+    "Copy address": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copier l'adresse"
+          }
+        }
+      }
+    },
+    "Custom": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Personnalisé"
+          }
+        }
+      }
+    },
+    "Dark": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sombre"
+          }
+        }
+      }
+    },
+    "Delete Search's Data from iCloud": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer les données de Search d'iCloud"
+          }
+        }
+      }
+    },
+    "Delete from iCloud": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimer d'iCloud"
+          }
+        }
+      }
+    },
+    "Deleted from iCloud": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Supprimé d'iCloud"
+          }
+        }
+      }
+    },
+    "Deny": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Refuser"
+          }
+        }
+      }
+    },
+    "Desktop version": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version ordinateur"
+          }
+        }
+      }
+    },
+    "Done": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "OK"
+          }
+        }
+      }
+    },
+    "Downloaded %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ téléchargé"
+          }
+        }
+      }
+    },
+    "Downloading…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Téléchargement…"
+          }
+        }
+      }
+    },
+    "Every site you're signed in to will sign you out.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous serez déconnecté de tous les sites."
+          }
+        }
+      }
+    },
+    "Find on page": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechercher dans la page"
+          }
+        }
+      }
+    },
+    "Handoff": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Handoff"
+          }
+        }
+      }
+    },
+    "Hidden on %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masqué sur %@"
+          }
+        }
+      }
+    },
+    "Hide an element": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masquer un élément"
+          }
+        }
+      }
+    },
+    "History cleared": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Historique effacé"
+          }
+        }
+      }
+    },
+    "History, icons and site data live on this iPhone and nowhere else, even with sync on.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "L'historique, les icônes et les données des sites restent sur cet iPhone et nulle part ailleurs, même avec la synchronisation."
+          }
+        }
+      }
+    },
+    "In Bookmarks": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dans les favoris"
+          }
+        }
+      }
+    },
+    "In the list, swipe a tab right to pin it, left to close it. Hold it for more, or to move it.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Dans la liste, glissez un onglet vers la droite pour l'épingler, vers la gauche pour le fermer. Maintenez-le pour plus d'options, ou pour le déplacer."
+          }
+        }
+      }
+    },
+    "Leave Reader": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitter le mode Lecture"
+          }
+        }
+      }
+    },
+    "Light": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clair"
+          }
+        }
+      }
+    },
+    "Location": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Position"
+          }
+        }
+      }
+    },
+    "Lock private tabs": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Verrouiller les onglets privés"
+          }
+        }
+      }
+    },
+    "Microphone": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Micro"
+          }
+        }
+      }
+    },
+    "Never": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Jamais"
+          }
+        }
+      }
+    },
+    "New private tab": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nouvel onglet privé"
+          }
+        }
+      }
+    },
+    "New tab": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Nouvel onglet"
+          }
+        }
+      }
+    },
+    "Next": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suivant"
+          }
+        }
+      }
+    },
+    "No bookmarks yet. Add the page you're on, or turn on sync to bring your Mac's.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pas encore de favoris. Ajoutez la page ouverte, ou activez la synchronisation pour retrouver ceux du Mac."
+          }
+        }
+      }
+    },
+    "Not secure": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Non sécurisé"
+          }
+        }
+      }
+    },
+    "Nothing closed lately": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien de fermé récemment"
+          }
+        }
+      }
+    },
+    "Nothing hidden": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien de masqué"
+          }
+        }
+      }
+    },
+    "Nothing open on your other devices, or they haven't synced yet.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien d'ouvert sur vos autres appareils, ou ils ne sont pas encore synchronisés."
+          }
+        }
+      }
+    },
+    "Nothing to paste": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien à coller"
+          }
+        }
+      }
+    },
+    "Nothing to read here": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien à lire ici"
+          }
+        }
+      }
+    },
+    "Nothing to reopen": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rien à rouvrir"
+          }
+        }
+      }
+    },
+    "Offline. Sync carries on when you're back.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hors ligne. La synchronisation reprendra au retour du réseau."
+          }
+        }
+      }
+    },
+    "Often visited": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Souvent visités"
+          }
+        }
+      }
+    },
+    "On %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sur %@"
+          }
+        }
+      }
+    },
+    "On another device": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sur un autre appareil"
+          }
+        }
+      }
+    },
+    "On your Mac": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sur votre Mac"
+          }
+        }
+      }
+    },
+    "One pill": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Une seule pilule"
+          }
+        }
+      }
+    },
+    "Opened behind": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvert en arrière-plan"
+          }
+        }
+      }
+    },
+    "Other devices": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Autres appareils"
+          }
+        }
+      }
+    },
+    "Paste and go": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Coller et ouvrir"
+          }
+        }
+      }
+    },
+    "Pin": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Épingler"
+          }
+        }
+      }
+    },
+    "Pins from": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Épingles de"
+          }
+        }
+      }
+    },
+    "Private": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privé"
+          }
+        }
+      }
+    },
+    "Private tab": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Onglet privé"
+          }
+        }
+      }
+    },
+    "Private tabs are locked": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les onglets privés sont verrouillés"
+          }
+        }
+      }
+    },
+    "Private: search or enter an address": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privé : recherchez ou saisissez une adresse"
+          }
+        }
+      }
+    },
+    "Reader": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecture"
+          }
+        }
+      }
+    },
+    "Recently Closed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fermés récemment"
+          }
+        }
+      }
+    },
+    "Reload": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recharger"
+          }
+        }
+      }
+    },
+    "Same as iPhone": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Comme l'iPhone"
+          }
+        }
+      }
+    },
+    "Search is open source": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search est open source"
+          }
+        }
+      }
+    },
+    "Search or enter an address": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recherchez ou saisissez une adresse"
+          }
+        }
+      }
+    },
+    "Search suggestions": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Suggestions de recherche"
+          }
+        }
+      }
+    },
+    "Search with": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rechercher avec"
+          }
+        }
+      }
+    },
+    "Settings": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réglages"
+          }
+        }
+      }
+    },
+    "Share": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partager"
+          }
+        }
+      }
+    },
+    "Show %lld hidden elements": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réafficher %lld éléments masqués"
+          }
+        }
+      }
+    },
+    "Show the hidden element": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réafficher l'élément masqué"
+          }
+        }
+      }
+    },
+    "Sideways to go from tab to tab, past the last for a new one. Up to see every tab.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sur le côté pour passer d'un onglet à l'autre, au-delà du dernier pour en ouvrir un. Vers le haut pour voir tous les onglets."
+          }
+        }
+      }
+    },
+    "Sign in to iCloud in the iPhone's Settings to sync.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Connectez-vous à iCloud dans les Réglages de l'iPhone pour synchroniser."
+          }
+        }
+      }
+    },
+    "Signed out of iCloud": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Déconnecté d'iCloud"
+          }
+        }
+      }
+    },
+    "Slide it": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Faites-la glisser"
+          }
+        }
+      }
+    },
+    "Start browsing": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commencer"
+          }
+        }
+      }
+    },
+    "Stop": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrêter"
+          }
+        }
+      }
+    },
+    "Switch to tab": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aller à l'onglet"
+          }
+        }
+      }
+    },
+    "Sync was turned off: Search's data was deleted from iCloud.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchronisation désactivée : les données de Search ont été supprimées d'iCloud."
+          }
+        }
+      }
+    },
+    "Sync with iCloud": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Synchroniser avec iCloud"
+          }
+        }
+      }
+    },
+    "Tabs you haven't looked at for that long close by themselves; pinned tabs never do. Locked private tabs ask for Face ID when you come back to Search.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les onglets non consultés depuis ce délai se ferment d'eux-mêmes ; jamais les épinglés. Les onglets privés verrouillés demandent Face ID à votre retour dans Search."
+          }
+        }
+      }
+    },
+    "Tap it to search or type an address. Hold it for the page's menu: back, share, find, text size, pin.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez-la pour rechercher ou saisir une adresse. Maintenez-la pour le menu de la page : retour, partage, recherche, taille du texte, épingle."
+          }
+        }
+      }
+    },
+    "Tap what to hide": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez ce qu'il faut masquer"
+          }
+        }
+      }
+    },
+    "Text size": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Taille du texte"
+          }
+        }
+      }
+    },
+    "The download didn't finish": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le téléchargement n'a pas abouti"
+          }
+        }
+      }
+    },
+    "The last hour": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La dernière heure"
+          }
+        }
+      }
+    },
+    "The page you're on shows up on your Mac, and your Mac's page here, through Apple's Handoff: your own devices, nearby, on the same Apple Account. Private tabs never. Handoff itself keeps nothing.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La page ouverte apparaît sur votre Mac, et celle du Mac ici, grâce à Handoff d'Apple : vos propres appareils, à proximité, sur le même compte Apple. Jamais les onglets privés. Handoff ne conserve rien."
+          }
+        }
+      }
+    },
+    "The site isn't answering.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le site ne répond pas."
+          }
+        }
+      }
+    },
+    "The site took too long to answer.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Le site a mis trop de temps à répondre."
+          }
+        }
+      }
+    },
+    "The site's secure connection can't be trusted.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La connexion sécurisée du site n'est pas fiable."
+          }
+        }
+      }
+    },
+    "Third-party ad networks and trackers are stopped before they load. If a site breaks, hold the address and allow ads on that site alone.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les régies publicitaires et les traqueurs tiers sont bloqués avant de se charger. Si un site ne marche plus, autorisez les publicités sur ce site seul dans « Ce site »."
+          }
+        }
+      }
+    },
+    "This site": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce site"
+          }
+        }
+      }
+    },
+    "This site can't be found. Check the address.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce site est introuvable. Vérifiez l'adresse."
+          }
+        }
+      }
+    },
+    "Today": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aujourd'hui"
+          }
+        }
+      }
+    },
+    "Today and yesterday": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aujourd'hui et hier"
+          }
+        }
+      }
+    },
+    "Try Again": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Réessayer"
+          }
+        }
+      }
+    },
+    "Unlock": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Déverrouiller"
+          }
+        }
+      }
+    },
+    "Unlock your private tabs": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Déverrouiller vos onglets privés"
+          }
+        }
+      }
+    },
+    "Unpin": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Désépingler"
+          }
+        }
+      }
+    },
+    "Version": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Version"
+          }
+        }
+      }
+    },
+    "Website data cleared": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Données des sites effacées"
+          }
+        }
+      }
+    },
+    "What you type is sent to %@ as you type, so it can suggest searches. Never from private tabs.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce que vous tapez est envoyé à %@ pendant la saisie, pour suggérer des recherches. Jamais depuis les onglets privés."
+          }
+        }
+      }
+    },
+    "Words typed in the field go to this search when they aren't an address. Nothing you type is sent anywhere until you press Go.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce que vous tapez part vers ce moteur quand ce n'est pas une adresse. Rien n'est envoyé avant que vous appuyiez sur OK."
+          }
+        }
+      }
+    },
+    "You're offline.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vous êtes hors ligne."
+          }
+        }
+      }
+    },
+    "Your iCloud is full.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Votre iCloud est plein."
+          }
+        }
+      }
+    },
+    "Your open tabs, pins, bookmarks, search engine and appearance, the same on your iPhone and your Mac, through your own iCloud. Encrypted end to end: nobody else, us included, can read it. Private tabs never.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vos onglets ouverts, épingles, favoris, moteur de recherche et apparence, identiques sur votre iPhone et votre Mac, via votre propre iCloud. Chiffré de bout en bout : personne d'autre, nous compris, ne peut le lire. Jamais les onglets privés."
+          }
+        }
+      }
+    },
+    "Your tabs": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vos onglets"
+          }
+        }
+      }
+    },
+    "Your tabs, pins, bookmarks and settings leave iCloud, for every device. What is on each device stays.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vos onglets, épingles, favoris et réglages quittent iCloud, pour tous les appareils. Ce qui est sur chaque appareil reste."
+          }
+        }
+      }
+    },
+    "go": {
+      "shouldTranslate": false
+    },
+    "https://example.com/search?q=%s": {
+      "shouldTranslate": false
+    },
+    "iOS asks before any site gets your location, and you can turn it off for Search altogether in the iPhone's Settings.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS demande avant qu'un site obtienne votre position, et vous pouvez la couper pour Search dans les Réglages de l'iPhone."
+          }
+        }
+      }
+    },
+    "the": {
+      "shouldTranslate": false
+    },
+    "this site": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ce site"
+          }
+        }
+      }
+    },
+    "verge.com": {
+      "shouldTranslate": false
+    }
+  },
+  "version": "1.0"
+}

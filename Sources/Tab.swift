@@ -107,7 +107,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     var label: String {
         if !title.isEmpty { return title }
         if let address { return Address.pretty(address) }
-        return "New tab"
+        return String(localized: "New tab")
     }
 
     /// The site's first letter, for where its icon will go.
@@ -117,7 +117,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     }
 
     var short: String {
-        address.map { Address.host($0) } ?? "Search or enter an address"
+        address.map { Address.host($0) } ?? String(localized: "Search or enter an address")
     }
 
     init(
