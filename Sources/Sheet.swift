@@ -131,7 +131,22 @@ struct Sheet: View {
                             .contentShape(Rectangle())
                             .onTapGesture { pick(tab) }
                     }
-                    // Held and dragged: the line goes where it's let go.
+                    // Held: what can be done with it. Held and moved: it
+                    // goes where it's let go.
+                    .contextMenu {
+                        Button {
+                            withAnimation(Motion.settle) { browser.pin(tab) }
+                        } label: { Label("Pin", systemImage: "pin") }
+                        if let url = tab.address, !tab.isPrivate {
+                            Button { Bookmarks.shared.add(url, title: tab.title) } label: {
+                                Label("Add to Bookmarks", systemImage: "book")
+                            }
+                            Button { UIPasteboard.general.url = url } label: { Label("Copy Link", systemImage: "link") }
+                        }
+                        Button(role: .destructive) {
+                            withAnimation(Motion.settle) { browser.close(tab) }
+                        } label: { Label("Close Tab", systemImage: "xmark") }
+                    }
                     .onDrag {
                         carried = tab
                         Feel.nudge()
@@ -170,11 +185,21 @@ struct Sheet: View {
     /// devices' tabs, Settings. Icons only; each says what it is to
     /// VoiceOver, and the new tab button, held, lists what was closed.
     private var foot: some View {
-        HStack(spacing: 14) {
-            round("plus", "New tab") {
+        HStack(spacing: 10) {
+            Button {
                 Feel.tick()
                 browser.newTab()
+            } label: {
+                Label("New tab", systemImage: "plus")
+                    .labelStyle(.titleAndIcon)
+                    .font(.scaled(15, weight: .medium))
+                    .foregroundStyle(Palette.ink)
+                    .padding(.horizontal, 20)
+                    .frame(height: 46)
+                    .background(Palette.wash, in: Capsule())
+                    .contentShape(Capsule())
             }
+            .buttonStyle(.plain)
             .contextMenu {
                 if browser.closed.isEmpty {
                     Text("Nothing closed lately")
@@ -213,7 +238,7 @@ struct Sheet: View {
             Image(systemName: symbol)
                 .font(.scaled(16, weight: .medium))
                 .foregroundStyle(Palette.ink)
-                .frame(width: 50, height: 50)
+                .frame(width: 46, height: 46)
                 .background(Palette.wash, in: Circle())
                 .contentShape(Circle())
         }
@@ -363,9 +388,15 @@ struct Sheet: View {
                 .overlay(alignment: .bottom) {
                     if tab.loading { Ring(size: 9).padding(.bottom, 5) }
                 }
-                .contentShape(Rectangle())
+                .contentShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
                 .onTapGesture(perform: open)
-                .onLongPressGesture(minimumDuration: 0.4, perform: unpin)
+                // Held: what can be done with it, said, rather than done.
+                .contextMenu {
+                    Button(action: unpin) { Label("Unpin", systemImage: "pin.slash") }
+                    if let url = tab.pinHome ?? tab.address {
+                        Button { UIPasteboard.general.url = url } label: { Label("Copy Link", systemImage: "link") }
+                    }
+                }
         }
     }
 

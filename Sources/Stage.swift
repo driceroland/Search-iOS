@@ -71,11 +71,11 @@ struct Band: View {
     @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        let page = resolved
+        // The page itself runs up behind the clock; only where the clock
+        // wouldn't read on it does a soft fade come in. No band of a colour
+        // guessed for the page: a guess is never quite the page.
         ZStack(alignment: .top) {
-            Color(uiColor: page ?? UIColor(Palette.ground))
-                .frame(height: height)
-            if let page, !readable(page) {
+            if let page = resolved, !readable(page) {
                 LinearGradient(
                     colors: [Palette.ground.opacity(0.92), Palette.ground.opacity(0.6), Palette.ground.opacity(0)],
                     startPoint: .top, endPoint: .bottom
