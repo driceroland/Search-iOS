@@ -13,6 +13,11 @@ Off by default on both. Turned on in Settings ("Sync with iCloud").
   and nobody but the person can read it.
 - One custom zone: `Search` (owner: current user).
 - `CKSyncEngine` on both sides (iOS 17+, macOS 14+).
+- CloudKit environment: **Production** on both, debug builds included, so
+  every build sees the same data. (The schema is created in Development
+  once, then deployed to Production in the CloudKit Console.)
+- On the Mac, only the **Personal** profile syncs. Other profiles stay on
+  that Mac.
 
 ## Records
 
@@ -54,6 +59,19 @@ SharedSettings{ engine: String?, custom: String?, look: String? }               
 - `DeviceTabs.tabs`: ordinary web pages only, no pinned tabs (pins travel as
   pins), **never private tabs**. The Mac sends every window's tabs of every
   space as one list.
+- `DeviceTabs.name`: the device's own name as the person knows it (the Mac's
+  computer name). The other side shows it ("On Drice's MacBook Pro"). `at`
+  is when the list was written; a device writes again only when `tabs` or
+  `name` changed, never for `at` alone.
+- **Fields a device doesn't know ride along.** A `PinDef` may carry more
+  than the five fields above (the Mac's `listed`, `folder`, …). A device
+  that rewrites a pin starts from the last version it read and changes only
+  the fields it owns; anything else is kept as it was. A missing field
+  means "unchanged", not "cleared".
+- A pin's `title` is the one it was pinned with; a device doesn't rewrite it
+  from the page's current title.
+- Engine values: `google duckduckgo bing ecosia startpage kagi brave qwant
+  custom`. Look values: `light dark system`. An unknown value is ignored.
 
 ## Rules
 
@@ -62,7 +80,8 @@ SharedSettings{ engine: String?, custom: String?, look: String? }               
   one is sent again. A `serverRecordChanged` conflict keeps whichever has
   the newer `at`.
 - **Joining merges.** The first time a device turns sync on, it fetches
-  everything first. Pins (per space) and bookmarks already on the device
+  everything first, and joins only once that fetch has succeeded: after a
+  failed fetch it writes nothing and tries again later. Pins (per space) and bookmarks already on the device
   are added to what's in iCloud (matched by `id`, then by address) and the
   union goes up. Settings: iCloud's win. Nothing is written over before
   that first fetch.
@@ -72,9 +91,55 @@ SharedSettings{ engine: String?, custom: String?, look: String? }               
 - **Turning sync off** deletes this device's `device.<uuid>` record, so its
   tabs leave the other devices. Everything else stays.
 - **"Delete Search's data from iCloud"** deletes the zone, for every device.
+  A device that sees the zone gone **turns its sync off** (and says why);
+  it doesn't recreate the zone or put its data back. What's on each device
+  stays.
+- **Spaces.** A space deleted on the Mac leaves `spaces`; the first space is
+  never deleted. Its `pins.<space>` record may stay in iCloud; it's ignored.
+  An iPhone showing a space that's gone falls back to the first.
+- **Mac only, not in this contract:** pins shown in every space (shared
+  pins), the folder sync (mutually exclusive with this one), a space's
+  downloads folder.
 - **History, passwords, site data, private tabs: never synced.**
 
 ## Where this lives
 
 - iPhone: `Sources/Sync.swift` (engine, shapes, bookmarks, the two lists).
 - Mac: to be written by the Mac session, on this page.
+
+## Examples
+
+`device.6F1C…` (an iPhone):
+
+```json
+{"at":785164000,"name":"iPhone","platform":"ios","tabs":[{"title":"Example Domain","url":"https://example.com/"}]}
+```
+
+`pins.00000000-0000-0000-0000-000000000001`:
+
+```json
+[{"home":"https://mail.google.com/","id":"0E4B…","letter":"M","name":null,"title":"Inbox"},
+ {"folder":"…","home":"https://github.com/","id":"7A2D…","letter":"G","listed":true,"title":"GitHub"}]
+```
+
+(The second pin carries Mac-only fields; the iPhone keeps them as they are.)
+
+`bookmarks`:
+
+```json
+[{"id":"…","title":"Reading","children":[{"id":"…","title":"Example","url":"https://example.com/"}]},
+ {"id":"…","title":"Office Commun","url":"https://officecommun.com/"}]
+```
+
+`spaces`:
+
+```json
+[{"id":"00000000-0000-0000-0000-000000000001","name":"Personal","colour":0,"icon":"house"},
+ {"id":"…","name":"Work","colour":3,"icon":"briefcase"}]
+```
+
+`settings`:
+
+```json
+{"custom":"","engine":"duckduckgo","look":"system"}
+```

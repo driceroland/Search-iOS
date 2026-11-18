@@ -168,6 +168,10 @@ final class Sync: NSObject, ObservableObject {
     /// Back in front: anything new from the other devices.
     func refresh() {
         guard let engine else { return }
+        if !meta.joined {
+            Task { await join() }
+            return
+        }
         Task { try? await engine.fetchChanges() }
     }
 
@@ -178,7 +182,10 @@ final class Sync: NSObject, ObservableObject {
             try await engine.fetchChanges()
             problem = nil
         } catch {
+            // Not joined until a first fetch has gone through: nothing here
+            // goes up over what may be there. Tried again on the next refresh.
             problem = Sync.say(error)
+            return
         }
         meta.joined = true
         save()
@@ -190,8 +197,13 @@ final class Sync: NSObject, ObservableObject {
     /// Everything this device has, offered: only what differs goes up.
     func publish(_ browser: Browser) {
         guard meta.joined else { return }
-        put("device.\(meta.device)", browser.deviceTabs)
-        put("pins.\(pinSpace)", browser.pinDefs)
+        // The tabs, not the moment: a device whose tabs haven't changed
+        // doesn't write again.
+        let tabs = browser.deviceTabs
+        let key = "device.\(meta.device)"
+        let last = meta.values[key].flatMap { try? JSONDecoder().decode(DeviceTabs.self, from: $0) }
+        if last?.tabs != tabs.tabs || last?.name != tabs.name { put(key, tabs) }
+        putPins(browser.pinDefs)
         put("bookmarks", Bookmarks.shared.roots)
         put("settings", Prefs.shared.shared)
     }
@@ -199,6 +211,37 @@ final class Sync: NSObject, ObservableObject {
     func put<T: Encodable>(_ key: String, _ value: T) {
         guard let engine, meta.joined, let data = try? Sync.encoder.encode(value) else { return }
         guard meta.values[key] != data else { return }
+        meta.values[key] = data
+        meta.at[key] = Date()
+        save()
+        engine.state.add(pendingRecordZoneChanges: [.saveRecord(Sync.record(key))])
+    }
+
+    /// Pins go up over the last version read, so what the Mac keeps in a
+    /// pin that the iPhone doesn't know (its own fields) rides along.
+    private func putPins(_ defs: [PinDef]) {
+        let key = "pins.\(pinSpace)"
+        let last = meta.values[key]
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [[String: Any]] } ?? []
+        let merged: [[String: Any]] = defs.map { def in
+            var entry = last.first { ($0["id"] as? String)?.uppercased() == def.id.uuidString } ?? [:]
+            entry["id"] = def.id.uuidString
+            entry["letter"] = def.letter
+            entry["home"] = def.home
+            // The title it was pinned with stays; a page's title changes
+            // as it loads and isn't the pin's.
+            if entry["title"] == nil { entry["title"] = def.title }
+            entry["name"] = def.name
+            return entry
+        }
+        guard !NSArray(array: merged).isEqual(to: last),
+              let data = try? JSONSerialization.data(withJSONObject: merged, options: .sortedKeys)
+        else { return }
+        putData(key, data)
+    }
+
+    private func putData(_ key: String, _ data: Data) {
+        guard let engine, meta.joined, meta.values[key] != data else { return }
         meta.values[key] = data
         meta.at[key] = Date()
         save()
@@ -250,7 +293,7 @@ final class Sync: NSObject, ObservableObject {
             }
         } else if key.hasPrefix("pins.") {
             guard var defs = try? decoder.decode([PinDef].self, from: data) else { return }
-            canonical(defs)
+            // Kept as it came, every field, for putPins.
             guard key == "pins.\(pinSpace)" else { save(); return }
             if first, let browser {
                 // Joining: these pins and the ones already here, together.
@@ -359,13 +402,17 @@ final class Sync: NSObject, ObservableObject {
         save()
     }
 
+    /// Search's data was deleted from iCloud, here or on another device:
+    /// sync turns off rather than putting it all back. What is on this
+    /// device stays.
     fileprivate func zoneGone() {
         meta = Meta(device: meta.device)
         others = [:]
         spaces = []
         save()
-        engine?.state.add(pendingDatabaseChanges: [.saveZone(CKRecordZone(zoneID: Sync.zoneID))])
-        Task { await join() }
+        engine = nil
+        if Prefs.shared.sync { Prefs.shared.sync = false }
+        problem = "Sync was turned off: Search's data was deleted from iCloud."
     }
 
     // MARK: kept on disk
@@ -647,7 +694,7 @@ struct OtherTabs: View {
                             }
                         }
                     } header: {
-                        Text(device.platform == "macos" ? "On your Mac" : "On your \(device.name)")
+                        Text(device.name.isEmpty ? (device.platform == "macos" ? "On your Mac" : "On another device") : "On \(device.name)")
                     } footer: {
                         Text(device.at.formatted(.relative(presentation: .named)))
                     }
