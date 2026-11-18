@@ -46,45 +46,40 @@ struct Pill: View {
         GeometryReader { geo in
             let full = geo.size.width - 32
             let small = min(full, nameWidth + 36)
-            // Open: the whole width. Folded: just round the name.
-            let inset = 16 + (full - small) / 2 * f
-            bar
-                .padding(.horizontal, inset)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
+            // Open: between the two buttons. Folded: just round the name.
+            let open = 16 + Metrics.pill + 8
+            let inset = open + ((16 + (full - small) / 2) - open) * f
+            ZStack(alignment: .bottom) {
+                address
+                    .padding(.horizontal, inset)
+                // The buttons stay at the edges and leave outward, fading,
+                // as the pill closes in: two movements, not one melting
+                // into the other.
+                HStack(spacing: 0) {
+                    side("chevron.left", "Back", enabled: tab.canGoBack) {
+                        guard tab.canGoBack else { return }
+                        Feel.tick()
+                        tab.back()
+                    }
+                    .offset(x: -28 * f)
+                    Spacer(minLength: 0)
+                    side("square.on.square", "Tabs", enabled: true) { tabs() }
+                        .accessibilityValue(Text("\(count)"))
+                        .offset(x: 28 * f)
+                }
+                .padding(.horizontal, 16)
+                .opacity(Double(max(0, 1 - f * 2)))
+                .scaleEffect(1 - 0.12 * f, anchor: .bottom)
+                .allowsHitTesting(!tucked)
+                .accessibilityHidden(tucked)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
         .frame(height: Metrics.pill)
         .padding(.bottom, 8 - 6 * f)
         .contentShape(Rectangle())
         .gesture(Pan(action: pan))
         .gesture(Hold { if !tucked { Feel.nudge(); hold() } })
-    }
-
-    @ViewBuilder
-    private var bar: some View {
-        if #available(iOS 26.0, *) {
-            GlassEffectContainer(spacing: 10) { row }
-        } else {
-            row
-        }
-    }
-
-    private var row: some View {
-        HStack(alignment: .bottom, spacing: 8 * (1 - f)) {
-            // Gone altogether once folded: glass merged into the pill would
-            // otherwise keep showing their symbols beside it.
-            if f < 0.95 {
-                side("chevron.left", "Back", id: "back", enabled: tab.canGoBack) {
-                    guard tab.canGoBack else { return }
-                    Feel.tick()
-                    tab.back()
-                }
-            }
-            address
-            if f < 0.95 {
-                side("square.on.square", "Tabs", id: "tabs", enabled: true) { tabs() }
-                    .accessibilityValue(Text("\(count)"))
-            }
-        }
     }
 
     private var address: some View {
@@ -129,7 +124,8 @@ struct Pill: View {
                 .hidden()
                 .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { nameWidth = $0 }
         }
-        .surface(Capsule(), id: "pill", in: glass)
+        .glass(Capsule(), interactive: true, else: .clear)
+        .background { if #unavailable(iOS 26.0) { Glass(shape: Capsule()) } }
         .overlay(alignment: .bottom) {
             // The loading line lives in the pill, along its foot, where the
             // eye already is.
@@ -153,21 +149,16 @@ struct Pill: View {
     /// A round glass button either side of the pill: Back on the left, as in
     /// Safari, every tab on the right. White on the glass; dimmed when there
     /// is nowhere to go.
-    private func side(_ symbol: String, _ name: LocalizedStringKey, id: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+    private func side(_ symbol: String, _ name: LocalizedStringKey, enabled: Bool, action: @escaping () -> Void) -> some View {
         Image(systemName: symbol)
             .font(.scaled(17, weight: .medium))
             .foregroundStyle(.primary)
-            .opacity((enabled ? 1 : 0.35) * Double(max(0, 1 - f * 1.8)))
+            .opacity(enabled ? 1 : 0.35)
             .frame(width: Metrics.pill, height: Metrics.pill)
-            .surface(Circle(), id: id, in: glass)
+            .glass(Circle(), interactive: true, else: .clear)
+            .background { if #unavailable(iOS 26.0) { Glass(shape: Circle()) } }
             .contentShape(Circle())
             .gesture(Tap(action: action))
-            // Folding: it shrinks and fades into the pill, giving its room
-            // back as it goes.
-            .scaleEffect(1 - 0.5 * f, anchor: .center)
-            .opacity(Double(max(0, 1 - f * 1.8)))
-            .frame(width: Metrics.pill * (1 - f))
-            .allowsHitTesting(!tucked)
             .accessibilityLabel(name)
             .accessibilityAddTraits(.isButton)
     }

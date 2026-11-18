@@ -143,10 +143,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         web.scrollView.delegate = self
         web.isFindInteractionEnabled = true
         Shield.shared.protect(web.configuration.userContentController)
-        // Pull the page down past its top to load it again.
-        let refresh = UIRefreshControl()
-        refresh.addTarget(self, action: #selector(pulled), for: .valueChanged)
-        web.scrollView.refreshControl = refresh
+        // Pull the page down past its top to load it again: our own, not
+        // UIRefreshControl, which changes the scroll view's insets and
+        // left the page under the clock once it was done.
 
         watch = [
             web.observe(\.title, options: [.new]) { [weak self] _, _ in
@@ -171,10 +170,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
                 MainActor.assumeIsolated {
                     guard let self else { return }
                     self.loading = self.web.isLoading
-                    if !self.loading {
-                        self.waking = false
-                        self.web.scrollView.refreshControl?.endRefreshing()
-                    }
+                    if !self.loading { self.waking = false }
                 }
             },
             web.observe(\.canGoBack, options: [.new]) { [weak self] _, _ in
@@ -226,7 +222,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     func reload() { web.reload() }
     func stop() { web.stopLoading() }
 
-    @objc private func pulled() {
+    private func pulled() {
         #if DEBUG
         Probe.note("pulled")
         #endif
@@ -335,8 +331,11 @@ extension Tab: UIScrollViewDelegate {
     }
 
     func scrollViewDidEndDragging(_ view: UIScrollView, willDecelerate: Bool) {
+        // Let go well past the top: load the page again.
+        if view.contentOffset.y < -view.adjustedContentInset.top - 90 { pulled() }
         if !willDecelerate { scrolled?(.rest) }
     }
+
 
     func scrollViewDidEndDecelerating(_ view: UIScrollView) {
         scrolled?(.rest)
