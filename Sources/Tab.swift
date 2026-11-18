@@ -95,6 +95,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
 
     private var watch: [NSKeyValueObservation] = []
     private var lastY: CGFloat = 0
+    private var startedAtTop = false
     /// Brought back from the last launch and not shown since: it has an
     /// address, a title and a picture, and no page until it's looked at.
     private(set) var pending: URL?
@@ -241,6 +242,12 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         if #available(iOS 26.0, *) {
             let insets = UIEdgeInsets(top: top, left: 0, bottom: bottom, right: 0)
             if web.obscuredContentInsets != insets { web.obscuredContentInsets = insets }
+            // As in Safari: at the top, the page starts below the clock (the
+            // band), and only scrolling takes it under. Without this the
+            // band was there on load and gone once the page came back up.
+            if web.scrollView.contentInset.top != top {
+                web.scrollView.contentInset.top = top
+            }
             web.scrollView.verticalScrollIndicatorInsets = UIEdgeInsets(top: top, left: 0, bottom: bottom, right: 0)
         }
         let low = UIEdgeInsets(top: top, left: 0, bottom: least, right: 0)
@@ -313,6 +320,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
 extension Tab: UIScrollViewDelegate {
     func scrollViewWillBeginDragging(_ view: UIScrollView) {
         lastY = view.contentOffset.y
+        startedAtTop = view.contentOffset.y <= -view.adjustedContentInset.top + 1
     }
 
     func scrollViewDidScroll(_ view: UIScrollView) {
@@ -332,7 +340,9 @@ extension Tab: UIScrollViewDelegate {
 
     func scrollViewDidEndDragging(_ view: UIScrollView, willDecelerate: Bool) {
         // Let go well past the top: load the page again.
-        if view.contentOffset.y < -view.adjustedContentInset.top - 90 { pulled() }
+        // Only a pull that began at the top: a fling back up that
+        // overshoots isn't asking for anything.
+        if startedAtTop, view.contentOffset.y < -view.adjustedContentInset.top - 90 { pulled() }
         if !willDecelerate { scrolled?(.rest) }
     }
 

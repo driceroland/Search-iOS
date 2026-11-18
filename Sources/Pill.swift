@@ -84,24 +84,31 @@ struct Pill: View {
 
     private var address: some View {
         let height = Metrics.pill - (Metrics.pill - Metrics.pillFolded) * f
-        return HStack(spacing: 7) {
-            if heading == nil, tab.isPrivate, !tucked {
+        // Everything before the name gives its room back as the bar folds,
+        // with the finger: no step where it would vanish all at once.
+        return HStack(spacing: 0) {
+            if heading == nil, tab.isPrivate {
                 Image(systemName: "eyeglasses")
                     .font(.scaled(12, weight: .medium))
                     .foregroundStyle(.secondary)
+                    .collapsing(f)
             }
-            if heading == nil, !tab.isBlank, !tucked {
-                if tab.loading {
-                    Ring()
-                } else {
-                    Mark(icon: tab.icon, letter: tab.letter, size: 15)
+            if heading == nil, !tab.isBlank {
+                Group {
+                    if tab.loading {
+                        Ring()
+                    } else {
+                        Mark(icon: tab.icon, letter: tab.letter, size: 15)
+                    }
                 }
+                .collapsing(f)
             }
-            if heading == nil, tab.address?.scheme?.lowercased() == "http", !tucked {
+            if heading == nil, tab.address?.scheme?.lowercased() == "http" {
                 // Safari's word for a page sent in the clear.
                 Text("Not secure")
                     .font(.scaled(13, weight: .medium))
                     .foregroundStyle(.secondary)
+                    .collapsing(f)
             }
             Text(heading ?? tab.short)
                 .font(.scaled(15.5 - 3 * f))
@@ -143,7 +150,6 @@ struct Pill: View {
             }
         })
         .animation(Motion.quick, value: heading)
-        .animation(Motion.quick, value: tucked)
     }
 
     /// A round glass button either side of the pill: Back on the left, as in
@@ -453,4 +459,26 @@ private struct Edge: ViewModifier {
                 .shadow(color: .black.opacity(0.12), radius: 30, y: 10)
         }
     }
+}
+
+/// A piece of the pill that folds away with the bar: it fades, shrinks and
+/// hands back its width and the gap after it, all in step with the fold.
+private struct Collapsing: ViewModifier {
+    let fold: CGFloat
+    @State private var width: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        let keep = max(0, 1 - fold)
+        content
+            .fixedSize()
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { width = $0 }
+            .scaleEffect(0.6 + 0.4 * keep, anchor: .center)
+            .opacity(Double(max(0, 1 - fold * 1.6)))
+            .frame(width: (width + 7) * keep, alignment: .leading)
+            .clipped()
+    }
+}
+
+extension View {
+    func collapsing(_ fold: CGFloat) -> some View { modifier(Collapsing(fold: fold)) }
 }
