@@ -29,7 +29,10 @@ struct SearchApp: App {
                 browser.rest()
                 browser.lock()
             }
-            if now == .active { browser.askToUnlock() }
+            if now == .active {
+                browser.askToUnlock()
+                Sync.shared.refresh()
+            }
         }
     }
 }
@@ -200,6 +203,12 @@ struct ContentView: View {
         .sheet(isPresented: $browser.settings) {
             Settings(browser: browser)
                 .presentationDetents([.large])
+        }
+        .sheet(isPresented: $browser.showingBookmarks) {
+            BookmarksView(browser: browser)
+        }
+        .sheet(isPresented: $browser.showingOthers) {
+            OtherTabs(browser: browser)
         }
         .sheet(isPresented: $browser.siteSheet) {
             if let tab = browser.active {

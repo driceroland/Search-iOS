@@ -10,6 +10,8 @@ struct Settings: View {
 
     @State private var askingData = false
     @State private var askingHistory = false
+    @State private var askingErase = false
+    @ObservedObject private var sync = Sync.shared
 
     var body: some View {
         NavigationStack {
@@ -54,9 +56,29 @@ struct Settings: View {
                 }
 
                 Section {
+                    Toggle("Sync with iCloud", isOn: $prefs.sync)
+                    if prefs.sync, sync.spaces.count > 1 {
+                        Picker("Pins from", selection: Binding(
+                            get: { sync.pinSpace },
+                            set: { sync.choose(space: $0) }
+                        )) {
+                            ForEach(sync.spaces) { Text($0.name).tag($0.id) }
+                        }
+                    }
+                    if prefs.sync, let problem = sync.problem {
+                        Text(problem).foregroundStyle(Palette.muted)
+                    }
+                    Button("Delete Search's Data from iCloud", role: .destructive) {
+                        askingErase = true
+                    }
+                } footer: {
+                    Text("Your open tabs, pins, bookmarks, search engine and appearance, the same on your iPhone and your Mac, through your own iCloud. Encrypted end to end: nobody else, us included, can read it. Private tabs never.")
+                }
+
+                Section {
                     Toggle("Handoff", isOn: $prefs.handoff)
                 } footer: {
-                    Text("The page you're on shows up on your Mac, and your Mac's page here, through Apple's Handoff: your own devices, nearby, on the same Apple Account. Private tabs never. Nothing is kept or synced.")
+                    Text("The page you're on shows up on your Mac, and your Mac's page here, through Apple's Handoff: your own devices, nearby, on the same Apple Account. Private tabs never. Handoff itself keeps nothing.")
                 }
 
                 Section("Appearance") {
@@ -77,7 +99,7 @@ struct Settings: View {
                         askingData = true
                     }
                 } footer: {
-                    Text("History, icons and site data live on this iPhone and nowhere else. There is no account and no sync.")
+                    Text("History, icons and site data live on this iPhone and nowhere else, even with sync on.")
                 }
 
                 Section {
@@ -92,6 +114,16 @@ struct Settings: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Done") { done() }
+                }
+            }
+            .confirmationDialog(
+                "Your tabs, pins, bookmarks and settings leave iCloud, for every device. What is on each device stays.",
+                isPresented: $askingErase, titleVisibility: .visible
+            ) {
+                Button("Delete from iCloud", role: .destructive) {
+                    prefs.sync = false
+                    sync.erase()
+                    browser.say("Deleted from iCloud")
                 }
             }
             .confirmationDialog(

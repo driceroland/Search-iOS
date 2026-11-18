@@ -59,16 +59,25 @@ final class Prefs: ObservableObject {
 
     /// Light, dark, or whatever the iPhone is: the Mac's default.
     @Published var look: Look {
-        didSet { store.set(look.rawValue, forKey: "look") }
+        didSet {
+            store.set(look.rawValue, forKey: "look")
+            Sync.shared.put("settings", shared)
+        }
     }
 
     @Published var engine: Engine {
-        didSet { store.set(engine.rawValue, forKey: "search.engine") }
+        didSet {
+            store.set(engine.rawValue, forKey: "search.engine")
+            Sync.shared.put("settings", shared)
+        }
     }
 
     /// A search address of one's own, with %s where the words go.
     @Published var customEngine: String {
-        didSet { store.set(customEngine, forKey: "search.custom") }
+        didSet {
+            store.set(customEngine, forKey: "search.custom")
+            Sync.shared.put("settings", shared)
+        }
     }
 
     /// The ad blocker, on as on the Mac.
@@ -98,6 +107,20 @@ final class Prefs: ObservableObject {
         didSet { store.set(engineSuggestions, forKey: "search.suggest") }
     }
 
+    /// Tabs, pins, bookmarks and these settings through one's own iCloud.
+    /// Off until turned on.
+    @Published var sync: Bool {
+        didSet {
+            store.set(sync, forKey: "sync")
+            sync ? Sync.shared.start() : Sync.shared.stop()
+        }
+    }
+
+    /// Which of the Mac's spaces' pins the iPhone shows; nil for the first.
+    @Published var syncSpace: String? {
+        didSet { store.set(syncSpace, forKey: "sync.space") }
+    }
+
     var searchTemplate: String { engine.template(custom: customEngine) }
 
     private init() {
@@ -109,5 +132,7 @@ final class Prefs: ObservableObject {
         autoClose = store.string(forKey: "tabs.autoclose").flatMap(AutoClose.init) ?? .never
         lockPrivate = store.bool(forKey: "private.lock")
         engineSuggestions = store.bool(forKey: "search.suggest")
+        sync = store.bool(forKey: "sync")
+        syncSpace = store.string(forKey: "sync.space")
     }
 }

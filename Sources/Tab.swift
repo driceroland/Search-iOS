@@ -65,6 +65,11 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published private(set) var snapshot: UIImage?
     /// One letter, when the tab has been pinned.
     @Published var pin: String?
+    /// The pin's own name for it everywhere (the Mac's PinDef id), the page
+    /// it was pinned at, and a name given to it, if any.
+    var pinID: UUID?
+    var pinHome: URL?
+    var pinName: String?
     /// Showing the article alone, in the Reader's type.
     @Published var reading = false
     /// The site's own icon, once it has been fetched or found on disk.

@@ -32,6 +32,9 @@ final class Browser: NSObject, ObservableObject {
     /// The system's find bar is up; the pill steps aside for it.
     @Published var finding = false
     @Published var settings = false
+    /// The bookmarks, and the other devices' tabs.
+    @Published var showingBookmarks = false
+    @Published var showingOthers = false
     /// "This site", out of the page's menu.
     @Published var siteSheet = false
     /// Held the count: close every tab?
@@ -75,7 +78,11 @@ final class Browser: NSObject, ObservableObject {
 
     override init() {
         super.init()
-        defer { offering = Offering(self, prefs: .shared) }
+        defer {
+            offering = Offering(self, prefs: .shared)
+            Sync.shared.browser = self
+            if Prefs.shared.sync { Sync.shared.start() }
+        }
         Shield.shared.compile()
         Favicons.shared.arrived = { [weak self] key, image in
             for tab in self?.tabs ?? [] where tab.address.flatMap(Favicons.key) == key {
@@ -103,6 +110,9 @@ final class Browser: NSObject, ObservableObject {
             let tab = Tab(key: entry.key ?? UUID().uuidString)
             prepare(tab)
             tab.pin = entry.pin
+            tab.pinID = entry.pinID
+            tab.pinHome = entry.home.flatMap(URL.init(string:))
+            tab.pinName = entry.pinName
             tab.seen = entry.seen ?? Date()
             tab.restore(url, title: entry.title)
             tabs.append(tab)
@@ -181,6 +191,9 @@ final class Browser: NSObject, ObservableObject {
             let fresh = Tab()
             prepare(fresh)
             fresh.pin = tab.pin
+            fresh.pinID = tab.pinID
+            fresh.pinHome = tab.pinHome
+            fresh.pinName = tab.pinName
             if let url = tab.address { fresh.go(to: url) }
             tabs[index] = fresh
             if activeID == tab.id { activeID = fresh.id }
@@ -269,10 +282,15 @@ final class Browser: NSObject, ObservableObject {
     func pin(_ tab: Tab) {
         guard tab.pin == nil else {
             tab.pin = nil
+            tab.pinID = nil
+            tab.pinHome = nil
+            tab.pinName = nil
             remember()
             return
         }
         let host = tab.address.map { Address.host($0) } ?? ""
+        tab.pinID = UUID()
+        tab.pinHome = tab.address
         tab.pin = host.first.map { String($0).uppercased() } ?? "•"
         if let here = tabs.firstIndex(where: { $0.id == tab.id }) {
             let home = max(0, pinnedCount - 1)
@@ -281,6 +299,16 @@ final class Browser: NSObject, ObservableObject {
             }
         }
         remember()
+    }
+
+    /// A tab made elsewhere (a pin from iCloud), ready to be put in.
+    func bring(_ tab: Tab) { prepare(tab) }
+
+    /// The tabs in a new order, from iCloud's pins.
+    func setTabs(_ next: [Tab]) {
+        for tab in tabs where !next.contains(tab) { tab.close() }
+        tabs = next
+        if !tabs.contains(where: { $0.id == activeID }) { activeID = tabs.first?.id }
     }
 
     private func adopt(_ tab: Tab) {
@@ -557,9 +585,10 @@ final class Browser: NSObject, ObservableObject {
 
     // MARK: - between launches
 
-    private func remember(now: Bool = false) {
+    func remember(now: Bool = false) {
         if now {
             Session.write(shape)
+            Sync.shared.publish(self)
             return
         }
         guard !saving else { return }
@@ -568,6 +597,7 @@ final class Browser: NSObject, ObservableObject {
             guard let self else { return }
             saving = false
             Session.write(shape)
+            Sync.shared.publish(self)
         }
     }
 
@@ -579,7 +609,8 @@ final class Browser: NSObject, ObservableObject {
             tabs: kept.map { tab in
                 Session.Entry(
                     url: tab.address!.absoluteString, title: tab.title, pin: tab.pin, key: tab.key,
-                    seen: tab.id == activeID ? Date() : tab.seen
+                    seen: tab.id == activeID ? Date() : tab.seen,
+                    pinID: tab.pinID, home: tab.pinHome?.absoluteString, pinName: tab.pinName
                 )
             },
             active: kept.firstIndex { $0.id == activeID } ?? 0
@@ -808,6 +839,10 @@ enum Session {
         var key: String?
         /// When it was last the one in front.
         var seen: Date? = nil
+        /// A pin's id, the page it was pinned at, its name: the Mac's.
+        var pinID: UUID? = nil
+        var home: String? = nil
+        var pinName: String? = nil
     }
 
     struct Shape: Codable {

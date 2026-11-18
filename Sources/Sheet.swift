@@ -178,6 +178,30 @@ struct Sheet: View {
                     }
 
                     Button {
+                        browser.showingBookmarks = true
+                    } label: {
+                        Image(systemName: "book")
+                            .font(.scaled(15))
+                            .frame(width: 40, height: row)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Bookmarks")
+
+                    if Prefs.shared.sync {
+                        Button {
+                            browser.showingOthers = true
+                        } label: {
+                            Image(systemName: "laptopcomputer.and.iphone")
+                                .font(.scaled(15))
+                                .frame(width: 40, height: row)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Other devices")
+                    }
+
+                    Button {
                         browser.settings = true
                     } label: {
                         Image(systemName: "gearshape")

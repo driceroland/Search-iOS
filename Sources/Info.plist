@@ -33,6 +33,10 @@
 	<string>A site you open asks where you are, for a map or a nearby shop. It is passed to that site only, never kept by Search.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Locked private tabs open with Face ID.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
