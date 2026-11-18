@@ -118,7 +118,7 @@ SharedSettings{ engine: String?, custom: String?, look: String? }               
 `pins.00000000-0000-0000-0000-000000000001`:
 
 ```json
-[{"home":"https://mail.google.com/","id":"0E4B…","letter":"M","name":null,"title":"Inbox"},
+[{"home":"https://mail.google.com/","id":"0E4B…","letter":"M","title":"Inbox"},
  {"folder":"…","home":"https://github.com/","id":"7A2D…","letter":"G","listed":true,"title":"GitHub"}]
 ```
 
