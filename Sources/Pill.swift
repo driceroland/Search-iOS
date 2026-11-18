@@ -34,6 +34,7 @@ struct Pill: View {
     var body: some View {
         let f = chrome.fold
         HStack(spacing: 8 * (1 - f)) {
+            back(f)
             address(f)
             counter(f)
         }
@@ -95,6 +96,27 @@ struct Pill: View {
             }
         })
         .animation(Motion.quick, value: heading)
+    }
+
+    /// Back, where a thumb finds it, as in Safari. Dimmed with nowhere to go.
+    private func back(_ f: CGFloat) -> some View {
+        Image(systemName: "chevron.left")
+            .font(.scaled(17, weight: .medium))
+            .foregroundStyle(tab.canGoBack ? Palette.ink : Palette.faint)
+            .frame(width: Metrics.pill * (1 - f), height: Metrics.pill)
+            .background(Glass(shape: Circle(), shadow: 1))
+            .scaleEffect(1 - 0.5 * f)
+            .opacity(1 - f * 1.6)
+            .frame(width: Metrics.pill * (1 - f))
+            .contentShape(Circle())
+            .gesture(Tap {
+                guard tab.canGoBack else { return }
+                Feel.tick()
+                tab.back()
+            })
+            .allowsHitTesting(f < 0.5)
+            .accessibilityLabel("Back")
+            .accessibilityAddTraits(.isButton)
     }
 
     private func counter(_ f: CGFloat) -> some View {

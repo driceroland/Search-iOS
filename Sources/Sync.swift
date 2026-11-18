@@ -612,6 +612,7 @@ extension Browser {
 
     /// Pins from iCloud: the same ones, in the same order, here.
     func adopt(pins defs: [PinDef]) {
+        objectWillChange.send()
         var kept: [Tab] = []
         var pinned = tabs.filter { $0.pin != nil }
         for def in defs {

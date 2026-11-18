@@ -283,6 +283,9 @@ final class Browser: NSObject, ObservableObject {
     }
 
     func pin(_ tab: Tab) {
+        // The sheet lists pins from the tabs; a pin set or taken off is a
+        // change to the list even when no tab moves.
+        objectWillChange.send()
         guard tab.pin == nil else {
             tab.pin = nil
             tab.pinID = nil

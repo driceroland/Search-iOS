@@ -111,6 +111,9 @@ struct Sheet: View {
                                     Feel.nudge()
                                     withAnimation(Motion.settle) { browser.pin(tab) }
                                 }
+                                // Held and moved: the pin goes where it's let go.
+                                .draggable(tab.id.uuidString) { Mark(icon: tab.icon, letter: tab.pin ?? "", size: 28) }
+                                .dropDestination(for: String.self) { ids, _ in drop(ids, on: tab) }
                             }
                             // One short row still keeps three places, as on
                             // the Mac: a lone pin is a square, not a bar.
@@ -161,17 +164,15 @@ struct Sheet: View {
                             withAnimation(Motion.settle) { browser.close(tab) }
                         } label: { Label("Close Tab", systemImage: "xmark") }
                     }
-                    .onDrag {
-                        carried = tab
-                        Feel.nudge()
-                        return NSItemProvider(object: tab.id.uuidString as NSString)
+                    .draggable(tab.id.uuidString) {
+                        Line(tab: tab, live: false, space: space).frame(width: 300)
                     }
-                    .onDrop(of: [.text], delegate: Reorder(target: tab, carried: $carried, browser: browser))
+                    .dropDestination(for: String.self) { ids, _ in drop(ids, on: tab) }
                     .transition(.opacity.combined(with: .scale(0.96, anchor: .leading)))
                 }
 
             }
-            .padding(.horizontal, 8)
+            .padding(.horizontal, 14)
         }
         .scrollBounceBehavior(.basedOnSize)
         // A list that fits doesn't scroll at all, so a drag down on it is
@@ -209,6 +210,7 @@ struct Sheet: View {
                     .font(.scaled(15, weight: .medium))
                     .foregroundStyle(Palette.ink)
                     .padding(.horizontal, 20)
+                    .frame(maxWidth: .infinity)
                     .frame(height: 46)
                     .glass(Capsule(), interactive: true, else: Palette.wash)
                     .contentShape(Capsule())
@@ -231,16 +233,30 @@ struct Sheet: View {
                     }
                 }
             }
-            round("eyeglasses", "New private tab") {
-                Feel.tick()
-                browser.newTab(private: true)
-            }
             round("book", "Bookmarks") { browser.showingBookmarks = true }
-            if Prefs.shared.sync {
-                round("laptopcomputer.and.iphone", "Other devices") { browser.showingOthers = true }
+            // The rest, less often reached for, behind one button.
+            Menu {
+                Button {
+                    Feel.tick()
+                    browser.newTab(private: true)
+                } label: { Label("New private tab", systemImage: "eyeglasses") }
+                if Prefs.shared.sync {
+                    Button { browser.showingOthers = true } label: {
+                        Label("Other devices", systemImage: "laptopcomputer.and.iphone")
+                    }
+                }
+                Button { browser.settings = true } label: { Label("Settings", systemImage: "gearshape") }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.scaled(16, weight: .medium))
+                    .foregroundStyle(Palette.ink)
+                    .frame(width: 46, height: 46)
+                    .glass(Circle(), interactive: true, else: Palette.wash)
+                    .contentShape(Circle())
             }
-            round("gearshape", "Settings") { browser.settings = true }
+            .accessibilityLabel("More")
         }
+        .padding(.horizontal, 14)
         .padding(.top, 10)
         .padding(.bottom, 6)
         .frame(maxWidth: .infinity)
@@ -272,6 +288,16 @@ struct Sheet: View {
         default:
             break
         }
+    }
+
+    /// A tab let go over another: it takes that one's place.
+    private func drop(_ ids: [String], on target: Tab) -> Bool {
+        guard let id = ids.first.flatMap(UUID.init(uuidString:)),
+              let tab = browser.tabs.first(where: { $0.id == id }), tab.id != target.id
+        else { return false }
+        Feel.tick()
+        withAnimation(Motion.settle) { browser.move(tab, before: target) }
+        return true
     }
 
     private func pick(_ tab: Tab) {

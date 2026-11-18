@@ -150,6 +150,16 @@
         }
       }
     },
+    "Back": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retour"
+          }
+        }
+      }
+    },
     "Block ads": {
       "localizations": {
         "fr": {
@@ -576,6 +586,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Micro"
+          }
+        }
+      }
+    },
+    "More": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plus"
           }
         }
       }
