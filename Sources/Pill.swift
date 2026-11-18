@@ -30,27 +30,58 @@ struct Pill: View {
 
     private enum Axis { case none, walk, lift, ignored }
     @State private var axis: Axis = .none
+    /// Where the glass of the three pieces is named, so that on iOS 26 the
+    /// side buttons melt into the pill and out of it again.
+    @Namespace private var glass
+
+    /// While the page scrolls down: the side buttons go, the pill narrows a
+    /// little. Its height and its words stay as they are.
+    private var tucked: Bool { chrome.fold > 0.5 }
 
     var body: some View {
-        let f = chrome.fold
-        HStack(spacing: 8 * (1 - f)) {
-            back(f)
-            address(f)
-            counter(f)
-        }
-        .padding(.horizontal, 16 + 70 * f)
-        .padding(.bottom, 8 - 8 * f)
-        .contentShape(Rectangle())
-        .gesture(Pan(action: pan))
-        .gesture(Hold { if chrome.fold < 0.5 { Feel.nudge(); hold() } })
+        bar
+            .padding(.horizontal, tucked ? 40 : 16)
+            .padding(.bottom, 8)
+            .animation(Motion.glide, value: tucked)
+            .contentShape(Rectangle())
+            .gesture(Pan(action: pan))
+            .gesture(Hold { if !tucked { Feel.nudge(); hold() } })
     }
 
-    private func address(_ f: CGFloat) -> some View {
+    @ViewBuilder
+    private var bar: some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: 10) { row }
+        } else {
+            row
+        }
+    }
+
+    private var row: some View {
+        HStack(spacing: 8) {
+            if !tucked {
+                side("chevron.left", "Back", id: "back", enabled: tab.canGoBack) {
+                    guard tab.canGoBack else { return }
+                    Feel.tick()
+                    tab.back()
+                }
+                .transition(.scale(0.6).combined(with: .opacity))
+            }
+            address
+            if !tucked {
+                side("square.on.square", "Tabs", id: "tabs", enabled: true) { tabs() }
+                    .accessibilityValue(Text("\(count)"))
+                    .transition(.scale(0.6).combined(with: .opacity))
+            }
+        }
+    }
+
+    private var address: some View {
         HStack(spacing: 7) {
             if heading == nil, tab.isPrivate {
                 Image(systemName: "eyeglasses")
                     .font(.scaled(12, weight: .medium))
-                    .foregroundStyle(Palette.muted)
+                    .foregroundStyle(.secondary)
             }
             if heading == nil, !tab.isBlank {
                 if tab.loading {
@@ -63,33 +94,31 @@ struct Pill: View {
                 // Safari's word for a page sent in the clear.
                 Text("Not secure")
                     .font(.scaled(13, weight: .medium))
-                    .foregroundStyle(Palette.muted)
+                    .foregroundStyle(.secondary)
             }
             Text(heading ?? tab.short)
                 .font(.scaled(15.5))
-                .foregroundStyle(tab.isBlank && heading == nil ? Palette.muted : Palette.ink)
+                .foregroundStyle(tab.isBlank && heading == nil ? AnyShapeStyle(.secondary) : AnyShapeStyle(.primary))
                 .lineLimit(1)
                 .truncationMode(.middle)
                 .id(heading ?? tab.short)
                 .transition(.opacity)
         }
-        .scaleEffect(1 - 0.2 * f)
+        .padding(.horizontal, 14)
         .frame(maxWidth: .infinity)
-        .frame(height: Metrics.pill - (Metrics.pill - Metrics.pillFolded) * f)
-        .background {
-            Glass(shape: Capsule(), shadow: 1 - f)
-                .overlay(alignment: .bottom) {
-                    // The loading line lives in the pill, along its foot,
-                    // where the eye already is.
-                    Loading(tab: tab).clipShape(Capsule())
-                }
+        .frame(height: Metrics.pill)
+        .surface(Capsule(), id: "pill", in: glass)
+        .overlay(alignment: .bottom) {
+            // The loading line lives in the pill, along its foot, where the
+            // eye already is.
+            Loading(tab: tab).clipShape(Capsule()).allowsHitTesting(false)
         }
         // The whole pill, its words with it, takes the field's place and
         // gives it back: the words travel with the capsule, not after it.
         .matchedGeometryEffect(id: "pill", in: space, isSource: source)
         .contentShape(Capsule())
         .gesture(Tap {
-            if chrome.fold > 0.5 {
+            if tucked {
                 chrome.unfold(animated: true)
             } else {
                 type()
@@ -98,41 +127,20 @@ struct Pill: View {
         .animation(Motion.quick, value: heading)
     }
 
-    /// Back, where a thumb finds it, as in Safari. Dimmed with nowhere to go.
-    private func back(_ f: CGFloat) -> some View {
-        Image(systemName: "chevron.left")
+    /// A round glass button either side of the pill: Back on the left, as in
+    /// Safari, every tab on the right. White on the glass; dimmed when there
+    /// is nowhere to go.
+    private func side(_ symbol: String, _ name: LocalizedStringKey, id: String, enabled: Bool, action: @escaping () -> Void) -> some View {
+        Image(systemName: symbol)
             .font(.scaled(17, weight: .medium))
-            .foregroundStyle(tab.canGoBack ? Palette.ink : Palette.faint)
-            .frame(width: Metrics.pill * (1 - f), height: Metrics.pill)
-            .background(Glass(shape: Circle(), shadow: 1))
-            .scaleEffect(1 - 0.5 * f)
-            .opacity(1 - f * 1.6)
-            .frame(width: Metrics.pill * (1 - f))
+            .foregroundStyle(.primary)
+            .opacity(enabled ? 1 : 0.35)
+            .frame(width: Metrics.pill, height: Metrics.pill)
+            .surface(Circle(), id: id, in: glass)
             .contentShape(Circle())
-            .gesture(Tap {
-                guard tab.canGoBack else { return }
-                Feel.tick()
-                tab.back()
-            })
-            .allowsHitTesting(f < 0.5)
-            .accessibilityLabel("Back")
+            .gesture(Tap(action: action))
+            .accessibilityLabel(name)
             .accessibilityAddTraits(.isButton)
-    }
-
-    private func counter(_ f: CGFloat) -> some View {
-        Text("\(count)")
-            .font(.scaled(14, weight: .medium))
-            .foregroundStyle(Palette.ink)
-            .contentTransition(.numericText())
-            .frame(width: Metrics.pill * (1 - f), height: Metrics.pill)
-            .background(Glass(shape: Circle(), shadow: 1))
-            .scaleEffect(1 - 0.5 * f)
-            .opacity(1 - f * 1.6)
-            .frame(width: Metrics.pill * (1 - f))
-            .contentShape(Circle())
-            .gesture(Tap { tabs() })
-            .allowsHitTesting(f < 0.5)
-            .animation(Motion.quick, value: count)
     }
 
     private func pan(_ recognizer: UIPanGestureRecognizer) {
@@ -187,6 +195,17 @@ struct Glass<S: InsettableShape>: View {
 }
 
 extension View {
+    /// The pill's own glass, named so that pieces in one container melt
+    /// together; before iOS 26, the old surface.
+    @ViewBuilder
+    func surface<S: InsettableShape>(_ shape: S, id: String, in space: Namespace.ID) -> some View {
+        if #available(iOS 26.0, *) {
+            glassEffect(.regular.interactive(), in: shape).glassEffectID(id, in: space)
+        } else {
+            background(Glass(shape: shape))
+        }
+    }
+
     /// Liquid Glass in this shape on iOS 26; the given colour before.
     @ViewBuilder
     func glass<S: Shape>(_ shape: S, interactive: Bool = false, else fallback: Color = Palette.ground) -> some View {

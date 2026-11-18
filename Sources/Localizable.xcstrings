@@ -1080,6 +1080,16 @@
         }
       }
     },
+    "Tabs": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Onglets"
+          }
+        }
+      }
+    },
     "Tabs you haven't looked at for that long close by themselves; pinned tabs never do. Locked private tabs ask for Face ID when you come back to Search.": {
       "localizations": {
         "fr": {
