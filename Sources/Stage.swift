@@ -11,13 +11,30 @@ struct Page: View {
     @ObservedObject var tab: Tab
     /// The status bar's height: the page ignores the safe area, so it is told.
     var top: CGFloat
+    /// Something of the app's is over the top of the page (the sheet, the
+    /// field): the clock goes back to the app's own colour.
+    var covered = false
+    @Environment(\.colorScheme) private var scheme
+
+    /// What sits behind the clock: the page's theme-color, else its own
+    /// background; nothing while a blank tab or an error page shows.
+    private var behindClock: UIColor? {
+        guard !covered, !tab.isBlank, tab.failure == nil else { return nil }
+        // The page's own background, as Safari samples it; its theme-color
+        // only when it has none.
+        return tab.ground ?? tab.tint
+    }
+
+    private var statusKey: String {
+        "\(behindClock.map { "\($0)" } ?? "none")|\(scheme == .dark)"
+    }
 
     var body: some View {
         ZStack(alignment: .top) {
             WebStage(page: tab.isBlank ? nil : tab.web)
                 .background(Palette.ground)
                 .ignoresSafeArea()
-            Band(tint: tab.tint ?? tab.ground, height: top)
+            Band(tint: tab.tint, height: top)
         }
         .overlay {
             if let failure = tab.failure { Failed(tab: tab, failure: failure) }
@@ -30,6 +47,10 @@ struct Page: View {
             }
         }
         .animation(.easeOut(duration: 0.2), value: tab.waking)
+        .onChange(of: statusKey, initial: true) { _, _ in
+            StatusBar.follow(behindClock, scheme: scheme == .dark ? .dark : .light)
+        }
+        .onDisappear { StatusBar.follow(nil, scheme: scheme == .dark ? .dark : .light) }
     }
 }
 
@@ -71,39 +92,15 @@ struct Card: View {
 struct Band: View {
     var tint: UIColor?
     var height: CGFloat
-    @Environment(\.colorScheme) private var scheme
 
     var body: some View {
-        // The page itself runs up behind the clock; only where the clock
-        // wouldn't read on it does a soft fade come in. No band of a colour
-        // guessed for the page: a guess is never quite the page.
-        ZStack(alignment: .top) {
-            if let page = resolved, !readable(page) {
-                LinearGradient(
-                    colors: [Palette.ground.opacity(0.92), Palette.ground.opacity(0.6), Palette.ground.opacity(0)],
-                    startPoint: .top, endPoint: .bottom
-                )
-                .frame(height: height + 18)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .frame(height: height, alignment: .top)
-        .allowsHitTesting(false)
-    }
-
-    private var resolved: UIColor? {
-        guard let tint else { return nil }
-        let colour = tint.resolvedColor(with: UITraitCollection(userInterfaceStyle: scheme == .dark ? .dark : .light))
-        var white: CGFloat = 0, alpha: CGFloat = 0
-        guard colour.getWhite(&white, alpha: &alpha), alpha > 0.9 else { return nil }
-        return colour
-    }
-
-    /// The clock follows the app's appearance: light text in dark mode.
-    private func readable(_ colour: UIColor) -> Bool {
-        var white: CGFloat = 0, alpha: CGFloat = 0
-        colour.getWhite(&white, alpha: &alpha)
-        return scheme == .dark ? white < 0.45 : white > 0.55
+        // As in Safari: nothing of the app's behind the clock. The page shows
+        // there itself (at the top, its own background above its content);
+        // the clock's text turns light or dark to read on it (StatusBar).
+        Color.clear
+            .frame(maxWidth: .infinity)
+            .frame(height: height)
+            .allowsHitTesting(false)
     }
 }
 

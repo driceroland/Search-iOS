@@ -28,6 +28,7 @@
 		7DE3E7CBBF17562AB6503F0D /* Stage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28D643F97B5056D1B342A8FD /* Stage.swift */; };
 		5943FF98A9A452149B359458 /* Store.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7807EE2E079D5685A54B5084 /* Store.swift */; };
 		A1B2C3D4E5F6A7B8C9D0E1F2 /* Handoff.swift in Sources */ = {isa = PBXBuildFile; fileRef = F2E1D0C9B8A7F6E5D4C3B2A1 /* Handoff.swift */; };
+		B8C9D0E1F2A3B4C5D6E7F8A9 /* StatusBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D9E0F1A2B3C4D5E6F7A8B9 /* StatusBar.swift */; };
 		B4C5D6E7F8A9B0C1D2E3F4A5 /* Welcome.swift in Sources */ = {isa = PBXBuildFile; fileRef = C4D5E6F7A8B9C0D1E2F3A4B5 /* Welcome.swift */; };
 		B3C4D5E6F7A8B9C0D1E2F3A4 /* Sync.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D4E5F6A7B8C9D0E1F2A3B4 /* Sync.swift */; };
 		B2C3D4E5F6A7B8C9D0E1F2A3 /* Keys.swift in Sources */ = {isa = PBXBuildFile; fileRef = C2D3E4F5A6B7C8D9E0F1A2B3 /* Keys.swift */; };
@@ -60,6 +61,7 @@
 		28D643F97B5056D1B342A8FD /* Stage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stage.swift; sourceTree = "<group>"; };
 		7807EE2E079D5685A54B5084 /* Store.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Store.swift; sourceTree = "<group>"; };
 		F2E1D0C9B8A7F6E5D4C3B2A1 /* Handoff.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Handoff.swift; sourceTree = "<group>"; };
+		C8D9E0F1A2B3C4D5E6F7A8B9 /* StatusBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusBar.swift; sourceTree = "<group>"; };
 		C4D5E6F7A8B9C0D1E2F3A4B5 /* Welcome.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Welcome.swift; sourceTree = "<group>"; };
 		C3D4E5F6A7B8C9D0E1F2A3B4 /* Sync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sync.swift; sourceTree = "<group>"; };
 		C2D3E4F5A6B7C8D9E0F1A2B3 /* Keys.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Keys.swift; sourceTree = "<group>"; };
@@ -99,6 +101,7 @@
 				28D643F97B5056D1B342A8FD /* Stage.swift */,
 				7807EE2E079D5685A54B5084 /* Store.swift */,
 				F2E1D0C9B8A7F6E5D4C3B2A1 /* Handoff.swift */,
+				C8D9E0F1A2B3C4D5E6F7A8B9 /* StatusBar.swift */,
 				C4D5E6F7A8B9C0D1E2F3A4B5 /* Welcome.swift */,
 				C3D4E5F6A7B8C9D0E1F2A3B4 /* Sync.swift */,
 				C2D3E4F5A6B7C8D9E0F1A2B3 /* Keys.swift */,
@@ -202,6 +205,7 @@
 				7DE3E7CBBF17562AB6503F0D /* Stage.swift in Sources */,
 				5943FF98A9A452149B359458 /* Store.swift in Sources */,
 				A1B2C3D4E5F6A7B8C9D0E1F2 /* Handoff.swift in Sources */,
+				B8C9D0E1F2A3B4C5D6E7F8A9 /* StatusBar.swift in Sources */,
 				B4C5D6E7F8A9B0C1D2E3F4A5 /* Welcome.swift in Sources */,
 				B3C4D5E6F7A8B9C0D1E2F3A4 /* Sync.swift in Sources */,
 				B2C3D4E5F6A7B8C9D0E1F2A3 /* Keys.swift in Sources */,

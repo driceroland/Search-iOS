@@ -270,7 +270,7 @@ struct ContentView: View {
             // The live page, always at its full size. Hidden, not moved,
             // while its picture stands in for it.
             if let tab = browser.active {
-                Page(tab: tab, top: top)
+                Page(tab: tab, top: top, covered: lift > 0.02 || browser.editing || frozen != nil)
                     .opacity(frozen == nil ? 1 : 0)
                     .overlay {
                         if browser.locked, tab.isPrivate { Locked(browser: browser) }
@@ -287,7 +287,7 @@ struct ContentView: View {
                         Card(tab: browser.neighbour(-1), top: top)
                             .offset(x: -(width + Metrics.gap) + walk)
                     }
-                    Still(image: frozen, tint: browser.active?.tint ?? browser.active?.ground, top: top, band: max(0, 1 - lift * 4))
+                    Still(image: frozen, tint: browser.active?.tint, top: top, band: max(0, 1 - lift * 4))
                         .overlay {
                             if browser.locked, browser.active?.isPrivate == true { Locked(browser: browser) }
                         }

@@ -356,6 +356,7 @@ extension Tab: UIScrollViewDelegate {
 
 
     func scrollViewDidEndDecelerating(_ view: UIScrollView) {
+        readGround()
         scrolled?(.rest)
     }
 
