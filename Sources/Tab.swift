@@ -171,7 +171,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
                 MainActor.assumeIsolated {
                     guard let self else { return }
                     self.loading = self.web.isLoading
-                    if !self.loading { self.waking = false }
+                    if !self.loading {
+                        self.waking = false
+                        self.readGround()
+                    }
                 }
             },
             web.observe(\.canGoBack, options: [.new]) { [weak self] _, _ in
@@ -184,6 +187,11 @@ final class Tab: NSObject, ObservableObject, Identifiable {
                 MainActor.assumeIsolated {
                     Shortcuts.turning = web.fullscreenState == .inFullscreen || web.fullscreenState == .enteringFullscreen
                 }
+            },
+            // The page's background as soon as it paints it, and whenever it
+            // changes: the clock's colour follows it from the first load.
+            web.observe(\.underPageBackgroundColor, options: [.new]) { [weak self] _, _ in
+                MainActor.assumeIsolated { self?.readGround() }
             },
             web.observe(\.themeColor, options: [.new]) { [weak self] _, _ in
                 MainActor.assumeIsolated { self?.tint = self?.web.themeColor }

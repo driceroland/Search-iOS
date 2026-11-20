@@ -27,9 +27,13 @@ enum StatusBar {
         } else {
             next = .default
         }
-        guard next != style else { return }
         style = next
+        // Applied every time, not only on a change: the first call can come
+        // before the window has its root controller, and a style kept but
+        // never applied left the clock dark on a dark page until the next
+        // page.
         apply()
+        DispatchQueue.main.async { apply() }
     }
 
     private static func apply() {
