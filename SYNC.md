@@ -68,6 +68,9 @@ SharedSettings{ engine: String?, custom: String?, look: String? }               
   that rewrites a pin starts from the last version it read and changes only
   the fields it owns; anything else is kept as it was. A missing field
   means "unchanged", not "cleared".
+- `PinDef.pair` (optional, from the Mac): a split view pinned as a split.
+  The iPhone keeps it untouched on write-back and opens the pin's `home`,
+  the split's first page.
 - A pin's `title` is the one it was pinned with; a device doesn't rewrite it
   from the page's current title.
 - Engine values: `google duckduckgo bing ecosia startpage kagi brave qwant
