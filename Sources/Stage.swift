@@ -14,6 +14,9 @@ struct Page: View {
     /// Something of the app's is over the top of the page (the sheet, the
     /// field): the clock goes back to the app's own colour.
     var covered = false
+    /// Which safe area edges the page runs under: not the sides beside a
+    /// Duo's rail, which keeps its own band.
+    var edges: Edge.Set = .all
     @Environment(\.colorScheme) private var scheme
 
     /// What sits behind the clock: the page's theme-color, else its own
@@ -31,7 +34,7 @@ struct Page: View {
         ZStack(alignment: .top) {
             WebStage(page: tab.isBlank ? nil : tab.web)
                 .background(Palette.ground)
-                .ignoresSafeArea()
+                .ignoresSafeArea(edges: edges)
             Band(tint: tab.isBlank || tab.failure != nil ? nil : tab.behindClock, height: top)
         }
         .overlay {
@@ -74,6 +77,7 @@ struct Page: View {
 struct Card: View {
     var tab: Tab?
     var top: CGFloat
+    var edges: Edge.Set = .all
 
     var body: some View {
         ZStack {
@@ -95,7 +99,7 @@ struct Card: View {
             }
         }
         .clipped()
-        .ignoresSafeArea()
+        .ignoresSafeArea(edges: edges)
 
     }
 }
@@ -351,6 +355,9 @@ struct Zoom: View, Animatable {
         set { progress = newValue }
     }
     let screen: CGSize
+    /// Where the page starts across: past the Duo's rail when it is on the
+    /// left.
+    var x0: CGFloat = 0
     let target: CGRect
     /// Whose page it is: its name comes down under it, to where it sits
     /// under the card.
@@ -379,8 +386,8 @@ struct Zoom: View, Animatable {
         .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
         .shadow(color: .black.opacity(0.14 * Double(p)), radius: 12 / max(0.01, scale), y: 4 / max(0.01, scale))
         .scaleEffect(scale, anchor: .topLeading)
-        .offset(x: target.minX * p, y: target.minY * p)
-        .frame(width: screen.width, height: screen.height, alignment: .topLeading)
+        .offset(x: x0 + (target.minX - x0) * p, y: target.minY * p)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .overlay(alignment: .topLeading) {
             if let tab {
                 // At the card's own width from the start, so its words are
@@ -388,7 +395,7 @@ struct Zoom: View, Animatable {
                 // width changed, they jumped sideways while going down.
                 CardName(tab: tab, live: true)
                     .frame(width: target.width)
-                    .offset(x: target.minX * p + (screen.width * scale - target.width) / 2,
+                    .offset(x: x0 + (target.minX - x0) * p + (screen.width * scale - target.width) / 2,
                             y: target.minY * p + height * scale + 7)
                     .opacity(Double(max(0, min(1, (p - 0.15) / 0.6))))
             }

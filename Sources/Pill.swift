@@ -37,6 +37,8 @@ struct Pill: View {
     var newPrivate = false
     /// The Duo's column beside the camera, where Back and Tabs stand.
     var rail = Rail()
+    /// How far above Tabs Back stands in the rail.
+    var backRise: CGFloat = Metrics.pill + 10
     var bookmarks: () -> Void = {}
 
     private enum Axis { case none, walk, lift, ignored }
@@ -102,7 +104,7 @@ struct Pill: View {
             // taller and pushed it down off the screen.
             tabsButton
                 .overlay(alignment: .bottom) {
-                    back.offset(y: -(Metrics.pill + 10))
+                    back.offset(y: -max(Metrics.pill + 10, backRise))
                 }
             .padding(rail.edge, rail.inset)
             .offset(x: 28 * f * rail.out)
@@ -180,14 +182,12 @@ struct Pill: View {
                 .id(heading ?? tab.short)
                 .transition(.opacity)
         }
-        .opacity(Double(max(0, 1 - morph * 2)))
-        .scaleEffect(1 - 0.08 * morph)
+        .modifier(Handover(t: morph, leaving: true, shrink: 0.08))
         Label(newPrivate ? "New private tab" : "New tab", systemImage: newPrivate ? "eyeglasses" : "plus")
             .labelStyle(.titleAndIcon)
             .font(.scaled(15, weight: .medium))
             .foregroundStyle(.primary)
-            .opacity(Double(max(0, morph * 2 - 1)))
-            .scaleEffect(0.92 + 0.08 * morph)
+            .modifier(Handover(t: morph, leaving: false, shrink: 0.08))
             .accessibilityHidden(morph < 0.5)
         }
         .padding(.horizontal, 14 - 4 * f)
@@ -233,12 +233,10 @@ struct Pill: View {
         // One button, its icon turning into the other one's.
         ZStack {
             Image(systemName: symbol)
-                .opacity(Double(other == nil ? 1 : max(0, 1 - turn * 2)))
-                .scaleEffect(other == nil ? 1 : 1 - 0.3 * turn)
+                .modifier(Handover(t: other == nil ? 0 : turn, leaving: true, shrink: 0.3))
             if let other {
                 Image(systemName: other)
-                    .opacity(Double(max(0, turn * 2 - 1)))
-                    .scaleEffect(0.7 + 0.3 * turn)
+                    .modifier(Handover(t: turn, leaving: false, shrink: 0.3))
             }
         }
             .font(.scaled(17, weight: .medium))
@@ -571,4 +569,26 @@ private struct Collapsing: ViewModifier {
 
 extension View {
     func collapsing(_ fold: CGFloat) -> some View { modifier(Collapsing(fold: fold)) }
+}
+
+/// One thing giving way to another as `t` goes from 0 to 1: the leaving one
+/// gone by half way, the coming one only from there. Worked out on every
+/// frame of the motion: left to SwiftUI, the end opacities were blended
+/// straight, and half way both showed at once, one over the other.
+struct Handover: ViewModifier, Animatable {
+    var t: CGFloat
+    let leaving: Bool
+    let shrink: CGFloat
+
+    var animatableData: CGFloat {
+        get { t }
+        set { t = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        let p = max(0, min(1, t))
+        return content
+            .opacity(Double(leaving ? max(0, 1 - p * 2) : max(0, p * 2 - 1)))
+            .scaleEffect(leaving ? 1 - shrink * p : 1 - shrink + shrink * p)
+    }
 }

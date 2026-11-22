@@ -39,6 +39,8 @@ struct Sheet: View {
     var anchor: CGRect?
     /// The whole screen, safe areas and all, as the page fills it.
     var screen: CGSize = .zero
+    /// Where the page starts across (past a rail on the left).
+    var pageX: CGFloat = 0
 
     enum Layer { case tabs, chrome }
 
@@ -72,7 +74,11 @@ struct Sheet: View {
     /// The buttons along the top: the cards scroll on under them.
     private var rail: Rail { browser.rail }
     /// The buttons along the top; none with a rail, where they stand in it.
-    private var topRoom: CGFloat { rail.on ? 12 : 56 }
+    private var topRoom: CGFloat { rail.on ? 12 : 56 - rise }
+    /// A tall band for the clock with nothing on its left (the Duo's inner
+    /// screen): the buttons go up into it, level with the clock, rather
+    /// than leaving it empty over them.
+    private var rise: CGFloat { !rail.on && browser.safe.top > 70 ? browser.safe.top - 26 : 0 }
     /// Room the tabs leave at each side: the rail's column on its side.
     private var padL: CGFloat { rail.on && rail.leading ? rail.width + 6 : 14 }
     private var padR: CGFloat { rail.on && !rail.leading ? rail.width + 6 : 14 }
@@ -132,7 +138,7 @@ struct Sheet: View {
             // the column's edge.
             column
                 .padding(rail.edge, rail.inset)
-                .padding(.bottom, 8 + (Metrics.pill + 10) * 2)
+                .padding(.bottom, 8 + Metrics.pill + 10)
                 .offset(x: (1 - shown) * (rail.width + 20) * rail.out)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: rail.alignment)
         } else {
@@ -144,6 +150,7 @@ struct Sheet: View {
         VStack(spacing: 0) {
             // Moved, never faded: glass faded drew a grey slab over the top.
             top
+                .padding(.top, -rise)
                 .offset(y: -(1 - shown) * (topRoom + browser.safe.top + 40))
             Spacer(minLength: 0)
         }
@@ -378,7 +385,8 @@ struct Sheet: View {
                             progress: shown,
                             place: place(index, from: at),
                             anchor: tab.id == browser.activeID ? nil : anchor,
-                            screen: screen
+                            screen: screen,
+                            x0: pageX
                         ))
                         .contextMenu { menu(for: tab) }
                         .draggable(tab.id.uuidString) {
@@ -1030,6 +1038,7 @@ struct Camera: GeometryEffect {
     /// The page's card at rest, on screen; nil for no camera at all.
     let anchor: CGRect?
     let screen: CGSize
+    var x0: CGFloat = 0
 
     var animatableData: CGFloat {
         get { progress }
@@ -1044,7 +1053,7 @@ struct Camera: GeometryEffect {
         let start = screen.width / a.width
         let k = start + (1 - start) * q
         // The page's card, now: from the screen's corner to where it rests.
-        let ox = a.minX * q, oy = a.minY * q
+        let ox = x0 + (a.minX - x0) * q, oy = a.minY * q
         // On its way the page is taller than its card (the whole screen's
         // height, cut down as it lands): the rows under it make that room.
         let taller = a.width * screen.height / screen.width - a.height

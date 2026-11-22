@@ -83,12 +83,32 @@ struct ContentView: View {
     var body: some View {
         GeometryReader { geo in
             let width = geo.size.width + geo.safeAreaInsets.leading + geo.safeAreaInsets.trailing
+            // The page's own width: as in Safari on a Duo, it stops at the
+            // camera's column, which is a band of the page's colour.
+            let rail = browser.rail
+            let pageWidth = width - (rail.on ? rail.width : 0)
+            let pageX: CGFloat = rail.on && rail.leading ? rail.width : 0
+            let page = CGSize(width: pageWidth, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom)
             ZStack(alignment: .bottom) {
                 // Behind the pages: a grey, not black, so the clock can still
                 // be read when the page steps back for the sheet.
                 Palette.backdrop.ignoresSafeArea()
 
-                deck(width: width, top: geo.safeAreaInsets.top)
+                deck(width: pageWidth, top: geo.safeAreaInsets.top)
+                    .frame(width: width, alignment: rail.leading ? .trailing : .leading)
+                    .overlay(alignment: rail.leading ? .leading : .trailing) {
+                        // The band beside the page: what's at its top edge,
+                        // as Safari does, while the page fills the screen.
+                        // Laid over, at the rail's width: behind, the page's
+                        // own ground covered it.
+                        if rail.on, let tab = browser.active {
+                            RailBand(tab: tab)
+                                .frame(width: rail.width)
+                                .opacity(Double(1 - min(1, lift * 3)))
+                                .ignoresSafeArea()
+                                .allowsHitTesting(false)
+                        }
+                    }
 
                 // The dim, the pill and the field are always there, shown and
                 // hidden by opacity rather than put in and taken out: a view
@@ -100,7 +120,7 @@ struct ContentView: View {
                     .allowsHitTesting(browser.editing)
 
                 // The cards and the pins, under the page as it shrinks.
-                sheet(.tabs, size: CGSize(width: width, height: geo.size.height), screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom))
+                sheet(.tabs, size: CGSize(width: width, height: geo.size.height), screen: page, pageX: pageX)
 
                 // The page on its way into its card, or out of it: over the
                 // cards, so it lands on one rather than behind it. Laid over
@@ -116,7 +136,8 @@ struct ContentView: View {
                             Zoom(
                                 image: frozen, tint: browser.active?.behindClock, top: geo.safeAreaInsets.top,
                                 progress: max(0, min(1, lift)),
-                                screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom),
+                                screen: page,
+                                x0: pageX,
                                 target: target,
                                 tab: browser.active
                             )
@@ -142,7 +163,7 @@ struct ContentView: View {
                     .ignoresSafeArea()
 
                 // The buttons along the top, coming down over the page.
-                sheet(.chrome, size: CGSize(width: width, height: geo.size.height), screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom))
+                sheet(.chrome, size: CGSize(width: width, height: geo.size.height), screen: page, pageX: pageX)
 
                 // Over everything, and the same thing on a page and over the
                 // tabs: where you are becomes New tab, Back leaves by the
@@ -169,6 +190,9 @@ struct ContentView: View {
                         newTab: { Feel.tick(); browser.newTab(private: browser.privateView) },
                         newPrivate: browser.privateView,
                         rail: browser.rail,
+                        // Back stands up the rail, under the clock, where a
+                        // thumb reaches it as in Safari.
+                        backRise: geo.safeAreaInsets.top + geo.size.height - 8 - Metrics.pill - Self.railBack,
                         bookmarks: { browser.showingBookmarks = true }
                     )
                     .opacity(browser.finding || browser.editing ? 0 : 1)
@@ -347,7 +371,11 @@ struct ContentView: View {
     /// while tabs are cards and it has one.
     /// One layer of the tabs screen, the whole screen's size, never more: a
     /// taller one grew the stack, and the field above the keyboard slid down.
-    private func sheet(_ layer: Sheet.Layer, size: CGSize, screen: CGSize) -> some View {
+    /// Where Back stands in the rail, from the screen's top: under the
+    /// camera, the clock and the signal.
+    static let railBack: CGFloat = 170
+
+    private func sheet(_ layer: Sheet.Layer, size: CGSize, screen: CGSize, pageX: CGFloat) -> some View {
         Sheet(
             browser: browser,
             space: space,
@@ -370,7 +398,8 @@ struct ContentView: View {
             zooming: zoomShown ? browser.activeID : nil,
             layer: layer,
             anchor: zoomTarget,
-            screen: screen
+            screen: screen,
+            pageX: pageX
         )
         .frame(width: size.width, height: size.height)
         .allowsHitTesting(browser.showingTabs)
@@ -416,11 +445,14 @@ struct ContentView: View {
         let zooms = zoomTarget != nil
         let scale = 1 - (zooms ? 0 : 0.08 * lift) - 0.04 * away
         let corner = 44 * max(zooms ? 0 : lift, away)
+        // Beside a Duo's rail the page stops at it: under it, ignoring the
+        // safe area, the page ran on behind the rail's band.
+        let edges: Edge.Set = browser.rail.on ? .vertical : .all
         return ZStack {
             // The live page, always at its full size. Hidden, not moved,
             // while its picture stands in for it.
             if let tab = browser.active {
-                Page(tab: tab, top: top, covered: lift > 0.02 || browser.editing || frozen != nil)
+                Page(tab: tab, top: top, covered: lift > 0.02 || browser.editing || frozen != nil, edges: edges)
                     .opacity(frozen == nil ? 1 : 0)
                     .overlay {
                         if browser.locked, tab.isPrivate { Locked(browser: browser) }
@@ -430,11 +462,11 @@ struct ContentView: View {
             if frozen != nil {
                 ZStack {
                     if walk < 0 {
-                        Card(tab: browser.neighbour(1), top: top)
+                        Card(tab: browser.neighbour(1), top: top, edges: edges)
                             .offset(x: width + Metrics.gap + walk)
                     }
                     if walk > 0 {
-                        Card(tab: browser.neighbour(-1), top: top)
+                        Card(tab: browser.neighbour(-1), top: top, edges: edges)
                             .offset(x: -(width + Metrics.gap) + walk)
                     }
                     Still(image: frozen, tint: browser.active?.behindClock, top: top, band: max(0, 1 - lift * 4))
@@ -458,7 +490,7 @@ struct ContentView: View {
                 .allowsHitTesting(lift > 0)
                 .onTapGesture { browser.showingTabs = false }
         }
-        .ignoresSafeArea()
+        .ignoresSafeArea(edges: edges)
     }
 
     /// The page in front becomes a picture, for as long as something moves it.
@@ -644,4 +676,15 @@ struct ContentView: View {
 /// Where each card's picture is on screen, by tab.
 final class Frames {
     var rects: [Tab.ID: CGRect] = [:]
+}
+
+/// The band beside a Duo's rail: the colour at the top of the page, as it
+/// changes (watched here: read from above, it stayed the colour it had
+/// before the page drew).
+struct RailBand: View {
+    @ObservedObject var tab: Tab
+
+    var body: some View {
+        (tab.isBlank || tab.failure != nil ? nil : tab.behindClock).map { Color(uiColor: $0) } ?? Palette.ground
+    }
 }
