@@ -240,6 +240,16 @@
         }
       }
     },
+    "Cards": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cartes"
+          }
+        }
+      }
+    },
     "Clear Cookies and Website Data": {
       "localizations": {
         "fr": {
@@ -550,6 +560,16 @@
         }
       }
     },
+    "Large Cards": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Grandes cartes"
+          }
+        }
+      }
+    },
     "Leave Reader": {
       "localizations": {
         "fr": {
@@ -566,6 +586,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Clair"
+          }
+        }
+      }
+    },
+    "List": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Liste"
           }
         }
       }
@@ -1036,6 +1066,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Réafficher %lld éléments masqués"
+          }
+        }
+      }
+    },
+    "Show Tabs As": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher les onglets en"
           }
         }
       }

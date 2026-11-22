@@ -138,6 +138,13 @@ final class Prefs: ObservableObject {
         didSet { store.set(tabCards, forKey: "tabs.cards") }
     }
 
+    /// With cards on: one big card at a time, swiped across like the
+    /// iPhone's own app switcher (on), or the grid, two by two (off, the
+    /// default).
+    @Published var tabDeck: Bool {
+        didSet { store.set(tabDeck, forKey: "tabs.deck") }
+    }
+
     /// Which of the Mac's spaces' pins the iPhone shows; nil for the first.
     @Published var syncSpace: String? {
         didSet { store.set(syncSpace, forKey: "sync.space") }
@@ -163,5 +170,6 @@ final class Prefs: ObservableObject {
         sync = store.object(forKey: "sync") as? Bool ?? true
         syncSpace = store.string(forKey: "sync.space")
         tabCards = store.object(forKey: "tabs.cards") as? Bool ?? true
+        tabDeck = store.bool(forKey: "tabs.deck")
     }
 }

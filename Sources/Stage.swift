@@ -365,6 +365,8 @@ struct Zoom: View, Animatable {
     /// Whose page it is: its name comes down under it, to where it sits
     /// under the card.
     var tab: Tab?
+    /// Large cards wear their name over them, left-aligned.
+    var nameAbove = false
 
     var body: some View {
         let p = max(0, min(1, progress))
@@ -396,11 +398,18 @@ struct Zoom: View, Animatable {
                 // At the card's own width from the start, so its words are
                 // cut once and never again: re-cut on every frame as the
                 // width changed, they jumped sideways while going down.
+                if nameAbove {
+                    CardName(tab: tab, live: true)
+                        .frame(width: target.width, height: 30, alignment: .leading)
+                        .offset(x: x0 + (target.minX - x0) * p, y: target.minY * p - 30)
+                        .opacity(Double(max(0, min(1, (p - 0.15) / 0.6))))
+                } else {
                 CardName(tab: tab, live: true)
                     .frame(width: target.width)
                     .offset(x: x0 + (target.minX - x0) * p + (screen.width * scale - target.width) / 2,
                             y: target.minY * p + height * scale + 7)
                     .opacity(Double(max(0, min(1, (p - 0.15) / 0.6))))
+                }
             }
         }
         // Only `progress` moves: left to animate on their own, the size,

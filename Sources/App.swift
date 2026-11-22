@@ -139,7 +139,8 @@ struct ContentView: View {
                                 screen: page,
                                 x0: pageX,
                                 target: target,
-                                tab: browser.active
+                                tab: browser.active,
+                                nameAbove: Prefs.shared.tabDeck
                             )
                             .opacity(zoomShown ? 1 : 0)
                             .animation(nil, value: zoomShown)
@@ -407,7 +408,11 @@ struct ContentView: View {
             dropped: { moved, speed in dropped(moved, speed: speed) },
             cardAt: { point in
                 // The card's picture and the name under it.
-                cardFrames.rects.first { $0.value.insetBy(dx: -4, dy: -4).offsetBy(dx: 0, dy: 15).union($0.value).contains(point) }?.key
+                // Large cards: the topmost under the finger (the ones on
+                // the right lie over the ones before them).
+                Prefs.shared.tabDeck && Prefs.shared.tabCards
+                    ? browser.tabs.last { tab in cardFrames.rects[tab.id].map { $0.insetBy(dx: 0, dy: -30).contains(point) } ?? false }?.id
+                    : cardFrames.rects.first { $0.value.insetBy(dx: -4, dy: -4).offsetBy(dx: 0, dy: 15).union($0.value).contains(point) }?.key
             },
             grab: { id in
                 // Pulled down from a card: that page grows out of it.

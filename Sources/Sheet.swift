@@ -104,7 +104,7 @@ struct Sheet: View {
         let out = 1 - shown
         return ZStack(alignment: .bottom) {
             Group {
-                if prefs.tabCards { cards } else { list }
+                if !prefs.tabCards { list } else if prefs.tabDeck { deck } else { cards }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .overlay {
@@ -448,6 +448,140 @@ struct Sheet: View {
         }
     }
 
+    // MARK: - large cards
+
+    /// Which card is in the middle, counted along the tabs: whole at rest,
+    /// in between while the finger walks them.
+    @State private var deckAt: CGFloat = 0
+    /// Where the walk set off from; nil when no finger is walking.
+    @State private var deckFrom: CGFloat?
+    /// The walk under way is sideways (true), not (false), or undecided.
+    @State private var deckSideways: Bool?
+
+    /// The page's own shape: a large card is the whole page, made small.
+    private var deckShape: CGFloat {
+        // Held sideways (a Duo open), the page is wider than tall: so is
+        // its card.
+        screen.width > 1 ? max(0.5, min(2.4, screen.height / screen.width)) : 2.1
+    }
+    /// Room over a card for its name.
+    private let deckName: CGFloat = 30
+
+    private func deckWidth(_ size: CGSize) -> CGFloat {
+        let across = (size.width - padL - padR) * 0.62
+        let tall = size.height - topRoom - footRoom - deckName - 48
+        return max(80, min(across, tall / deckShape)).rounded()
+    }
+
+    /// Across from the middle, in card widths, for a card `d` places along:
+    /// the ones after it side by side on its right, over it; the ones before
+    /// it tucked in under its left edge, a sliver each. The iPhone's own
+    /// app switcher's rule.
+    private func deckX(_ d: CGFloat) -> CGFloat {
+        if d >= 0 { return d * 1.05 }
+        // The one just before shows a sliver; the ones before it, less.
+        return d > -1 ? d * 0.15 : -0.15 + (d + 1) * 0.05
+    }
+
+    private var deck: some View {
+        GeometryReader { geo in
+            let order = loose
+            let width = deckWidth(geo.size)
+            let height = (width * deckShape).rounded()
+            let left = padL + (geo.size.width - padL - padR - width) / 2
+            let free = geo.size.height - topRoom - footRoom - deckName - height
+            let top = topRoom + deckName + max(0, free / 2)
+            let at = order.firstIndex { $0.id == browser.activeID }
+            let atX = at.map { deckX(CGFloat($0) - deckAt) * width } ?? 0
+            ZStack(alignment: .topLeading) {
+                ForEach(Array(order.enumerated()), id: \.element.id) { index, tab in
+                    let d = CGFloat(index) - deckAt
+                    if d > -5, d < 3 {
+                        let x = deckX(d) * width
+                        DeckCard(
+                            tab: tab,
+                            width: width, height: height,
+                            hidden: browser.locked && tab.isPrivate,
+                            waiting: zooming == tab.id,
+                            // The name over a card tucked away fades with it.
+                            nameShown: d < 0 ? max(0, 1 + Double(d) * 1.6) : 1,
+                            gone: { frames(tab.id, .zero) },
+                            open: { pick(tab) },
+                            report: { frames(tab.id, $0) },
+                            close: {
+                                Feel.tick()
+                                withAnimation(Motion.bouncy) { browser.close(tab) }
+                            }
+                        )
+                        .offset(x: left + x, y: top - deckName)
+                        // As the page shrinks into its card, the others come
+                        // in with the camera stepping back, as in the grid.
+                        .modifier(Camera(
+                            progress: shown,
+                            place: .init(delta: CGSize(width: x - atX, height: 0), steps: abs(d.rounded())),
+                            anchor: tab.id == browser.activeID ? nil : anchor,
+                            screen: screen,
+                            x0: pageX
+                        ))
+                        .zIndex(Double(index))
+                        .contextMenu { menu(for: tab) }
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.9).combined(with: .opacity),
+                            removal: .move(edge: .top).combined(with: .opacity)
+                        ))
+                    }
+                }
+            }
+            .frame(width: geo.size.width, height: geo.size.height, alignment: .topLeading)
+            .contentShape(Rectangle())
+            .simultaneousGesture(walk(width: width, count: order.count))
+        }
+        // Always the page's card in the middle when the screen comes up:
+        // put there while unseen, so the page lands on a card that stays.
+        .onAppear(perform: centreDeck)
+        .onChange(of: away, initial: true) { _, away in if away { centreDeck() } }
+        .onChange(of: browser.activeID) { _, _ in if away { centreDeck() } }
+        .onChange(of: browser.privateView) { _, _ in centreDeck() }
+        .onChange(of: loose.count) { _, count in
+            // One closed at the end: the one before it comes to the middle.
+            if deckAt > CGFloat(max(0, count - 1)) {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { deckAt = CGFloat(max(0, count - 1)) }
+            }
+        }
+    }
+
+    private func centreDeck() {
+        let order = loose
+        deckAt = CGFloat(order.firstIndex { $0.id == browser.activeID } ?? max(0, order.count - 1))
+    }
+
+    /// Sideways, the cards follow the finger one for one; let go, the
+    /// nearest settles in the middle, a quick flick going on one more.
+    private func walk(width: CGFloat, count: Int) -> some Gesture {
+        DragGesture(minimumDistance: 10, coordinateSpace: .global)
+            .onChanged { value in
+                if deckSideways == nil {
+                    deckSideways = abs(value.translation.width) > abs(value.translation.height) * 1.2
+                    if deckSideways == true { deckFrom = deckAt }
+                }
+                guard deckSideways == true, let from = deckFrom else { return }
+                var next = from - value.translation.width / width
+                let last = CGFloat(max(0, count - 1))
+                // Past either end it gives a little, no more.
+                if next < 0 { next *= 0.3 } else if next > last { next = last + (next - last) * 0.3 }
+                if next.rounded() != deckAt.rounded() { Feel.tick() }
+                deckAt = next
+            }
+            .onEnded { value in
+                defer { deckSideways = nil; deckFrom = nil }
+                guard deckSideways == true else { return }
+                let thrown = deckAt - value.velocity.width / width * 0.25
+                let last = CGFloat(max(0, count - 1))
+                let target = max(0, min(last, thrown.rounded()))
+                withAnimation(.spring(response: 0.38, dampingFraction: 0.88)) { deckAt = target }
+            }
+    }
+
     /// What the grid has and what it shows, to know where it may be scrolled.
     struct Room: Equatable {
         var content: CGFloat = 0
@@ -546,13 +680,20 @@ struct Sheet: View {
 
     private var moreMenu: some View {
         Menu {
-            Button {
-                withAnimation(Motion.settle) { prefs.tabCards.toggle() }
-            } label: {
-                prefs.tabCards
-                    ? Label("Show as List", systemImage: "list.bullet")
-                    : Label("Show as Cards", systemImage: "square.grid.2x2")
-            }
+            Picker(selection: Binding(
+                get: { !prefs.tabCards ? 2 : prefs.tabDeck ? 1 : 0 },
+                set: { look in
+                    withAnimation(Motion.settle) {
+                        prefs.tabCards = look != 2
+                        prefs.tabDeck = look == 1
+                    }
+                }
+            )) {
+                Label("Cards", systemImage: "square.grid.2x2").tag(0)
+                Label("Large Cards", systemImage: "rectangle.stack").tag(1)
+                Label("List", systemImage: "list.bullet").tag(2)
+            } label: { Text("Show Tabs As") }
+                .pickerStyle(.inline)
             if prefs.sync {
                 Button { browser.showingOthers = true } label: {
                     Label("Other devices", systemImage: "laptopcomputer.and.iphone")
@@ -937,6 +1078,100 @@ struct Sheet: View {
             }
         }
 
+    }
+
+    /// A large card: the whole page made small, its name over it. Tapped,
+    /// it opens; thrown up, it closes.
+    private struct DeckCard: View {
+        @ObservedObject var tab: Tab
+        let width: CGFloat
+        let height: CGFloat
+        var hidden = false
+        var waiting = false
+        var nameShown: Double = 1
+        /// Out of the deck's reach: its place forgotten, so a finger there
+        /// never finds it.
+        var gone: () -> Void = {}
+        let open: () -> Void
+        let report: (CGRect) -> Void
+        let close: () -> Void
+
+        @State private var lift: CGFloat = 0
+        @State private var upward: Bool?
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 0) {
+                CardName(tab: tab, live: true, hidden: hidden)
+                    .frame(width: width, height: 30, alignment: .leading)
+                    .opacity(waiting ? 0 : nameShown)
+                picture
+                    .frame(width: width, height: height)
+                    .clipShape(RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .strokeBorder(Palette.faint.opacity(0.3), lineWidth: 0.5)
+                    }
+                    .opacity(waiting ? 0 : 1)
+                    .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report($0) }
+                    .shadow(color: .black.opacity(0.18), radius: 16, y: 6)
+            }
+            .contentShape(Rectangle())
+            .onTapGesture(perform: open)
+            .onDisappear(perform: gone)
+            .offset(y: lift)
+            .opacity(Double(1 + min(0, lift) / (height * 1.4)))
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 12)
+                    .onChanged { value in
+                        if upward == nil {
+                            upward = value.translation.height < 0
+                                && abs(value.translation.height) > abs(value.translation.width) * 1.2
+                        }
+                        guard upward == true else { return }
+                        let y = value.translation.height
+                        let was = lift < -height * 0.25
+                        lift = y < 0 ? y : y * 0.1
+                        if was != (lift < -height * 0.25) { Feel.tick() }
+                    }
+                    .onEnded { value in
+                        defer { upward = nil }
+                        guard upward == true else { return }
+                        let landing = value.translation.height + value.velocity.height * 0.2
+                        if landing < -height * 0.25 {
+                            withAnimation(.spring(response: 0.28, dampingFraction: 0.95)) { lift = -height * 1.4 }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) { close() }
+                        } else {
+                            withAnimation(Motion.bouncy) { lift = 0 }
+                        }
+                    }
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction(named: "Close Tab") { close() }
+        }
+
+        @ViewBuilder private var picture: some View {
+            if hidden {
+                Palette.wash.overlay {
+                    Image(systemName: "lock.fill").font(.scaled(24)).foregroundStyle(Palette.muted)
+                }
+            } else if let image = tab.snapshot, !tab.isBlank {
+                // Drawn as the page zooming into it draws it: across its
+                // whole width, from the top.
+                Image(uiImage: image)
+                    .resizable()
+                    .frame(width: width, height: width * image.size.height / max(1, image.size.width))
+                    .frame(width: width, height: height, alignment: .top)
+                    .background(Palette.ground)
+                    .clipped()
+            } else if tab.isBlank {
+                Palette.wash.overlay {
+                    Image(systemName: "plus").font(.scaled(26, weight: .light)).foregroundStyle(Palette.muted)
+                }
+            } else {
+                Palette.wash.overlay { Mark(icon: tab.icon, letter: tab.letter, size: 40) }
+            }
+        }
     }
 
     /// One line: what it is, then where it came from.
