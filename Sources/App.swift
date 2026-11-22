@@ -56,7 +56,7 @@ struct ContentView: View {
     @State private var lift: CGFloat = 0
     /// How far a finger goes to bring the tabs all the way: short, so the
     /// page is in its card well before the thumb reaches the middle.
-    private let travel: CGFloat = 240
+    private let travel: CGFloat = 200
     /// The page, as a picture, while it's walked or shrunk for the sheet:
     /// the web view itself stays where it is, at its size, untouched.
     @State private var frozen: UIImage?
@@ -68,6 +68,9 @@ struct ContentView: View {
     @State private var liftFrom: CGFloat = 0
     /// A finger is walking or lifting the page.
     @State private var dragging = false
+    /// The tabs are on their way, up or down, let go of: the page stays
+    /// in the air until they land, whatever `lift` already says.
+    @State private var moving = false
     /// Where each card's picture rests on screen once the sheet is up.
     @State private var cardFrames: [Tab.ID: CGRect] = [:]
     /// Which tab the frozen picture is of.
@@ -151,6 +154,7 @@ struct ContentView: View {
                         drag: { moved in lift = moved < 0 ? 1 + Self.give(-moved) / travel : 1 - moved / travel },
                         dropped: { moved, speed in dropped(moved, speed: speed) },
                         lift: lift,
+                        away: lift == 0 && !moving && !dragging,
                         frames: { id, rect in
                             // The cards don't move as the screen comes: where
                             // they are is where they rest.
@@ -159,7 +163,7 @@ struct ContentView: View {
                                abs(was.width - rest.width) < 0.5 { return }
                             cardFrames[id] = rest
                         },
-                        zooming: zoomTarget == nil || lift >= 0.999 ? nil : browser.activeID
+                        zooming: zoomShown ? browser.activeID : nil
                     )
                     // The whole screen, never more: a taller one grew the
                     // stack, and the field above the keyboard slid down.
@@ -193,13 +197,17 @@ struct ContentView: View {
             // not in the stack: as tall as the whole screen, in the stack it
             // made the stack taller and pushed everything down by as much.
             .overlay {
-                if let target = zoomTarget, frozen != nil, lift > 0.001, lift < 0.999 {
+                // Always there while tabs are cards, and shown or hidden at
+                // once: put in as it moved, it arrived already landed.
+                if let target = zoomTarget {
                     Zoom(
                         image: frozen, tint: browser.active?.tint, top: geo.safeAreaInsets.top,
-                        progress: min(1, lift),
+                        progress: max(0, min(1, lift)),
                         screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom),
                         target: target
                     )
+                    .opacity(zoomShown ? 1 : 0)
+                    .animation(nil, value: zoomShown)
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
                 }
@@ -216,7 +224,9 @@ struct ContentView: View {
             let target: CGFloat = open ? 1 : 0
             guard lift != target else { return }
             let go = {
-                withAnimation(still ? Motion.quick : Motion.glide) { lift = target } completion: {
+                moving = true
+                withAnimation(still ? Motion.quick : Self.landing, completionCriteria: .removed) { lift = target } completion: {
+                    moving = false
                     thaw()
                 }
             }
@@ -322,6 +332,15 @@ struct ContentView: View {
 
     /// Where the page zooms to when the tabs come up: its card's picture,
     /// while tabs are cards and it has one.
+    /// The page is in the air, between the screen and its card.
+    private var zoomShown: Bool {
+        zoomTarget != nil && frozen != nil && (moving || (lift > 0.001 && lift < 0.999))
+    }
+
+    /// How the tabs land: no bounce, so the page settles on its card
+    /// rather than past it and back.
+    static let landing = Animation.spring(response: 0.38, dampingFraction: 1)
+
     private var zoomTarget: CGRect? {
         guard Prefs.shared.tabCards, let tab = browser.active, tab.pin == nil,
               let rect = cardFrames[tab.id], rect.width > 10 else { return nil }
@@ -382,7 +401,7 @@ struct ContentView: View {
                 .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
                 .scaleEffect(scale, anchor: lift > 0 ? .top : .center)
                 .offset(y: zooms ? 0 : 54 * lift)
-                .opacity(zooms && lift > 0.001 ? 0 : 1)
+                .opacity(zooms && (lift > 0.001 || moving) ? 0 : 1)
             }
         }
         .frame(width: width)
@@ -406,6 +425,14 @@ struct ContentView: View {
         guard let tab = browser.active, !tab.isBlank else {
             frozen = UIImage()
             frozenID = browser.activeID
+            then?()
+            return
+        }
+        // At once when it can be had, so the page moves from the finger's
+        // first point; WebKit's picture still comes, for the card.
+        if let image = tab.now() {
+            frozen = image
+            frozenID = tab.id
             then?()
             return
         }
@@ -440,8 +467,8 @@ struct ContentView: View {
         dragging = true
         if frozen == nil {
             freeze()
-            walkFrom = moved
-            return
+            guard frozen != nil else { walkFrom = moved; return }
+            walkFrom = 0
         }
         let moved = moved - walkFrom
         let reach = moved < 0 ? 1 : -1
@@ -495,8 +522,10 @@ struct ContentView: View {
         dragging = true
         if frozen == nil {
             freeze()
-            liftFrom = moved
-            return
+            // Pictured at once: the page goes from where the finger set
+            // off. Waited for: from where the finger is when it comes.
+            guard frozen != nil else { liftFrom = moved; return }
+            liftFrom = 0
         }
         let up = -(moved - liftFrom)
         lift = up <= travel ? max(0, up / travel) : 1 + Self.give(up - travel) / travel
@@ -505,11 +534,20 @@ struct ContentView: View {
     private func lifted(_ moved: CGFloat, speed: CGFloat) {
         dragging = false
         guard frozen != nil else { return }
-        settle(open: lift + (-speed * 0.15) / travel > 0.5, speed: -speed)
+        settle(open: Self.goes(lift, up: -speed, opening: true), speed: -speed)
     }
 
     private func dropped(_ moved: CGFloat, speed: CGFloat) {
-        settle(open: lift - (speed * 0.15) / travel > 0.5, speed: -speed)
+        settle(open: Self.goes(lift, up: -speed, opening: false), speed: -speed)
+    }
+
+    /// Whether a let-go lift ends open. A finger still moving says where it
+    /// was going, however little it went; a finger at rest finishes what it
+    /// began once it's a third of the way.
+    static func goes(_ lift: CGFloat, up: CGFloat, opening: Bool) -> Bool {
+        if up > 120 { return true }
+        if up < -120 { return false }
+        return opening ? lift > 0.3 : lift > 0.7
     }
 
     /// Past its resting place the sheet gives a few points, and no more.
@@ -523,14 +561,17 @@ struct ContentView: View {
         // SwiftUI wants the speed as a share of what's left to travel.
         let rate = speed / travel
         let left = target - lift
-        let share = abs(left) < 0.02 ? 0 : max(-12, min(12, rate / left))
+        let share = abs(left) < 0.02 ? 0 : max(-8, min(8, rate / left))
+        moving = true
         withAnimation(
             still ? Motion.quick : .interpolatingSpring(
-                Spring(response: 0.34, dampingRatio: 0.86), initialVelocity: share
-            )
+                Spring(response: 0.38, dampingRatio: 1), initialVelocity: share
+            ),
+            completionCriteria: .removed
         ) {
             lift = target
         } completion: {
+            moving = false
             thaw()
         }
         if browser.showingTabs != open {

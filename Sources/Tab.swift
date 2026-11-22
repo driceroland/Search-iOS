@@ -329,6 +329,25 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// Keeps a picture of the page as it is now, for walking past it and for
     /// the next launch. Only a page on screen can be pictured; the last
     /// picture stays until then.
+    /// The page as it is on screen, at once: what the screen shows, drawn
+    /// in this very frame. For a motion that can't wait for WebKit's own
+    /// picture, which comes a few frames later.
+    func now() -> UIImage? {
+        guard !isBlank, web.window != nil, web.bounds.width > 0 else { return nil }
+        let format = UIGraphicsImageRendererFormat()
+        format.opaque = true
+        let image = UIGraphicsImageRenderer(bounds: web.bounds, format: format).image { _ in
+            _ = web.drawHierarchy(in: web.bounds, afterScreenUpdates: false)
+        }
+        // Kept for the card too: once the page hides under it, WebKit's own
+        // picture of it would come out blank.
+        if !(loading && progress < 0.8) {
+            snapshot = image
+            if !isPrivate { Snapshots.write(image, for: key) }
+        }
+        return image
+    }
+
     func capture() {
         snap { _ in }
     }

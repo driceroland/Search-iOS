@@ -340,11 +340,17 @@ struct Failed: View {
 /// cut from the top to the card's shape, then scaled and moved onto the
 /// card, its corners rounding as it goes. At 0 it is the page; at 1 it is
 /// the card's picture, to the point.
-struct Zoom: View {
+struct Zoom: View, Animatable {
     let image: UIImage?
     var tint: UIColor?
     var top: CGFloat
-    let progress: CGFloat
+    /// Animated as one number, so every part of it (size, crop, corners,
+    /// place) moves together on the same curve, never apart.
+    var progress: CGFloat
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
     let screen: CGSize
     let target: CGRect
 
@@ -373,5 +379,8 @@ struct Zoom: View {
         .scaleEffect(scale, anchor: .topLeading)
         .offset(x: target.minX * p, y: target.minY * p)
         .frame(width: screen.width, height: screen.height, alignment: .topLeading)
+        // Only `progress` moves: left to animate on their own, the size,
+        // scale and place slid from the last card's to the new one's.
+        .transaction { $0.animation = nil }
     }
 }

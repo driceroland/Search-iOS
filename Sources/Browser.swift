@@ -180,9 +180,13 @@ final class Browser: NSObject, ObservableObject {
     }
 
     func select(_ tab: Tab) {
+        // Picked from the tabs: the page was pictured as it went into its
+        // card, and is hidden under that picture now, so pictured again it
+        // would come out blank.
+        let fromTabs = showingTabs
         showingTabs = false
         guard tab.id != activeID else { return }
-        active?.capture()
+        if !fromTabs { active?.capture() }
         tab.seen = Date()
         activeID = tab.id
         editing = false

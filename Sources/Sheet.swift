@@ -20,6 +20,9 @@ struct Sheet: View {
     /// How far it has come: 0 away, 1 all there. The top comes down from
     /// above and the foot up from below as it does; the cards in between.
     var lift: CGFloat
+    /// All the way gone and nothing moving: the grid may be scrolled
+    /// unseen.
+    var away = true
     /// Where each card's picture is on screen, for the page to zoom into.
     var frames: (Tab.ID, CGRect) -> Void = { _, _ in }
     /// The card the page is zooming into or out of: its own picture waits.
@@ -77,7 +80,9 @@ struct Sheet: View {
                 .padding(.horizontal, -40)
             }
             .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { tabsFrame = $0 }
-            .opacity(Double(shown))
+            // Never quite 0: at 0 the grid wasn't laid out, and the page had no
+            // card to go to until it was let go.
+            .opacity(max(0.002, Double(shown)))
             foot
                 .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { footTall = $0 }
                 .offset(y: out * (footTall + browser.safe.bottom + 12))
@@ -112,12 +117,16 @@ struct Sheet: View {
     // MARK: - the parts
 
     private var top: some View {
-        VStack(spacing: 0) {
-            header
-                .padding(.top, 6)
-                .padding(.horizontal, 14)
-                .padding(.bottom, 12)
+        header
+            .padding(.top, 6)
+            .padding(.horizontal, 14)
+            .padding(.bottom, 10)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+    }
 
+    /// The pins, down by the thumb, just over New tab.
+    @ViewBuilder private var pins: some View {
             if !pinned.isEmpty {
                 VStack(spacing: 6) {
                     ForEach(Array(Self.rows(of: pinned).enumerated()), id: \.offset) { _, line in
@@ -144,11 +153,8 @@ struct Sheet: View {
                     }
                 }
                 .padding(.horizontal, 14)
-                .padding(.bottom, 10)
+                .padding(.top, 10)
             }
-        }
-        .frame(maxWidth: .infinity)
-        .contentShape(Rectangle())
     }
 
     private var list: some View {
@@ -250,17 +256,15 @@ struct Sheet: View {
                     dropped(pull, 1200)
                 }
             }
-            // The page you're on in sight, not left three rows down. The
-            // sheet is always there, below the edge: it's raised, not shown.
-            .onChange(of: browser.showingTabs, initial: true) { _, raised in
-                guard raised, let id = browser.activeID else { return }
+            // The page you're on in sight, not left three rows down: put
+            // there while the screen is away, never while it shows or
+            // moves, so the page always zooms to a card that stays put.
+            .onChange(of: away, initial: true) { _, away in
+                guard away, let id = browser.activeID else { return }
                 reader.scrollTo(id, anchor: .center)
             }
-            // Kept there while the sheet is down too: the page zooms into its
-            // card from the first frame, so the card has to be laid out
-            // (the grid only lays out what's in sight) and where it will be.
-            .onChange(of: browser.activeID, initial: true) { _, id in
-                guard !browser.showingTabs, let id else { return }
+            .onChange(of: browser.activeID) { _, id in
+                guard away, let id else { return }
                 reader.scrollTo(id, anchor: .center)
             }
         }
@@ -287,6 +291,8 @@ struct Sheet: View {
     /// devices' tabs, Settings. Icons only; each says what it is to
     /// VoiceOver, and the new tab button, held, lists what was closed.
     private var foot: some View {
+        VStack(spacing: 0) {
+        pins
         HStack(spacing: 10) {
             Button {
                 Feel.tick()
@@ -324,55 +330,51 @@ struct Sheet: View {
         }
         .padding(.horizontal, 14)
         .padding(.top, 10)
+        }
+        .padding(.top, 10)
         .padding(.bottom, 6)
         .frame(maxWidth: .infinity)
         .contentShape(Rectangle())
     }
 
-    /// The sheet's head: what else can be done on the left, Done on the
-    /// right, and nothing in between to read.
+    /// The screen's head: what can be done with all the tabs, as glass
+    /// buttons on the left, by the thumb's reach from the side. No Done:
+    /// a card, a drag down or the page itself takes the screen away.
     private var header: some View {
-        HStack {
-            Menu {
-                Button {
-                    Feel.tick()
-                    browser.newTab(private: true)
-                } label: { Label("New private tab", systemImage: "eyeglasses") }
-                if Prefs.shared.sync {
-                    Button { browser.showingOthers = true } label: {
-                        Label("Other devices", systemImage: "laptopcomputer.and.iphone")
-                    }
-                }
-                Button { browser.settings = true } label: { Label("Settings", systemImage: "gearshape") }
-                Button {
-                    withAnimation(Motion.settle) { prefs.tabCards.toggle() }
-                } label: {
-                    prefs.tabCards
-                        ? Label("Show as List", systemImage: "list.bullet")
-                        : Label("Show as Cards", systemImage: "square.grid.2x2")
-                }
-                if loose.count > 1 {
-                    Divider()
-                    Button(role: .destructive) {
-                        Feel.nudge()
-                        browser.askingCloseAll = true
-                    } label: { Label("Close All", systemImage: "xmark") }
-                }
-            } label: {
-                headerButton("ellipsis")
-            }
-            .accessibilityLabel("More")
-
-            Spacer(minLength: 8)
+        HStack(spacing: 8) {
+            Button {
+                Feel.nudge()
+                browser.askingCloseAll = true
+            } label: { headerButton("xmark") }
+            .buttonStyle(.plain)
+            .disabled(loose.isEmpty)
+            .accessibilityLabel("Close All")
 
             Button {
                 Feel.tick()
-                browser.showingTabs = false
-            } label: {
-                headerButton("checkmark")
-            }
+                browser.newTab(private: true)
+            } label: { headerButton("eyeglasses") }
             .buttonStyle(.plain)
-            .accessibilityLabel("Done")
+            .accessibilityLabel("New private tab")
+
+            Button {
+                Feel.tick()
+                withAnimation(Motion.settle) { prefs.tabCards.toggle() }
+            } label: { headerButton(prefs.tabCards ? "list.bullet" : "square.grid.2x2") }
+            .buttonStyle(.plain)
+            .accessibilityLabel(prefs.tabCards ? "Show as List" : "Show as Cards")
+
+            if prefs.sync {
+                Button { browser.showingOthers = true } label: { headerButton("laptopcomputer.and.iphone") }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Other devices")
+            }
+
+            Button { browser.settings = true } label: { headerButton("gearshape") }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Settings")
+
+            Spacer(minLength: 0)
         }
     }
 
