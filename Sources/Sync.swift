@@ -208,7 +208,13 @@ final class Sync: NSObject, ObservableObject {
         let last = meta.values[key].flatMap { try? JSONDecoder().decode(DeviceTabs.self, from: $0) }
         if last?.tabs != tabs.tabs || last?.name != tabs.name { put(key, tabs) }
         putPins(browser.pinDefs)
-        put("bookmarks", Bookmarks.shared.roots)
+        // Never an empty list over one that isn't, unless they were taken
+        // away here by hand: an iPhone that hadn't yet heard the Mac's
+        // bookmarks once sent its empty list up, stamped newer, and it
+        // emptied the Mac's (18 Nov).
+        if !Bookmarks.shared.roots.isEmpty || Bookmarks.shared.emptiedByHand {
+            put("bookmarks", Bookmarks.shared.roots)
+        }
         put("settings", Prefs.shared.shared)
     }
 
@@ -274,7 +280,10 @@ final class Sync: NSObject, ObservableObject {
         meta.fields[key] = Sync.fields(of: record)
         guard let data = record.encryptedValues["data"] as? Data else { return }
         let at = record["at"] as? Date ?? record.modificationDate ?? .distantPast
-        if let ours = meta.at[key], ours > at, meta.values[key] != nil {
+        // An empty list of ours never wins over bookmarks that came: what
+        // came is kept.
+        let oursEmpty = key == "bookmarks" && Bookmarks.shared.roots.isEmpty && !Bookmarks.shared.emptiedByHand
+        if let ours = meta.at[key], ours > at, meta.values[key] != nil, !oursEmpty {
             // Ours is newer: it goes up again over this one.
             engine?.state.add(pendingRecordZoneChanges: [.saveRecord(record.recordID)])
             return
@@ -529,8 +538,13 @@ final class Bookmarks: ObservableObject {
 
     func remove(_ id: Bookmark.ID) {
         roots = Bookmarks.removing(id, from: roots)
+        if roots.isEmpty { emptiedByHand = true }
         changed()
     }
+
+    /// The last bookmark was taken away here, on purpose: an empty list may
+    /// go up then, and only then.
+    private(set) var emptiedByHand = false
 
     func contains(_ url: URL?) -> Bool {
         guard let url else { return false }
@@ -541,7 +555,15 @@ final class Bookmarks: ObservableObject {
     /// what came (a first join's union).
     func adopt(_ fresh: [Bookmark]) {
         guard fresh != roots else { return }
+        // Anything that would go: a copy first, kept beside the file, so a
+        // list emptied elsewhere can always be had back.
+        let losing = Set(Bookmarks.flat(roots).map(\.id)).subtracting(Bookmarks.flat(fresh).map(\.id))
+        if !losing.isEmpty, let data = try? JSONEncoder().encode(roots) {
+            let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
+            try? data.write(to: Store.file("bookmarks.before-\(stamp).json"), options: .atomic)
+        }
         roots = fresh
+        if !fresh.isEmpty { emptiedByHand = false }
         write()
         Sync.shared.put("bookmarks", roots)
     }
@@ -551,10 +573,13 @@ final class Bookmarks: ObservableObject {
         Sync.shared.put("bookmarks", roots)
     }
 
+    /// One after the other, never two at once landing in the wrong order.
+    private static let writing = DispatchQueue(label: "bookmarks.write", qos: .utility)
+
     private func write() {
         let list = roots
         let file = Bookmarks.file
-        DispatchQueue.global(qos: .utility).async {
+        Bookmarks.writing.async {
             guard let data = try? JSONEncoder().encode(list) else { return }
             try? data.write(to: file, options: .atomic)
         }
