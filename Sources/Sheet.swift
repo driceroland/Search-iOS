@@ -912,12 +912,17 @@ struct Sheet: View {
                         .foregroundStyle(Palette.muted)
                 }
             } else if let image = tab.snapshot, !tab.isBlank {
-                // The top of the page, across its whole width.
-                Palette.wash.overlay(alignment: .top) {
+                // The top of the page, across its whole width, exactly as
+                // the page zooming into it draws it: filled instead, a page
+                // wider than the card was scaled up and the card changed
+                // under it when the zoom handed over (a jump, on the Duo).
+                GeometryReader { geo in
                     Image(uiImage: image)
                         .resizable()
-                        .scaledToFill()
+                        .frame(width: geo.size.width,
+                               height: geo.size.width * image.size.height / max(1, image.size.width))
                 }
+                .background(Palette.ground)
                 .clipped()
             } else if tab.isBlank {
                 Palette.wash.overlay {
