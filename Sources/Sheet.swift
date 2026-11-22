@@ -17,7 +17,9 @@ struct Sheet: View {
 
     var drag: (CGFloat) -> Void
     var dropped: (CGFloat, CGFloat) -> Void
-    var height: (CGFloat) -> Void
+    /// How far it has come: 0 away, 1 all there. The top comes down from
+    /// above and the foot up from below as it does; the cards in between.
+    var lift: CGFloat
     /// Where each card's picture is on screen, for the page to zoom into.
     var frames: (Tab.ID, CGRect) -> Void = { _, _ in }
     /// The card the page is zooming into or out of: its own picture waits.
@@ -43,27 +45,48 @@ struct Sheet: View {
 
     private let row: CGFloat = 48
 
-    /// More lines than the sheet has room for.
-    private var overflows: Bool { CGFloat(loose.count) * (row + 2) + 4 > 420 }
+
+    /// How tall the top and the foot are, to come in from just out of sight.
+    @State private var topTall: CGFloat = 120
+    @State private var footTall: CGFloat = 70
+    /// Where the tabs themselves are: a drag down that starts off them, on
+    /// the top or the foot, always takes the screen away.
+    @State private var tabsFrame: CGRect = .zero
 
     var body: some View {
+        let shown = max(0, min(1, lift))
+        let out = 1 - shown
         VStack(spacing: 0) {
             top
-            if prefs.tabCards { cards } else { list }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { topTall = $0 }
+                // Moved, never faded: glass faded drew a grey slab over
+                // the whole top while it came.
+                .offset(y: -out * (topTall + browser.safe.top + 12))
+            Group {
+                if prefs.tabCards { cards } else { list }
+            }
+            .frame(maxHeight: .infinity, alignment: .top)
+            // Cards scrolled under the pins or down to the foot fade there,
+            // rather than being cut.
+            .mask {
+                VStack(spacing: 0) {
+                    LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 14)
+                    Color.black
+                    LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: 14)
+                }
+                .padding(.horizontal, -40)
+            }
+            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { tabsFrame = $0 }
+            .opacity(Double(shown))
             foot
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { footTall = $0 }
+                .offset(y: out * (footTall + browser.safe.bottom + 12))
         }
         .padding(.bottom, 8)
-        .frame(maxWidth: .infinity)
-        .background(
-            UnevenRoundedRectangle(topLeadingRadius: 30, topTrailingRadius: 30, style: .continuous)
-                .fill(Palette.ground)
-                .shadow(color: .black.opacity(0.12), radius: 30, y: -6)
-                // Runs on below the screen's edge, so the few points it gives
-                // when pulled up never show what's under it.
-                .padding(.bottom, -200)
-                .ignoresSafeArea(edges: .bottom)
-        )
-        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { height($0) }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // A screen of its own, not a sheet: the ground comes up quickly, so
+        // the page shrinking into its card does so on it.
+        .background(Palette.ground.opacity(Double(min(1, shown * 1.8))).ignoresSafeArea())
         // Down from anywhere on it: the rows, the empty room, the foot. A
         // drag that sets off sideways is a row's to close or pin, and a tap
         // still picks; only one going down moves the sheet.
@@ -73,7 +96,7 @@ struct Sheet: View {
                     if dragging == nil {
                         let down = value.translation.height > 0
                             && value.translation.height > abs(value.translation.width) * 1.2
-                        dragging = down && atTop
+                        dragging = down && (atTop || !tabsFrame.contains(value.startLocation))
                     }
                     if dragging == true { drag(max(0, value.translation.height)) }
                 }
@@ -90,14 +113,8 @@ struct Sheet: View {
 
     private var top: some View {
         VStack(spacing: 0) {
-            Capsule()
-                .fill(Palette.faint)
-                .frame(width: 36, height: 5)
-                .padding(.top, 8)
-                .padding(.bottom, 6)
-                .frame(maxWidth: .infinity)
-
             header
+                .padding(.top, 6)
                 .padding(.horizontal, 14)
                 .padding(.bottom, 12)
 
@@ -163,12 +180,6 @@ struct Sheet: View {
             .padding(.horizontal, 14)
         }
         .scrollBounceBehavior(.basedOnSize)
-        // A list that fits doesn't scroll at all, so a drag down on it is
-        // the sheet's.
-        .scrollDisabled(!overflows)
-        // Hugs what it holds. A sheet that always reserves room for ten tabs
-        // looks broken when it is showing one.
-        .frame(maxHeight: min(CGFloat(loose.count) * (row + 2) + 4, 420))
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             geo.contentOffset.y + geo.contentInsets.top
         } action: { _, offset in
@@ -177,7 +188,7 @@ struct Sheet: View {
         }
         .onScrollPhaseChange { old, new in
             // A long list pulled down past its start: let go and it goes.
-            if overflows, old == .interacting, new != .interacting, pull > 70 {
+            if old == .interacting, new != .interacting, pull > 70 {
                 dropped(pull, 1200)
             }
         }
@@ -194,11 +205,6 @@ struct Sheet: View {
         let rows = CGFloat((loose.count + 1) / 2)
         return rows * cardHeight + max(0, rows - 1) * gap + 8
     }
-    /// Two rows and a glimpse of the third at most: the sheet leaves the
-    /// page showing above it.
-    private var cardsRoom: CGFloat { cardHeight * 2.2 + gap * 2 }
-    private var cardsTall: CGFloat { gridContent > 0 ? gridContent : cardsHeight }
-    private var cardsOverflow: Bool { cardsTall > cardsRoom + 1 }
 
     private var cards: some View {
         ScrollViewReader { reader in
@@ -229,9 +235,6 @@ struct Sheet: View {
             }
             // Always free to scroll: whatever doesn't fit is a drag away.
             .scrollBounceBehavior(.basedOnSize)
-            // Room it may take, not room it must: on a short screen the
-            // sheet gives it less and it scrolls.
-            .frame(maxHeight: min(cardsTall, cardsRoom))
             .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { _, tall in
                 if abs(tall - gridContent) > 0.5 { gridContent = tall }
             }
@@ -243,21 +246,21 @@ struct Sheet: View {
                 atTop = offset <= 1
             }
             .onScrollPhaseChange { old, new in
-                if cardsOverflow, old == .interacting, new != .interacting, pull > 70 {
+                if old == .interacting, new != .interacting, pull > 70 {
                     dropped(pull, 1200)
                 }
             }
             // The page you're on in sight, not left three rows down. The
             // sheet is always there, below the edge: it's raised, not shown.
             .onChange(of: browser.showingTabs, initial: true) { _, raised in
-                guard raised, cardsOverflow, let id = browser.activeID else { return }
+                guard raised, let id = browser.activeID else { return }
                 reader.scrollTo(id, anchor: .center)
             }
             // Kept there while the sheet is down too: the page zooms into its
             // card from the first frame, so the card has to be laid out
             // (the grid only lays out what's in sight) and where it will be.
             .onChange(of: browser.activeID, initial: true) { _, id in
-                guard !browser.showingTabs, cardsOverflow, let id else { return }
+                guard !browser.showingTabs, let id else { return }
                 reader.scrollTo(id, anchor: .center)
             }
         }

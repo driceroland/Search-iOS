@@ -54,7 +54,9 @@ struct ContentView: View {
     @State private var landing = false
     /// How far the sheet of tabs is up: 0 down, 1 up.
     @State private var lift: CGFloat = 0
-    @State private var sheetHeight: CGFloat = 420
+    /// How far a finger goes to bring the tabs all the way: short, so the
+    /// page is in its card well before the thumb reaches the middle.
+    private let travel: CGFloat = 240
     /// The page, as a picture, while it's walked or shrunk for the sheet:
     /// the web view itself stays where it is, at its size, untouched.
     @State private var frozen: UIImage?
@@ -120,7 +122,7 @@ struct ContentView: View {
                         lifted: { lifted($0, speed: $1) },
                         source: !browser.editing
                     )
-                    .opacity(browser.finding || browser.editing ? 0 : 1 - lift)
+                    .opacity(browser.finding || browser.editing ? 0 : 1 - min(1, lift * 2.5))
                     .allowsHitTesting(lift == 0 && !landing && !browser.holding && !browser.finding && !browser.editing)
                 }
 
@@ -146,38 +148,24 @@ struct ContentView: View {
                 Sheet(
                         browser: browser,
                         space: space,
-                        drag: { moved in lift = moved < 0 ? 1 + Self.give(-moved) / sheetHeight : 1 - moved / sheetHeight },
+                        drag: { moved in lift = moved < 0 ? 1 + Self.give(-moved) / travel : 1 - moved / travel },
                         dropped: { moved, speed in dropped(moved, speed: speed) },
-                        height: { sheetHeight = max(200, $0) },
+                        lift: lift,
                         frames: { id, rect in
-                            // Where it will rest, whatever the sheet is doing now.
-                            let rest = rect.offsetBy(dx: 0, dy: -(1 - min(1, lift)) * (sheetHeight + 40))
+                            // The cards don't move as the screen comes: where
+                            // they are is where they rest.
+                            let rest = rect
                             if let was = cardFrames[id], abs(was.minX - rest.minX) < 0.5, abs(was.minY - rest.minY) < 0.5,
                                abs(was.width - rest.width) < 0.5 { return }
                             cardFrames[id] = rest
                         },
                         zooming: zoomTarget == nil || lift >= 0.999 ? nil : browser.activeID
                     )
-                    // Never taller than the screen: a taller sheet grew the
-                    // whole stack, and everything aligned to its foot (the
-                    // field above the keyboard, the page) slid down with it.
-                    .frame(maxHeight: geo.size.height - 20, alignment: .bottom)
-                    .offset(y: (1 - lift) * (sheetHeight + 40))
+                    // The whole screen, never more: a taller one grew the
+                    // stack, and the field above the keyboard slid down.
+                    .frame(width: geo.size.width, height: geo.size.height)
                     .allowsHitTesting(browser.showingTabs)
                     .accessibilityHidden(!browser.showingTabs)
-
-                // The page on its way into its card, or out of it: above the
-                // sheet, so it lands on the card rather than behind it.
-                if let target = zoomTarget, frozen != nil, lift > 0.001, lift < 0.999 {
-                    Zoom(
-                        image: frozen, tint: browser.active?.tint, top: geo.safeAreaInsets.top,
-                        progress: min(1, lift),
-                        screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom),
-                        target: target
-                    )
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
-                }
 
                 Field(browser: browser, space: space)
                     // Above the keyboard, by the keyboard's own measure: this
@@ -198,6 +186,22 @@ struct ContentView: View {
                         .padding(.bottom, Metrics.pill + 22)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                         .allowsHitTesting(false)
+                }
+            }
+            // The page on its way into its card, or out of it: above the
+            // tabs, so it lands on the card rather than behind it. Laid over,
+            // not in the stack: as tall as the whole screen, in the stack it
+            // made the stack taller and pushed everything down by as much.
+            .overlay {
+                if let target = zoomTarget, frozen != nil, lift > 0.001, lift < 0.999 {
+                    Zoom(
+                        image: frozen, tint: browser.active?.tint, top: geo.safeAreaInsets.top,
+                        progress: min(1, lift),
+                        screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom),
+                        target: target
+                    )
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
                 }
             }
             // The pill becomes the field, and the field the pill, on the
@@ -495,17 +499,17 @@ struct ContentView: View {
             return
         }
         let up = -(moved - liftFrom)
-        lift = up <= sheetHeight ? max(0, up / sheetHeight) : 1 + Self.give(up - sheetHeight) / sheetHeight
+        lift = up <= travel ? max(0, up / travel) : 1 + Self.give(up - travel) / travel
     }
 
     private func lifted(_ moved: CGFloat, speed: CGFloat) {
         dragging = false
         guard frozen != nil else { return }
-        settle(open: lift + (-speed * 0.15) / sheetHeight > 0.5, speed: -speed)
+        settle(open: lift + (-speed * 0.15) / travel > 0.5, speed: -speed)
     }
 
     private func dropped(_ moved: CGFloat, speed: CGFloat) {
-        settle(open: lift - (speed * 0.15) / sheetHeight > 0.5, speed: -speed)
+        settle(open: lift - (speed * 0.15) / travel > 0.5, speed: -speed)
     }
 
     /// Past its resting place the sheet gives a few points, and no more.
@@ -517,7 +521,7 @@ struct ContentView: View {
     private func settle(open: Bool, speed: CGFloat) {
         let target: CGFloat = open ? 1 : 0
         // SwiftUI wants the speed as a share of what's left to travel.
-        let rate = speed / sheetHeight
+        let rate = speed / travel
         let left = target - lift
         let share = abs(left) < 0.02 ? 0 : max(-12, min(12, rate / left))
         withAnimation(
