@@ -846,6 +846,17 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         for action: WKNavigationAction,
         windowFeatures: WKWindowFeatures
     ) -> WKWebView? {
+        // A full-size window a script opens onto another site, from a tap
+        // on anything (the "click anywhere" ads of streaming and download
+        // sites), is refused while Shield is on for the opener's site. A
+        // real link (target=_blank), a form, a sized window (Sign in with…),
+        // a blank one the page writes into, and anything on the opener's own
+        // site still open as they always did.
+        let openerHost = webView.url?.host()?.lowercased()
+        if Shield.shared.enabled, !Shield.shared.isPaused(on: openerHost), Browser.popUnder(action, windowFeatures, from: webView.url) {
+            say(String(localized: "Pop-up blocked"))
+            return nil
+        }
         // The child must not share the opener's content controller: closing
         // the child would strip the opener's scripts (the Mac learned this).
         configuration.userContentController = WKUserContentController()
@@ -858,6 +869,35 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         activeID = tab.id
         chrome.unfold(animated: false)
         return tab.web
+    }
+
+    /// A window a script opens, full size, onto a site other than the
+    /// opener's: what an ad that takes over a tap looks like.
+    static func popUnder(_ action: WKNavigationAction, _ features: WKWindowFeatures, from opener: URL?) -> Bool {
+        if action.navigationType == .linkActivated || action.navigationType == .formSubmitted { return false }
+        if features.width != nil || features.height != nil { return false }
+        guard let target = action.request.url, let scheme = target.scheme?.lowercased(),
+              ["http", "https"].contains(scheme), let there = target.host()?.lowercased()
+        else { return false }
+        guard let here = opener?.host()?.lowercased() else { return false }
+        // Signing in or paying somewhere else, in a window of its own, is
+        // what such windows are for.
+        let path = target.path().lowercased()
+        let signing = ["accounts.", "login.", "auth.", "appleid.", "id.", "signin.", "sso."].contains { there.hasPrefix($0) }
+            || ["oauth", "authorize", "/login", "/signin", "/sso", "/auth"].contains { path.contains($0) }
+            || ["paypal.com", "stripe.com", "apple.com", "google.com", "microsoftonline.com", "live.com"].contains { site(there) == $0 }
+        if signing { return false }
+        return site(here) != site(there)
+    }
+
+    /// A host's site, near enough: its last two labels, or three under a
+    /// two-letter country's second level (bbc.co.uk, not co.uk).
+    static func site(_ host: String) -> String {
+        let labels = host.split(separator: ".")
+        guard labels.count > 2 else { return host }
+        let second = labels[labels.count - 2]
+        let keep = labels.last!.count == 2 && ["co", "com", "org", "net", "ac", "gov", "edu", "ne", "or"].contains(second) ? 3 : 2
+        return labels.suffix(keep).joined(separator: ".")
     }
 
     /// A page closing the window it opened.

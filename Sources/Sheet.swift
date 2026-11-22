@@ -34,6 +34,9 @@ struct Sheet: View {
     @ObservedObject private var prefs = Prefs.shared
     /// How wide the cards have to share.
     @State private var gridWidth: CGFloat = 360
+    /// How tall the cards really are, all of them, as laid out (names grow
+    /// with the iPhone's text size, so no sum of guesses holds).
+    @State private var gridContent: CGFloat = 0
 
     private var pinned: [Tab] { browser.tabs.filter { $0.pin != nil } }
     private var loose: [Tab] { browser.tabs.filter { $0.pin == nil } }
@@ -194,7 +197,8 @@ struct Sheet: View {
     /// Two rows and a glimpse of the third at most: the sheet leaves the
     /// page showing above it.
     private var cardsRoom: CGFloat { cardHeight * 2.2 + gap * 2 }
-    private var cardsOverflow: Bool { cardsHeight > cardsRoom }
+    private var cardsTall: CGFloat { gridContent > 0 ? gridContent : cardsHeight }
+    private var cardsOverflow: Bool { cardsTall > cardsRoom + 1 }
 
     private var cards: some View {
         ScrollViewReader { reader in
@@ -223,11 +227,14 @@ struct Sheet: View {
                 .padding(.top, 4)
                 .padding(.bottom, 4)
             }
+            // Always free to scroll: whatever doesn't fit is a drag away.
             .scrollBounceBehavior(.basedOnSize)
-            .scrollDisabled(!cardsOverflow)
             // Room it may take, not room it must: on a short screen the
             // sheet gives it less and it scrolls.
-            .frame(maxHeight: min(cardsHeight, cardsRoom))
+            .frame(maxHeight: min(cardsTall, cardsRoom))
+            .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { _, tall in
+                if abs(tall - gridContent) > 0.5 { gridContent = tall }
+            }
             .onGeometryChange(for: CGFloat.self) { $0.size.width - 28 } action: { gridWidth = $0 }
             .onScrollGeometryChange(for: CGFloat.self) { geo in
                 geo.contentOffset.y + geo.contentInsets.top
@@ -553,7 +560,7 @@ struct Sheet: View {
     }
 
     /// A card: the page as it last looked, its name under it, a cross to
-    /// close it. Pressed, it gives a little; swiped left, it follows the
+    /// close it. Tapped, it opens; swiped left, it follows the
     /// finger and, let go far enough, flies off the way it was thrown.
     private struct Card: View {
         @ObservedObject var tab: Tab
@@ -574,8 +581,7 @@ struct Sheet: View {
         private let reach: CGFloat = 90
 
         var body: some View {
-            Button(action: open) {
-                VStack(spacing: 7) {
+            VStack(spacing: 7) {
                     picture
                         .frame(maxWidth: .infinity)
                         .frame(height: pictureHeight)
@@ -588,10 +594,11 @@ struct Sheet: View {
                         }
                         .shadow(color: .black.opacity(live ? 0.16 : 0.07), radius: live ? 12 : 7, y: live ? 4 : 2)
                     name
-                }
-                .contentShape(Rectangle())
             }
-            .buttonStyle(Press())
+            .contentShape(Rectangle())
+            // A tap, and only a tap: a finger that moves (to scroll, to
+            // swipe a card away) never opens what it was resting on.
+            .onTapGesture(perform: open)
             .overlay(alignment: .topTrailing) {
                 Button {
                     flyOff(to: 0)
@@ -701,14 +708,6 @@ struct Sheet: View {
             }
         }
 
-        /// Gives under the finger, springs back when let go.
-        private struct Press: ButtonStyle {
-            func makeBody(configuration: Configuration) -> some View {
-                configuration.label
-                    .scaleEffect(configuration.isPressed ? 0.95 : 1)
-                    .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
-            }
-        }
     }
 
     /// One line: what it is, then where it came from.

@@ -1,6 +1,7 @@
 import WebKit
 
-// The ad blocker, the Mac's list as it is. No counter, no shield icon going
+// The ad blocker, the Mac's list as it is, Reddit's promoted posts and
+// YouTube's ads included (YouTubeAds.swift). No counter, no shield icon going
 // green — it is compiled once at launch and then it is simply true that the
 // page is lighter. One switch in Settings, and off per site from the pill.
 //
@@ -50,9 +51,15 @@ final class Shield: ObservableObject {
     /// doing this at the navigation is what makes "off for this site" true
     /// for the whole page rather than for the second half of it.
     func tune(_ controller: WKUserContentController, for host: String?) {
+        let on = enabled && !isPaused(on: host)
+        // YouTube's scripts are a tab's only user scripts (everything else
+        // is evaluated into the page as needed), so they're put back whole.
+        let site = host.map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 }
+        controller.removeAllUserScripts()
+        if on { YouTubeAds.scripts(for: site).forEach(controller.addUserScript) }
         guard let list else { return }
         controller.remove(list)
-        if enabled, !isPaused(on: host) { controller.add(list) }
+        if on { controller.add(list) }
     }
 
     /// Third parties whose only job is to watch or to sell. First-party
@@ -101,14 +108,28 @@ final class Shield: ObservableObject {
         (["*cnn.com"], ".ad-slot-header__wrapper"),
     ]
 
+    /// Reddit's own promoted posts: custom elements the page puts straight
+    /// in its light DOM (the feed, a post's comments, the sidebar), so a
+    /// plain hiding rule reaches them. Only reddit.com; a normal post is a
+    /// `shreddit-post`, never one of these. The Mac's list.
+    private static let reddit = [
+        "shreddit-ad-post", "shreddit-comments-page-ad", "shreddit-sidebar-ad",
+        "shreddit-dynamic-ad-link", "comment-tree-ad", ".promotedlink",
+    ]
+
+    static func networkFilter(for domain: String) -> String {
+        let escaped = domain.replacingOccurrences(of: ".", with: "\\.")
+        // WebKit's canonical HTTP URLs end the host with a port or a slash.
+        return "^https?://([^/]+\\.)?\(escaped)[:/]"
+    }
+
     func compile() {
         guard list == nil else { return }
         trouble = nil
         var rules: [[String: Any]] = Shield.unwanted.map { domain in
-            let escaped = domain.replacingOccurrences(of: ".", with: "\\.")
-            return [
+            [
                 "trigger": [
-                    "url-filter": "^https?://([^/]+\\.)?\(escaped)",
+                    "url-filter": Shield.networkFilter(for: domain),
                     "load-type": ["third-party"],
                 ],
                 "action": ["type": "block"],
@@ -118,12 +139,18 @@ final class Shield: ObservableObject {
             "trigger": ["url-filter": ".*"],
             "action": ["type": "css-display-none", "selector": Shield.slots.joined(separator: ", ")],
         ])
+        // YouTube's ad reports and ad paths (see YouTubeAds.swift).
+        rules += YouTubeAds.rules
         rules += Shield.slotsBySite.map { entry in
             [
                 "trigger": ["url-filter": ".*", "if-domain": entry.sites],
                 "action": ["type": "css-display-none", "selector": entry.selector],
             ]
         }
+        rules.append([
+            "trigger": ["url-filter": ".*", "if-domain": ["*reddit.com"]],
+            "action": ["type": "css-display-none", "selector": Shield.reddit.joined(separator: ", ")],
+        ])
 
         guard let data = try? JSONSerialization.data(withJSONObject: rules),
               let json = String(data: data, encoding: .utf8)
@@ -136,8 +163,10 @@ final class Shield: ObservableObject {
             trouble = "WebKit has nowhere to compile it"
             return
         }
+        // A new name for a new list: the old compiled one is never taken
+        // for this one.
         store.compileContentRuleList(
-            forIdentifier: "office-shield",
+            forIdentifier: "office-shield-2",
             encodedContentRuleList: json
         ) { [weak self] compiled, error in
             MainActor.assumeIsolated {
@@ -156,6 +185,7 @@ final class Shield: ObservableObject {
 
     /// Every tab asks for it; whoever asks before it is ready is remembered.
     func protect(_ controller: WKUserContentController) {
+        if enabled { YouTubeAds.scripts(for: nil).forEach(controller.addUserScript) }
         if let list {
             if enabled { controller.add(list) }
         } else {
@@ -167,6 +197,8 @@ final class Shield: ObservableObject {
     func apply(to controllers: [WKUserContentController]) {
         guard let list else { return }
         for controller in controllers {
+            controller.removeAllUserScripts()
+            if enabled { YouTubeAds.scripts(for: nil).forEach(controller.addUserScript) }
             controller.remove(list)
             if enabled { controller.add(list) }
         }
