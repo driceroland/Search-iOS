@@ -27,6 +27,16 @@ struct Sheet: View {
     var frames: (Tab.ID, CGRect) -> Void = { _, _ in }
     /// The card the page is zooming into or out of: its own picture waits.
     var zooming: Tab.ID?
+    /// Which part this is. The cards and the pins go under the page as it
+    /// shrinks; the buttons along the top come down over it.
+    var layer: Layer = .tabs
+    /// The page's card where it rests, on screen: the camera every other
+    /// card moves with.
+    var anchor: CGRect?
+    /// The whole screen, safe areas and all, as the page fills it.
+    var screen: CGSize = .zero
+
+    enum Layer { case tabs, chrome }
 
     @State private var pull: CGFloat = 0
     /// The list shows its first line: a drag down anywhere moves the sheet.
@@ -49,69 +59,83 @@ struct Sheet: View {
     private let row: CGFloat = 48
 
 
-    /// How tall the top and the foot are, to come in from just out of sight.
-    @State private var topTall: CGFloat = 120
-    @State private var footTall: CGFloat = 70
-    /// Where the tabs themselves are: a drag down that starts off them, on
-    /// the top or the foot, always takes the screen away.
-    @State private var tabsFrame: CGRect = .zero
+    /// Where the pins and the bar are: a drag down that starts there always
+    /// takes the screen away.
+    @State private var footFrame: CGRect = .zero
+
+    private var shown: CGFloat { max(0, min(1, lift)) }
+    /// The buttons along the top: the cards scroll on under them.
+    private var topRoom: CGFloat { 56 }
+    private var pinsTall: CGFloat {
+        let rows = CGFloat(Self.rows(of: pinned).count)
+        return rows == 0 ? 0 : 10 + rows * 50 + (rows - 1) * 6
+    }
+    /// The pins and the room for the bar, which stays where it is on a page
+    /// and becomes New tab here.
+    private var footRoom: CGFloat { pinsTall + 10 + Metrics.pill + 8 }
 
     var body: some View {
-        let shown = max(0, min(1, lift))
+        switch layer {
+        case .tabs: tabsLayer
+        case .chrome: chromeLayer
+        }
+    }
+
+    private var tabsLayer: some View {
         let out = 1 - shown
-        VStack(spacing: 0) {
-            top
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { topTall = $0 }
-                // Moved, never faded: glass faded drew a grey slab over
-                // the whole top while it came.
-                .offset(y: -out * (topTall + browser.safe.top + 12))
+        return ZStack(alignment: .bottom) {
             Group {
                 if prefs.tabCards { cards } else { list }
             }
-            .frame(maxHeight: .infinity, alignment: .top)
-            // Cards scrolled under the pins or down to the foot fade there,
-            // rather than being cut.
-            .mask {
-                VStack(spacing: 0) {
-                    LinearGradient(colors: [.clear, .black], startPoint: .top, endPoint: .bottom).frame(height: 14)
-                    Color.black
-                    LinearGradient(colors: [.black, .clear], startPoint: .top, endPoint: .bottom).frame(height: 14)
-                }
-                .padding(.horizontal, -40)
-            }
-            .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { tabsFrame = $0 }
-            // Never quite 0: at 0 the grid wasn't laid out, and the page had no
-            // card to go to until it was let go.
-            .opacity(max(0.002, Double(shown)))
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Never quite 0: at 0 the grid wasn't laid out, and the page had
+            // no card to go to until it was let go.
+            .opacity(max(0.002, Double(min(1, shown * 2))))
+            .simultaneousGesture(down(always: false))
+
+            // The pins over a plain floor: the cards stop at a straight line,
+            // no shadow, no fade.
             foot
-                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { footTall = $0 }
-                .offset(y: out * (footTall + browser.safe.bottom + 12))
+                .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { footFrame = $0 }
+                .offset(y: out * (footRoom + browser.safe.bottom + 12))
+                .simultaneousGesture(down(always: true))
         }
-        .padding(.bottom, 8)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // A screen of its own, not a sheet: the ground comes up quickly, so
         // the page shrinking into its card does so on it.
         .background(Palette.ground.opacity(Double(min(1, shown * 1.8))).ignoresSafeArea())
-        // Down from anywhere on it: the rows, the empty room, the foot. A
-        // drag that sets off sideways is a row's to close or pin, and a tap
-        // still picks; only one going down moves the sheet.
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 12, coordinateSpace: .global)
-                .onChanged { value in
-                    if dragging == nil {
-                        let down = value.translation.height > 0
-                            && value.translation.height > abs(value.translation.width) * 1.2
-                        dragging = down && (atTop || !tabsFrame.contains(value.startLocation))
-                    }
-                    if dragging == true { drag(max(0, value.translation.height)) }
+    }
+
+    private var chromeLayer: some View {
+        VStack(spacing: 0) {
+            // Moved, never faded: glass faded drew a grey slab over the top.
+            top
+                .offset(y: -(1 - shown) * (topRoom + browser.safe.top + 40))
+                .simultaneousGesture(down(always: true))
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// A drag down that takes the screen away: from the top or the pins
+    /// always; from the cards once they're scrolled to their start. A drag
+    /// that sets off sideways is a card's, and a tap still picks.
+    private func down(always: Bool) -> some Gesture {
+        DragGesture(minimumDistance: 12, coordinateSpace: .global)
+            .onChanged { value in
+                if dragging == nil {
+                    let down = value.translation.height > 0
+                        && value.translation.height > abs(value.translation.width) * 1.2
+                    dragging = down && (always || atTop)
                 }
-                .onEnded { value in
-                    if dragging == true {
-                        dropped(max(0, value.translation.height), value.velocity.height)
-                    }
-                    dragging = nil
+                if dragging == true { drag(max(0, value.translation.height)) }
+            }
+            .onEnded { value in
+                if dragging == true {
+                    dropped(max(0, value.translation.height), value.velocity.height)
                 }
-        )
+                dragging = nil
+            }
     }
 
     // MARK: - the parts
@@ -186,6 +210,8 @@ struct Sheet: View {
             .padding(.horizontal, 14)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .contentMargins(.top, topRoom + 4, for: .scrollContent)
+        .contentMargins(.bottom, footRoom + 8, for: .scrollContent)
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             geo.contentOffset.y + geo.contentInsets.top
         } action: { _, offset in
@@ -216,13 +242,25 @@ struct Sheet: View {
         ScrollViewReader { reader in
             ScrollView {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: gap), GridItem(.flexible(), spacing: gap)], spacing: gap) {
-                    ForEach(loose) { tab in
+                    let order = loose
+                    let at = order.firstIndex { $0.id == browser.activeID }
+                    ForEach(Array(order.enumerated()), id: \.element.id) { index, tab in
                         Card(tab: tab, live: tab.id == browser.activeID, hidden: browser.locked && tab.isPrivate, pictureHeight: pictureHeight, waiting: zooming == tab.id) {
                             pick(tab)
                         } report: { frames(tab.id, $0) } close: {
                             Feel.tick()
                             withAnimation(Motion.bouncy) { browser.close(tab) }
                         }
+                        // Every other card moves with the page, as if the
+                        // page were one card seen up close: the rest were
+                        // there all along, out of the frame, and come into it
+                        // as the camera steps back, the farther a moment later.
+                        .modifier(Camera(
+                            progress: shown,
+                            place: place(index, from: at),
+                            anchor: tab.id == browser.activeID ? nil : anchor,
+                            screen: screen
+                        ))
                         .contextMenu { menu(for: tab) }
                         .draggable(tab.id.uuidString) {
                             Line(tab: tab, live: false, space: space).frame(width: 300)
@@ -236,11 +274,14 @@ struct Sheet: View {
                     }
                 }
                 .padding(.horizontal, 14)
-                .padding(.top, 4)
-                .padding(.bottom, 4)
             }
             // Always free to scroll: whatever doesn't fit is a drag away.
             .scrollBounceBehavior(.basedOnSize)
+            // Under the buttons along the top, and down to the pins' floor.
+            .contentMargins(.top, topRoom + 4, for: .scrollContent)
+            .contentMargins(.bottom, footRoom + 8, for: .scrollContent)
+            // Cards moving with the page run past the grid's edges.
+            .scrollClipDisabled()
             .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { _, tall in
                 if abs(tall - gridContent) > 0.5 { gridContent = tall }
             }
@@ -270,6 +311,17 @@ struct Sheet: View {
         }
     }
 
+    /// Where a card is from the page's own, in rows and columns, and in
+    /// points at rest.
+    private func place(_ index: Int, from at: Int?) -> Camera.Place {
+        guard let at else { return .init() }
+        let cols = CGFloat(index % 2 - at % 2), rows = CGFloat(index / 2 - at / 2)
+        return .init(
+            delta: CGSize(width: cols * (cardWidth + gap), height: rows * (cardHeight + gap)),
+            steps: abs(cols) + abs(rows)
+        )
+    }
+
     /// Held: what can be done with a tab, the same for a line or a card.
     @ViewBuilder private func menu(for tab: Tab) -> some View {
         Button {
@@ -286,54 +338,15 @@ struct Sheet: View {
         } label: { Label("Close Tab", systemImage: "xmark") }
     }
 
-    /// What the sheet does besides the tabs, as a row of round buttons
-    /// along its foot: a new tab, a private one, the bookmarks, the other
-    /// devices' tabs, Settings. Icons only; each says what it is to
-    /// VoiceOver, and the new tab button, held, lists what was closed.
+    /// The pins, by the thumb, over the room the bar keeps: on a page it
+    /// says where you are, here it is New tab.
     private var foot: some View {
         VStack(spacing: 0) {
-        pins
-        HStack(spacing: 10) {
-            Button {
-                Feel.tick()
-                browser.newTab()
-            } label: {
-                Label("New tab", systemImage: "plus")
-                    .labelStyle(.titleAndIcon)
-                    .font(.scaled(15, weight: .medium))
-                    .foregroundStyle(Palette.ink)
-                    .padding(.horizontal, 20)
-                    .frame(maxWidth: .infinity)
-                    .frame(height: 46)
-                    .glass(Capsule(), interactive: true, else: Palette.wash)
-                    .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .contextMenu {
-                if browser.closed.isEmpty {
-                    Text("Nothing closed lately")
-                } else {
-                    Section("Recently Closed") {
-                        ForEach(Array(browser.closed.prefix(12).enumerated()), id: \.offset) { _, entry in
-                            Button {
-                                browser.reopen(entry)
-                            } label: {
-                                let site = URL(string: entry.url).map { Address.host($0) } ?? entry.url
-                                Text(entry.title.isEmpty ? site : entry.title)
-                                Text(site)
-                            }
-                        }
-                    }
-                }
-            }
-            round("book", "Bookmarks") { browser.showingBookmarks = true }
+            pins
+            Color.clear.frame(height: 10 + Metrics.pill + 8)
         }
-        .padding(.horizontal, 14)
-        .padding(.top, 10)
-        }
-        .padding(.top, 10)
-        .padding(.bottom, 6)
         .frame(maxWidth: .infinity)
+        .background(Palette.ground.ignoresSafeArea(edges: .bottom))
         .contentShape(Rectangle())
     }
 
@@ -357,22 +370,40 @@ struct Sheet: View {
             .buttonStyle(.plain)
             .accessibilityLabel("New private tab")
 
-            Button {
-                Feel.tick()
-                withAnimation(Motion.settle) { prefs.tabCards.toggle() }
-            } label: { headerButton(prefs.tabCards ? "list.bullet" : "square.grid.2x2") }
-            .buttonStyle(.plain)
-            .accessibilityLabel(prefs.tabCards ? "Show as List" : "Show as Cards")
-
-            if prefs.sync {
-                Button { browser.showingOthers = true } label: { headerButton("laptopcomputer.and.iphone") }
-                    .buttonStyle(.plain)
-                    .accessibilityLabel("Other devices")
+            Menu {
+                Button {
+                    withAnimation(Motion.settle) { prefs.tabCards.toggle() }
+                } label: {
+                    prefs.tabCards
+                        ? Label("Show as List", systemImage: "list.bullet")
+                        : Label("Show as Cards", systemImage: "square.grid.2x2")
+                }
+                if prefs.sync {
+                    Button { browser.showingOthers = true } label: {
+                        Label("Other devices", systemImage: "laptopcomputer.and.iphone")
+                    }
+                }
+                Menu {
+                    if browser.closed.isEmpty {
+                        Text("Nothing closed lately")
+                    } else {
+                        ForEach(Array(browser.closed.prefix(12).enumerated()), id: \.offset) { _, entry in
+                            Button {
+                                browser.reopen(entry)
+                            } label: {
+                                let site = URL(string: entry.url).map { Address.host($0) } ?? entry.url
+                                Text(entry.title.isEmpty ? site : entry.title)
+                                Text(site)
+                            }
+                        }
+                    }
+                } label: { Label("Recently Closed", systemImage: "clock.arrow.circlepath") }
+                Divider()
+                Button { browser.settings = true } label: { Label("Settings", systemImage: "gearshape") }
+            } label: {
+                headerButton("ellipsis")
             }
-
-            Button { browser.settings = true } label: { headerButton("gearshape") }
-                .buttonStyle(.plain)
-                .accessibilityLabel("Settings")
+            .accessibilityLabel("More")
 
             Spacer(minLength: 0)
         }
@@ -598,7 +629,9 @@ struct Sheet: View {
                                 .strokeBorder(Palette.faint.opacity(0.35), lineWidth: 0.5)
                         }
                         .shadow(color: .black.opacity(live ? 0.16 : 0.07), radius: live ? 12 : 7, y: live ? 4 : 2)
-                    name
+                    // Waiting too: the page brings its name down with it.
+                    CardName(tab: tab, live: live, hidden: hidden)
+                        .opacity(waiting ? 0 : 1)
             }
             .contentShape(Rectangle())
             // A tap, and only a tap: a finger that moves (to scroll, to
@@ -660,29 +693,6 @@ struct Sheet: View {
                 if x != 0 { shift = x } else { gone = true }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { close() }
-        }
-
-        private var name: some View {
-            HStack(spacing: 6) {
-                Group {
-                    if tab.loading {
-                        Ring(size: 10)
-                    } else if !tab.isBlank, !hidden {
-                        Mark(icon: tab.icon, letter: tab.letter, size: 14)
-                    }
-                }
-                if tab.isPrivate {
-                    Image(systemName: "eyeglasses")
-                        .font(.scaled(10, weight: .medium))
-                        .foregroundStyle(Palette.muted)
-                }
-                Text(hidden ? String(localized: "Private tab") : tab.label)
-                    .font(.scaled(12.5, weight: live ? .semibold : .regular))
-                    .foregroundStyle(live ? Palette.ink : Palette.muted)
-                    .lineLimit(1)
-            }
-            .frame(height: 19)
-            .padding(.horizontal, 4)
         }
 
         @ViewBuilder private var picture: some View {
@@ -770,5 +780,78 @@ struct Sheet: View {
                 }
             }
         }
+    }
+}
+
+/// A card's name, under its picture: the site's mark and what the page is
+/// called. The same under a card and under the page on its way into one.
+struct CardName: View {
+    @ObservedObject var tab: Tab
+    let live: Bool
+    var hidden = false
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Group {
+                if tab.loading {
+                    Ring(size: 10)
+                } else if !tab.isBlank, !hidden {
+                    Mark(icon: tab.icon, letter: tab.letter, size: 14)
+                }
+            }
+            if tab.isPrivate {
+                Image(systemName: "eyeglasses")
+                    .font(.scaled(10, weight: .medium))
+                    .foregroundStyle(Palette.muted)
+            }
+            Text(hidden ? String(localized: "Private tab") : tab.label)
+                .font(.scaled(12.5, weight: live ? .semibold : .regular))
+                .foregroundStyle(live ? Palette.ink : Palette.muted)
+                .lineLimit(1)
+        }
+        .frame(height: 19)
+        .padding(.horizontal, 4)
+    }
+}
+
+/// A card seen through the camera that follows the page: at 0 the page's
+/// card fills the screen and this one sits where it would be at that size,
+/// at 1 everything is where it rests. Cards farther from the page set off a
+/// moment later, so they settle one after another, not as one sheet.
+struct Camera: GeometryEffect {
+    struct Place {
+        var delta: CGSize = .zero
+        var steps: CGFloat = 0
+    }
+
+    var progress: CGFloat
+    let place: Place
+    /// The page's card at rest, on screen; nil for no camera at all.
+    let anchor: CGRect?
+    let screen: CGSize
+
+    var animatableData: CGFloat {
+        get { progress }
+        set { progress = newValue }
+    }
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        guard let a = anchor, a.width > 1, screen.width > 1 else { return ProjectionTransform() }
+        let lag = min(0.24, 0.07 * place.steps)
+        let q = max(0, min(1, (progress - lag) / (1 - lag)))
+        guard q < 1 else { return ProjectionTransform() }
+        let start = screen.width / a.width
+        let k = start + (1 - start) * q
+        // The page's card, now: from the screen's corner to where it rests.
+        let ox = a.minX * q, oy = a.minY * q
+        // On its way the page is taller than its card (the whole screen's
+        // height, cut down as it lands): the rows under it make that room.
+        let taller = a.width * screen.height / screen.width - a.height
+        let below = place.delta.height > 0.5 ? k * taller * (1 - q) : 0
+        let dx = ox + place.delta.width * k - (a.minX + place.delta.width)
+        let dy = oy + place.delta.height * k + below - (a.minY + place.delta.height)
+        return ProjectionTransform(
+            CGAffineTransform(scaleX: k, y: k).concatenating(CGAffineTransform(translationX: dx, y: dy))
+        )
     }
 }

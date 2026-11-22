@@ -63,6 +63,15 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     @Published private(set) var tint: UIColor?
     /// The page's own background, for when it names no colour of its own.
     @Published private(set) var ground: UIColor?
+    /// The colour of what's at the very top of the page as it shows now
+    /// (its bar, its header, its banner), read as Safari does, again as the
+    /// page scrolls: what goes behind the clock.
+    @Published private(set) var edge: UIColor?
+    private var edgeRead = Date.distantPast
+
+    /// Behind the clock: what the page shows at its top, else the colour it
+    /// names for itself, else its background.
+    var behindClock: UIColor? { edge ?? tint ?? ground }
     /// What the page last looked like, for walking past it and the sheet.
     @Published private(set) var snapshot: UIImage?
     /// One letter, when the tab has been pinned.
@@ -177,6 +186,7 @@ final class Tab: NSObject, ObservableObject, Identifiable {
                     if !self.loading {
                         self.waking = false
                         self.readGround()
+                        self.readEdge()
                     }
                 }
             },
@@ -223,6 +233,51 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         pending = nil
         waking = snapshot != nil
         web.load(URLRequest(url: url))
+    }
+
+    /// What's at the top of the page, asked of the page: the first element
+    /// under its top edge that has a colour of its own, from the left where
+    /// logos don't sit.
+    func readEdge(force: Bool = true) {
+        guard !isBlank, failure == nil else { if edge != nil { edge = nil }; return }
+        let now = Date()
+        guard force || now.timeIntervalSince(edgeRead) > 0.15 else { return }
+        edgeRead = now
+        web.evaluateJavaScript(Tab.edgeScript) { [weak self] result, _ in
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                let colour = (result as? String).flatMap(Tab.colour(css:))
+                if colour != self.edge { self.edge = colour }
+            }
+        }
+    }
+
+    private static let edgeScript = """
+    (function(){
+      function bg(e){ while (e && e.nodeType === 1) {
+        var c = getComputedStyle(e).backgroundColor;
+        var m = c && c.match(/rgba?\\(([^)]+)\\)/);
+        if (m) { var p = m[1].split(','); if (p.length < 4 || parseFloat(p[3]) > 0.5) return c; }
+        e = e.parentElement; } return null; }
+      var w = window.innerWidth, picks = [6, w / 2, w - 6], seen = {};
+      for (var i = 0; i < picks.length; i++) {
+        var c = bg(document.elementFromPoint(picks[i], 1));
+        if (c) { seen[c] = (seen[c] || 0) + 1; if (seen[c] > 1) return c; }
+      }
+      return bg(document.elementFromPoint(6, 1)) || bg(document.body) || bg(document.documentElement);
+    })()
+    """
+
+    /// "rgb(1, 2, 3)" or "rgba(1, 2, 3, 0.9)", as a colour.
+    static func colour(css: String) -> UIColor? {
+        guard let open = css.firstIndex(of: "("), let close = css.lastIndex(of: ")") else { return nil }
+        let parts = css[css.index(after: open)..<close].split(separator: ",").map {
+            Double($0.trimmingCharacters(in: .whitespaces)) ?? 0
+        }
+        guard parts.count >= 3 else { return nil }
+        let alpha = parts.count > 3 ? parts[3] : 1
+        guard alpha > 0.5 else { return nil }
+        return UIColor(red: parts[0] / 255, green: parts[1] / 255, blue: parts[2] / 255, alpha: 1)
     }
 
     /// The colour the page is painted, read once it has drawn.
@@ -375,6 +430,8 @@ extension Tab: UIScrollViewDelegate {
         let next = startedAtTop && view.isTracking ? max(0, min(1, past / Tab.pullReach)) : 0
         if abs(next - pull) > 0.01 || (next == 0) != (pull == 0) { pull = next }
         guard view.isTracking || view.isDecelerating else { return }
+        // What reaches the top changes as the page moves.
+        readEdge(force: false)
         let y = view.contentOffset.y
         let top = -view.adjustedContentInset.top
         let bottom = view.contentSize.height - view.bounds.height + view.adjustedContentInset.bottom

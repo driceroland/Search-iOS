@@ -20,9 +20,7 @@ struct Page: View {
     /// background; nothing while a blank tab or an error page shows.
     private var behindClock: UIColor? {
         guard !covered, !tab.isBlank, tab.failure == nil else { return nil }
-        // The page's own background, as Safari samples it; its theme-color
-        // only when it has none.
-        return tab.ground ?? tab.tint
+        return tab.behindClock
     }
 
     private var statusKey: String {
@@ -34,7 +32,7 @@ struct Page: View {
             WebStage(page: tab.isBlank ? nil : tab.web)
                 .background(Palette.ground)
                 .ignoresSafeArea()
-            Band(tint: tab.tint, height: top)
+            Band(tint: tab.isBlank || tab.failure != nil ? nil : tab.behindClock, height: top)
         }
         .overlay {
             if let failure = tab.failure { Failed(tab: tab, failure: failure) }
@@ -111,12 +109,13 @@ struct Band: View {
     var height: CGFloat
 
     var body: some View {
-        // As in Safari: nothing of the app's behind the clock. The page shows
-        // there itself (at the top, its own background above its content);
-        // the clock's text turns light or dark to read on it (StatusBar).
-        Color.clear
+        // As in Safari: the colour of what's at the top of the page, carried
+        // up behind the clock, so the page's bar reads as running to the
+        // edge; the clock's text turns light or dark to read on it.
+        (tint.map { Color(uiColor: $0) } ?? Color.clear)
             .frame(maxWidth: .infinity)
             .frame(height: height)
+            .animation(.easeOut(duration: 0.2), value: tint)
             .allowsHitTesting(false)
     }
 }
@@ -353,6 +352,9 @@ struct Zoom: View, Animatable {
     }
     let screen: CGSize
     let target: CGRect
+    /// Whose page it is: its name comes down under it, to where it sits
+    /// under the card.
+    var tab: Tab?
 
     var body: some View {
         let p = max(0, min(1, progress))
@@ -379,6 +381,14 @@ struct Zoom: View, Animatable {
         .scaleEffect(scale, anchor: .topLeading)
         .offset(x: target.minX * p, y: target.minY * p)
         .frame(width: screen.width, height: screen.height, alignment: .topLeading)
+        .overlay(alignment: .topLeading) {
+            if let tab {
+                CardName(tab: tab, live: true)
+                    .frame(width: screen.width * scale)
+                    .offset(x: target.minX * p, y: target.minY * p + height * scale + 7)
+                    .opacity(Double(max(0, min(1, (p - 0.15) / 0.6))))
+            }
+        }
         // Only `progress` moves: left to animate on their own, the size,
         // scale and place slid from the last card's to the new one's.
         .transaction { $0.animation = nil }

@@ -72,7 +72,9 @@ struct ContentView: View {
     /// in the air until they land, whatever `lift` already says.
     @State private var moving = false
     /// Where each card's picture rests on screen once the sheet is up.
-    @State private var cardFrames: [Tab.ID: CGRect] = [:]
+    /// Kept out of SwiftUI's sight: cards moving with the page report where
+    /// they are on every frame, and each report redrew the whole screen.
+    @State private var cardFrames = Frames()
     /// Which tab the frozen picture is of.
     @State private var frozenID: Tab.ID?
     /// The first launch's three screens.
@@ -108,6 +110,41 @@ struct ContentView: View {
                     .opacity(browser.editing ? 1 : 0)
                     .allowsHitTesting(browser.editing)
 
+                // The cards and the pins, under the page as it shrinks.
+                sheet(.tabs, size: geo.size, screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom))
+
+                // The page on its way into its card, or out of it: over the
+                // cards, so it lands on one rather than behind it. Laid over
+                // a clear view the stack's size: as tall as the whole screen
+                // in the stack, it made the stack taller and pushed
+                // everything down by as much.
+                Color.clear
+                    .overlay {
+                        // Always there while tabs are cards, and shown or
+                        // hidden at once: put in as it moved, it arrived
+                        // already landed.
+                        if let target = zoomTarget {
+                            Zoom(
+                                image: frozen, tint: browser.active?.behindClock, top: geo.safeAreaInsets.top,
+                                progress: max(0, min(1, lift)),
+                                screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom),
+                                target: target,
+                                tab: browser.active
+                            )
+                            .opacity(zoomShown ? 1 : 0)
+                            .animation(nil, value: zoomShown)
+                            .ignoresSafeArea()
+                        }
+                    }
+                    .allowsHitTesting(false)
+
+                // The buttons along the top, coming down over the page.
+                sheet(.chrome, size: geo.size, screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom))
+
+                // Over everything, and the same thing on a page and over the
+                // tabs: where you are becomes New tab, Back leaves by the
+                // side, Tabs becomes Bookmarks. Never put away and brought
+                // back: it changes where it stands.
                 if let tab = browser.active {
                     Pill(
                         tab: tab,
@@ -123,10 +160,15 @@ struct ContentView: View {
                         walked: { walked($0, speed: $1, width: width) },
                         lift: { lifting($0) },
                         lifted: { lifted($0, speed: $1) },
-                        source: !browser.editing
+                        source: !browser.editing,
+                        morph: max(0, min(1, lift)),
+                        over: browser.showingTabs,
+                        newTab: { Feel.tick(); browser.newTab() },
+                        bookmarks: { browser.showingBookmarks = true }
                     )
-                    .opacity(browser.finding || browser.editing ? 0 : 1 - min(1, lift * 2.5))
-                    .allowsHitTesting(lift == 0 && !landing && !browser.holding && !browser.finding && !browser.editing)
+                    .opacity(browser.finding || browser.editing ? 0 : 1)
+                    .allowsHitTesting((lift == 0 || (browser.showingTabs && lift >= 0.999)) && !moving
+                        && !landing && !browser.holding && !browser.finding && !browser.editing)
                 }
 
                 // Always there, shown by scale and opacity: put in and taken
@@ -145,31 +187,6 @@ struct ContentView: View {
                     .allowsHitTesting(browser.holding)
                     .accessibilityHidden(!browser.holding)
                 }
-
-                // Always there, below the edge when down, so that letting it
-                // go can animate it all the way out.
-                Sheet(
-                        browser: browser,
-                        space: space,
-                        drag: { moved in lift = moved < 0 ? 1 + Self.give(-moved) / travel : 1 - moved / travel },
-                        dropped: { moved, speed in dropped(moved, speed: speed) },
-                        lift: lift,
-                        away: lift == 0 && !moving && !dragging,
-                        frames: { id, rect in
-                            // The cards don't move as the screen comes: where
-                            // they are is where they rest.
-                            let rest = rect
-                            if let was = cardFrames[id], abs(was.minX - rest.minX) < 0.5, abs(was.minY - rest.minY) < 0.5,
-                               abs(was.width - rest.width) < 0.5 { return }
-                            cardFrames[id] = rest
-                        },
-                        zooming: zoomShown ? browser.activeID : nil
-                    )
-                    // The whole screen, never more: a taller one grew the
-                    // stack, and the field above the keyboard slid down.
-                    .frame(width: geo.size.width, height: geo.size.height)
-                    .allowsHitTesting(browser.showingTabs)
-                    .accessibilityHidden(!browser.showingTabs)
 
                 Field(browser: browser, space: space)
                     // Above the keyboard, by the keyboard's own measure: this
@@ -190,26 +207,6 @@ struct ContentView: View {
                         .padding(.bottom, Metrics.pill + 22)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                         .allowsHitTesting(false)
-                }
-            }
-            // The page on its way into its card, or out of it: above the
-            // tabs, so it lands on the card rather than behind it. Laid over,
-            // not in the stack: as tall as the whole screen, in the stack it
-            // made the stack taller and pushed everything down by as much.
-            .overlay {
-                // Always there while tabs are cards, and shown or hidden at
-                // once: put in as it moved, it arrived already landed.
-                if let target = zoomTarget {
-                    Zoom(
-                        image: frozen, tint: browser.active?.tint, top: geo.safeAreaInsets.top,
-                        progress: max(0, min(1, lift)),
-                        screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom),
-                        target: target
-                    )
-                    .opacity(zoomShown ? 1 : 0)
-                    .animation(nil, value: zoomShown)
-                    .ignoresSafeArea()
-                    .allowsHitTesting(false)
                 }
             }
             // The pill becomes the field, and the field the pill, on the
@@ -332,6 +329,27 @@ struct ContentView: View {
 
     /// Where the page zooms to when the tabs come up: its card's picture,
     /// while tabs are cards and it has one.
+    /// One layer of the tabs screen, the whole screen's size, never more: a
+    /// taller one grew the stack, and the field above the keyboard slid down.
+    private func sheet(_ layer: Sheet.Layer, size: CGSize, screen: CGSize) -> some View {
+        Sheet(
+            browser: browser,
+            space: space,
+            drag: { moved in lift = moved < 0 ? 1 + Self.give(-moved) / travel : 1 - moved / travel },
+            dropped: { moved, speed in dropped(moved, speed: speed) },
+            lift: lift,
+            away: lift == 0 && !moving && !dragging,
+            frames: { id, rect in cardFrames.rects[id] = rect },
+            zooming: zoomShown ? browser.activeID : nil,
+            layer: layer,
+            anchor: zoomTarget,
+            screen: screen
+        )
+        .frame(width: size.width, height: size.height)
+        .allowsHitTesting(browser.showingTabs)
+        .accessibilityHidden(!browser.showingTabs)
+    }
+
     /// The page is in the air, between the screen and its card.
     private var zoomShown: Bool {
         zoomTarget != nil && frozen != nil && (moving || (lift > 0.001 && lift < 0.999))
@@ -343,7 +361,7 @@ struct ContentView: View {
 
     private var zoomTarget: CGRect? {
         guard Prefs.shared.tabCards, let tab = browser.active, tab.pin == nil,
-              let rect = cardFrames[tab.id], rect.width > 10 else { return nil }
+              let rect = cardFrames.rects[tab.id], rect.width > 10 else { return nil }
         return rect
     }
 
@@ -391,7 +409,7 @@ struct ContentView: View {
                         Card(tab: browser.neighbour(-1), top: top)
                             .offset(x: -(width + Metrics.gap) + walk)
                     }
-                    Still(image: frozen, tint: browser.active?.tint, top: top, band: max(0, 1 - lift * 4))
+                    Still(image: frozen, tint: browser.active?.behindClock, top: top, band: max(0, 1 - lift * 4))
                         .overlay {
                             if browser.locked, browser.active?.isPrivate == true { Locked(browser: browser) }
                         }
@@ -520,6 +538,11 @@ struct ContentView: View {
 
     private func lifting(_ moved: CGFloat) {
         dragging = true
+        // Over the tabs the bar takes them away, down.
+        if browser.showingTabs {
+            lift = 1 - max(0, moved) / travel
+            return
+        }
         if frozen == nil {
             freeze()
             // Pictured at once: the page goes from where the finger set
@@ -533,6 +556,10 @@ struct ContentView: View {
 
     private func lifted(_ moved: CGFloat, speed: CGFloat) {
         dragging = false
+        if browser.showingTabs {
+            dropped(max(0, moved), speed: speed)
+            return
+        }
         guard frozen != nil else { return }
         settle(open: Self.goes(lift, up: -speed, opening: true), speed: -speed)
     }
@@ -579,4 +606,9 @@ struct ContentView: View {
             browser.showingTabs = open
         }
     }
+}
+
+/// Where each card's picture is on screen, by tab.
+final class Frames {
+    var rects: [Tab.ID: CGRect] = [:]
 }

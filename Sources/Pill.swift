@@ -27,6 +27,13 @@ struct Pill: View {
     /// Whether the pill's shape is the one the field takes its place from
     /// (on a page), or the one that follows the field's (while typing).
     var source = true
+    /// How far the tabs are up: 0 on a page, 1 over the tabs, where the
+    /// pill is New tab, Back has gone by the side and Tabs is Bookmarks.
+    var morph: CGFloat = 0
+    /// The tabs are up: taps and drags are theirs.
+    var over = false
+    var newTab: () -> Void = {}
+    var bookmarks: () -> Void = {}
 
     private enum Axis { case none, walk, lift, ignored }
     @State private var axis: Axis = .none
@@ -49,9 +56,12 @@ struct Pill: View {
             // Open: between the two buttons. Folded: just round the name.
             let open = 16 + Metrics.pill + 8
             let inset = open + ((16 + (full - small) / 2) - open) * f
+            // Over the tabs, Back's room is the pill's.
+            let leading = inset + (16 - inset) * morph
             ZStack(alignment: .bottom) {
                 address
-                    .padding(.horizontal, inset)
+                    .padding(.leading, leading)
+                    .padding(.trailing, inset)
                 // The buttons stay at the edges and leave outward, fading,
                 // as the pill closes in: two movements, not one melting
                 // into the other.
@@ -61,11 +71,14 @@ struct Pill: View {
                         Feel.tick()
                         tab.back()
                     }
-                    .offset(x: -28 * f)
+                    .offset(x: -28 * f - (Metrics.pill + 24) * morph)
+                    .opacity(Double(1 - morph))
                     Spacer(minLength: 0)
-                    side("square.on.square", "Tabs", enabled: true) { tabs() }
-                        .accessibilityValue(Text("\(count)"))
-                        .offset(x: 28 * f)
+                    side(morph > 0.5 ? "book" : "square.on.square", morph > 0.5 ? "Bookmarks" : "Tabs", enabled: true, other: "book", turn: morph) {
+                        if over { bookmarks() } else { tabs() }
+                    }
+                    .accessibilityValue(over ? Text("") : Text("\(count)"))
+                    .offset(x: 28 * f)
                 }
                 .padding(.horizontal, 16)
                 .opacity(Double(max(0, 1 - f * 2)))
@@ -79,14 +92,15 @@ struct Pill: View {
         .padding(.bottom, 8 - 6 * f)
         .contentShape(Rectangle())
         .gesture(Pan(action: pan))
-        .gesture(Hold { if !tucked { Feel.nudge(); hold() } })
+        .gesture(Hold { if !tucked, !over { Feel.nudge(); hold() } })
     }
 
     private var address: some View {
         let height = Metrics.pill - (Metrics.pill - Metrics.pillFolded) * f
         // Everything before the name gives its room back as the bar folds,
         // with the finger: no step where it would vanish all at once.
-        return HStack(spacing: 0) {
+        return ZStack {
+        HStack(spacing: 0) {
             if heading == nil, tab.isPrivate {
                 Image(systemName: "eyeglasses")
                     .font(.scaled(12, weight: .medium))
@@ -118,6 +132,16 @@ struct Pill: View {
                 .id(heading ?? tab.short)
                 .transition(.opacity)
         }
+        .opacity(Double(max(0, 1 - morph * 2)))
+        .scaleEffect(1 - 0.08 * morph)
+        Label("New tab", systemImage: "plus")
+            .labelStyle(.titleAndIcon)
+            .font(.scaled(15, weight: .medium))
+            .foregroundStyle(.primary)
+            .opacity(Double(max(0, morph * 2 - 1)))
+            .scaleEffect(0.92 + 0.08 * morph)
+            .accessibilityHidden(morph < 0.5)
+        }
         .padding(.horizontal, 14 - 4 * f)
         .frame(maxWidth: .infinity)
         .frame(height: height)
@@ -143,7 +167,9 @@ struct Pill: View {
         .matchedGeometryEffect(id: "pill", in: space, isSource: source)
         .contentShape(Capsule())
         .gesture(Tap {
-            if tucked {
+            if over {
+                newTab()
+            } else if tucked {
                 chrome.unfold(animated: true)
             } else {
                 type()
@@ -155,8 +181,18 @@ struct Pill: View {
     /// A round glass button either side of the pill: Back on the left, as in
     /// Safari, every tab on the right. White on the glass; dimmed when there
     /// is nowhere to go.
-    private func side(_ symbol: String, _ name: LocalizedStringKey, enabled: Bool, action: @escaping () -> Void) -> some View {
-        Image(systemName: symbol)
+    private func side(_ symbol: String, _ name: LocalizedStringKey, enabled: Bool, other: String? = nil, turn: CGFloat = 0, action: @escaping () -> Void) -> some View {
+        // One button, its icon turning into the other one's.
+        ZStack {
+            Image(systemName: other == nil ? symbol : "square.on.square")
+                .opacity(Double(other == nil ? 1 : max(0, 1 - turn * 2)))
+                .scaleEffect(other == nil ? 1 : 1 - 0.3 * turn)
+            if let other {
+                Image(systemName: other)
+                    .opacity(Double(max(0, turn * 2 - 1)))
+                    .scaleEffect(0.7 + 0.3 * turn)
+            }
+        }
             .font(.scaled(17, weight: .medium))
             .foregroundStyle(.primary)
             .opacity(enabled ? 1 : 0.35)
@@ -180,7 +216,12 @@ struct Pill: View {
             // One gesture, one direction: whichever the finger set off in.
             // Decided on the first real movement — a pan can begin at zero.
             if axis == .none, max(abs(moved.x), abs(moved.y)) > 3 {
-                axis = abs(moved.x) > abs(moved.y) ? .walk : (moved.y < 0 ? .lift : .ignored)
+                if over {
+                    // Over the tabs: down takes them away; nothing else.
+                    axis = abs(moved.y) > abs(moved.x) && moved.y > 0 ? .lift : .ignored
+                } else {
+                    axis = abs(moved.x) > abs(moved.y) ? .walk : (moved.y < 0 ? .lift : .ignored)
+                }
             }
             switch axis {
             case .walk: walk(moved.x)
