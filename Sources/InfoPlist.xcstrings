@@ -40,6 +40,16 @@
           }
         }
       }
+    },
+    "NSPhotoLibraryAddUsageDescription": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pour enregistrer une image d’une page dans vos photos, quand vous choisissez Enregistrer dans Photos."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

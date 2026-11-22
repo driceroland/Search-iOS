@@ -134,8 +134,16 @@ final class Browser: NSObject, ObservableObject {
             tabs.append(tab)
         }
         closed = Session.readClosed()
-        if tabs.isEmpty { adopt(Tab()) }
-        activeID = tabs[min(max(0, min(saved.active, tabs.count - 1)), tabs.count - 1)].id
+        if tabs.isEmpty || saved.active < 0 {
+            // Left on a new tab (or a private one): back on a new tab.
+            let fresh = Tab()
+            prepare(fresh)
+            tabs.append(fresh)
+            activeID = fresh.id
+            editing = true
+        } else {
+            activeID = tabs[min(max(0, saved.active), tabs.count - 1)].id
+        }
         active?.wake()
         Snapshots.prune(keeping: Set(tabs.map(\.key)))
     }
@@ -667,7 +675,9 @@ final class Browser: NSObject, ObservableObject {
                     pinID: tab.pinID, home: tab.pinHome?.absoluteString, pinName: tab.pinName
                 )
             },
-            active: kept.firstIndex { $0.id == activeID } ?? 0
+            // On an empty tab or a private one, which aren't written down:
+            // -1, so the next launch opens on a new tab, not the first pin.
+            active: kept.firstIndex { $0.id == activeID } ?? -1
         )
     }
 }

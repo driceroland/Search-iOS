@@ -218,7 +218,9 @@ final class FadeView: UIView {
     /// How far along each layer's blur is held, and where its band starts
     /// (0 the top of the fade, 1 the bottom edge).
     private static let steps: [(strength: CGFloat, from: CGFloat)] = [
-        (0.05, 0.0), (0.1, 0.3), (0.18, 0.55), (0.3, 0.8),
+        // Light: the page under the pill is still the page, readable and
+        // tappable, only softened toward the edge.
+        (0.03, 0.0), (0.06, 0.35), (0.11, 0.6), (0.18, 0.85),
     ]
 
     private var layers: [(view: UIVisualEffectView, mask: Gradient)] = []

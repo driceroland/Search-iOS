@@ -18,6 +18,9 @@ struct Field: View {
     /// The address it opens on is selected, as in Safari: the first letter
     /// typed replaces it, and a tap places the caret to edit it instead.
     @State private var selection: TextSelection?
+    /// The text the selection was made in: its indices mean nothing in any
+    /// other string, even one as long (another script, other letters).
+    @State private var selectedIn = ""
 
     private var blank: Bool { browser.active?.isBlank ?? true }
 
@@ -31,12 +34,19 @@ struct Field: View {
                 let text = browser.typed
                 switch selection.indices {
                 case .selection(let range):
-                    return range.lowerBound >= text.startIndex && range.upperBound <= text.endIndex ? selection : nil
+                    if text == selectedIn { return selection }
+                    // Text changed under it: kept only if both ends still
+                    // fall on a letter of this text, never between.
+                    guard range.lowerBound >= text.startIndex, range.upperBound <= text.endIndex,
+                          range.lowerBound.samePosition(in: text) != nil,
+                          range.upperBound.samePosition(in: text) != nil
+                    else { return nil }
+                    return selection
                 default:
                     return nil
                 }
             },
-            set: { selection = $0 }
+            set: { selection = $0; selectedIn = browser.typed }
         )
     }
 
@@ -84,7 +94,10 @@ struct Field: View {
             // it does is dropped by the focus change.
             DispatchQueue.main.async {
                 let text = browser.typed
-                if !text.isEmpty { selection = TextSelection(range: text.startIndex..<text.endIndex) }
+                if !text.isEmpty {
+                    selection = TextSelection(range: text.startIndex..<text.endIndex)
+                    selectedIn = text
+                }
             }
         }
         .onChange(of: browser.refusals) { _, _ in
@@ -235,7 +248,7 @@ struct Start: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             if !favourites.isEmpty { group("Bookmarks", favourites) }
-            if !often.isEmpty { group("Often visited", often) }
+            if !often.isEmpty { group("Often visited", often, removable: true) }
         }
         .padding(.horizontal, 6)
         .padding(.bottom, 8)
@@ -243,7 +256,7 @@ struct Start: View {
         .onReceive(NotificationCenter.default.publisher(for: Favicons.came)) { _ in load() }
     }
 
-    private func group(_ title: LocalizedStringKey, _ sites: [Suggestion]) -> some View {
+    private func group(_ title: LocalizedStringKey, _ sites: [Suggestion], removable: Bool = false) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.scaled(13, weight: .medium))
@@ -268,6 +281,16 @@ struct Start: View {
                         .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
+                    .contextMenu(removable ? ContextMenu {
+                        Button(role: .destructive) {
+                            withAnimation(Motion.quick) {
+                                browser.history.remove(site: site.key)
+                                browser.objectWillChange.send()
+                            }
+                        } label: {
+                            Label("Remove from Often Visited", systemImage: "minus.circle")
+                        }
+                    } : nil)
                 }
             }
         }

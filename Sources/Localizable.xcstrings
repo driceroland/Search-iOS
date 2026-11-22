@@ -930,6 +930,16 @@
         }
       }
     },
+    "Remove from Often Visited": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer de Souvent visités"
+          }
+        }
+      }
+    },
     "Same as iPhone": {
       "localizations": {
         "fr": {

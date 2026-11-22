@@ -100,6 +100,14 @@ final class History: ObservableObject {
             .compactMap { visit in URL(string: visit.url).map { Suggestion(key: visit.key, title: visit.title, url: $0) } }
     }
 
+    /// A site taken out of Often visited: its visits go, pages and all, so
+    /// it only comes back by being visited again, often.
+    func remove(site key: String) {
+        objectWillChange.send()
+        visits = visits.filter { $0.key != key && !$0.key.hasPrefix(key + "/") }
+        save()
+    }
+
     func forget() {
         visits = [:]
         save()

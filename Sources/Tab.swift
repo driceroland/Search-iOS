@@ -424,6 +424,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         web.stopLoading()
         web.navigationDelegate = nil
         web.uiDelegate = nil
+        // Off the screen for good: a closed page never shows behind the
+        // tab that took its place.
+        web.removeFromSuperview()
     }
 }
 

@@ -241,8 +241,12 @@ struct Pill: View {
             .frame(width: Metrics.pill, height: Metrics.pill)
             .glass(Circle(), interactive: true, else: .clear)
             .background { if #unavailable(iOS 26.0) { Glass(shape: Circle()) } }
-            .contentShape(Circle())
+            // The whole corner answers, not only the circle: a thumb
+            // reaching for it lands around it as often as on it.
+            .padding(8)
+            .contentShape(Rectangle())
             .gesture(Tap(action: action))
+            .padding(-8)
             .accessibilityLabel(name)
             .accessibilityAddTraits(.isButton)
     }

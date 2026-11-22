@@ -31,6 +31,8 @@
 	<string>A site you open asks for the microphone, for a call or a voice message. Search asks you first, every time unless you choose otherwise in This site.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>A site you open asks where you are, for a map or a nearby shop. It is passed to that site only, never kept by Search.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>To save a picture from a page to your photos, when you choose Save to Photos.</string>
 	<key>NSFaceIDUsageDescription</key>
 	<string>Locked private tabs open with Face ID.</string>
 	<key>UIBackgroundModes</key>
