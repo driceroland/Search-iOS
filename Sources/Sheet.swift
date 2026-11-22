@@ -18,6 +18,10 @@ struct Sheet: View {
     var drag: (CGFloat) -> Void
     var dropped: (CGFloat, CGFloat) -> Void
     var height: (CGFloat) -> Void
+    /// Where each card's picture is on screen, for the page to zoom into.
+    var frames: (Tab.ID, CGRect) -> Void = { _, _ in }
+    /// The card the page is zooming into or out of: its own picture waits.
+    var zooming: Tab.ID?
 
     @State private var pull: CGFloat = 0
     /// The list shows its first line: a drag down anywhere moves the sheet.
@@ -197,9 +201,9 @@ struct Sheet: View {
             ScrollView {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: gap), GridItem(.flexible(), spacing: gap)], spacing: gap) {
                     ForEach(loose) { tab in
-                        Card(tab: tab, live: tab.id == browser.activeID, hidden: browser.locked && tab.isPrivate, pictureHeight: pictureHeight) {
+                        Card(tab: tab, live: tab.id == browser.activeID, hidden: browser.locked && tab.isPrivate, pictureHeight: pictureHeight, waiting: zooming == tab.id) {
                             pick(tab)
-                        } close: {
+                        } report: { frames(tab.id, $0) } close: {
                             Feel.tick()
                             withAnimation(Motion.bouncy) { browser.close(tab) }
                         }
@@ -240,6 +244,13 @@ struct Sheet: View {
             // sheet is always there, below the edge: it's raised, not shown.
             .onChange(of: browser.showingTabs, initial: true) { _, raised in
                 guard raised, cardsOverflow, let id = browser.activeID else { return }
+                reader.scrollTo(id, anchor: .center)
+            }
+            // Kept there while the sheet is down too: the page zooms into its
+            // card from the first frame, so the card has to be laid out
+            // (the grid only lays out what's in sight) and where it will be.
+            .onChange(of: browser.activeID, initial: true) { _, id in
+                guard !browser.showingTabs, cardsOverflow, let id else { return }
                 reader.scrollTo(id, anchor: .center)
             }
         }
@@ -550,7 +561,11 @@ struct Sheet: View {
         /// A private tab while private tabs are locked: no picture, no name.
         var hidden = false
         let pictureHeight: CGFloat
+        /// The page is on its way into this card (or out of it): the card
+        /// keeps its place, empty, until it lands.
+        var waiting = false
         let open: () -> Void
+        let report: (CGRect) -> Void
         let close: () -> Void
 
         @State private var shift: CGFloat = 0
@@ -565,6 +580,8 @@ struct Sheet: View {
                         .frame(maxWidth: .infinity)
                         .frame(height: pictureHeight)
                         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .opacity(waiting ? 0 : 1)
+                        .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report($0) }
                         .overlay {
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
                                 .strokeBorder(Palette.faint.opacity(0.35), lineWidth: 0.5)

@@ -66,6 +66,10 @@ struct ContentView: View {
     @State private var liftFrom: CGFloat = 0
     /// A finger is walking or lifting the page.
     @State private var dragging = false
+    /// Where each card's picture rests on screen once the sheet is up.
+    @State private var cardFrames: [Tab.ID: CGRect] = [:]
+    /// Which tab the frozen picture is of.
+    @State private var frozenID: Tab.ID?
     /// The first launch's three screens.
     @State private var welcoming = !Prefs.shared.welcomed
 
@@ -144,7 +148,15 @@ struct ContentView: View {
                         space: space,
                         drag: { moved in lift = moved < 0 ? 1 + Self.give(-moved) / sheetHeight : 1 - moved / sheetHeight },
                         dropped: { moved, speed in dropped(moved, speed: speed) },
-                        height: { sheetHeight = max(200, $0) }
+                        height: { sheetHeight = max(200, $0) },
+                        frames: { id, rect in
+                            // Where it will rest, whatever the sheet is doing now.
+                            let rest = rect.offsetBy(dx: 0, dy: -(1 - min(1, lift)) * (sheetHeight + 40))
+                            if let was = cardFrames[id], abs(was.minX - rest.minX) < 0.5, abs(was.minY - rest.minY) < 0.5,
+                               abs(was.width - rest.width) < 0.5 { return }
+                            cardFrames[id] = rest
+                        },
+                        zooming: zoomTarget == nil || lift >= 0.999 ? nil : browser.activeID
                     )
                     // Never taller than the screen: a taller sheet grew the
                     // whole stack, and everything aligned to its foot (the
@@ -153,6 +165,19 @@ struct ContentView: View {
                     .offset(y: (1 - lift) * (sheetHeight + 40))
                     .allowsHitTesting(browser.showingTabs)
                     .accessibilityHidden(!browser.showingTabs)
+
+                // The page on its way into its card, or out of it: above the
+                // sheet, so it lands on the card rather than behind it.
+                if let target = zoomTarget, frozen != nil, lift > 0.001, lift < 0.999 {
+                    Zoom(
+                        image: frozen, tint: browser.active?.tint, top: geo.safeAreaInsets.top,
+                        progress: min(1, lift),
+                        screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom),
+                        target: target
+                    )
+                    .ignoresSafeArea()
+                    .allowsHitTesting(false)
+                }
 
                 Field(browser: browser, space: space)
                     // Above the keyboard, by the keyboard's own measure: this
@@ -193,6 +218,12 @@ struct ContentView: View {
             }
             if open, lift == 0 {
                 freeze(then: go)
+            } else if !open, frozen != nil, let tab = browser.active, frozenID != tab.id {
+                // Another card was picked: it's that page that grows out of
+                // its card, from the picture it has.
+                frozen = tab.isBlank ? UIImage() : (tab.snapshot ?? UIImage())
+                frozenID = tab.id
+                go()
             } else if !open, frozen != nil, let tab = browser.active {
                 // The page went on living under its picture (a carousel, a
                 // video): pictured again before it grows back, so the live
@@ -257,6 +288,11 @@ struct ContentView: View {
             for index in 0..<count {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 3 + Double(index) * 3) { browser.newTab() }
             }
+            // `-liftTo 0.5` stops the tabs coming up half way, to see a frame.
+            let stop = UserDefaults.standard.double(forKey: "liftTo")
+            if stop > 0 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4) { freeze { lift = stop } }
+            }
             // `-tabs YES` raises the tabs sheet once the page has drawn.
             if UserDefaults.standard.bool(forKey: "tabs") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 4) { browser.showingTabs = true }
@@ -272,6 +308,14 @@ struct ContentView: View {
             }
             #endif
         }
+    }
+
+    /// Where the page zooms to when the tabs come up: its card's picture,
+    /// while tabs are cards and it has one.
+    private var zoomTarget: CGRect? {
+        guard Prefs.shared.tabCards, let tab = browser.active, tab.pin == nil,
+              let rect = cardFrames[tab.id], rect.width > 10 else { return nil }
+        return rect
     }
 
     private var loose: Int { browser.tabs.filter { $0.pin == nil }.count }
@@ -292,8 +336,11 @@ struct ContentView: View {
         // its place.
         let reach = width + Metrics.gap
         let away = min(1, min(abs(walk), max(0, reach - abs(walk))) / 60)
-        let scale = 1 - 0.08 * lift - 0.04 * away
-        let corner = 44 * max(lift, away)
+        // With cards, the page zooms into its own card (above the sheet):
+        // here it only steps aside.
+        let zooms = zoomTarget != nil
+        let scale = 1 - (zooms ? 0 : 0.08 * lift) - 0.04 * away
+        let corner = 44 * max(zooms ? 0 : lift, away)
         return ZStack {
             // The live page, always at its full size. Hidden, not moved,
             // while its picture stands in for it.
@@ -324,7 +371,8 @@ struct ContentView: View {
                 .frame(width: width)
                 .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
                 .scaleEffect(scale, anchor: lift > 0 ? .top : .center)
-                .offset(y: 54 * lift)
+                .offset(y: zooms ? 0 : 54 * lift)
+                .opacity(zooms && lift > 0.001 ? 0 : 1)
             }
         }
         .frame(width: width)
@@ -347,6 +395,7 @@ struct ContentView: View {
         guard !freezing else { return }
         guard let tab = browser.active, !tab.isBlank else {
             frozen = UIImage()
+            frozenID = browser.activeID
             then?()
             return
         }
@@ -354,6 +403,7 @@ struct ContentView: View {
         tab.snap { image in
             freezing = false
             frozen = image ?? tab.snapshot ?? UIImage()
+            frozenID = tab.id
             then?()
             // A drag that ended before the picture came: nothing to move.
             if then == nil, !dragging { thaw() }
@@ -364,6 +414,7 @@ struct ContentView: View {
     private func thaw() {
         guard walk == 0, lift == 0, !landing else { return }
         frozen = nil
+        frozenID = nil
     }
 
     /// The site the pill names while a walk is far enough to land on another

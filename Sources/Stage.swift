@@ -335,3 +335,43 @@ struct Failed: View {
         }
     }
 }
+
+/// The page between full screen and its card: as wide as the screen and
+/// cut from the top to the card's shape, then scaled and moved onto the
+/// card, its corners rounding as it goes. At 0 it is the page; at 1 it is
+/// the card's picture, to the point.
+struct Zoom: View {
+    let image: UIImage?
+    var tint: UIColor?
+    var top: CGFloat
+    let progress: CGFloat
+    let screen: CGSize
+    let target: CGRect
+
+    var body: some View {
+        let p = max(0, min(1, progress))
+        let end = target.width / max(1, screen.width)
+        let scale = 1 + (end - 1) * p
+        // The card's height, at the screen's width.
+        let cut = target.height / max(0.01, end)
+        let height = screen.height + (cut - screen.height) * p
+        let radius = (18 * p) / max(0.01, scale)
+        ZStack(alignment: .top) {
+            Palette.ground
+            if let image, image.size.width > 0 {
+                Image(uiImage: image)
+                    .resizable()
+                    .frame(width: screen.width, height: screen.width * image.size.height / image.size.width)
+            }
+            if p < 0.25 {
+                Band(tint: tint, height: top).opacity(Double(1 - p * 4))
+            }
+        }
+        .frame(width: screen.width, height: height, alignment: .top)
+        .clipShape(RoundedRectangle(cornerRadius: radius, style: .continuous))
+        .shadow(color: .black.opacity(0.14 * Double(p)), radius: 12 / max(0.01, scale), y: 4 / max(0.01, scale))
+        .scaleEffect(scale, anchor: .topLeading)
+        .offset(x: target.minX * p, y: target.minY * p)
+        .frame(width: screen.width, height: screen.height, alignment: .topLeading)
+    }
+}
