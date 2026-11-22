@@ -192,7 +192,6 @@ struct ContentView: View {
                         rail: browser.rail,
                         // Back stands up the rail, under the clock, where a
                         // thumb reaches it as in Safari.
-                        backRise: geo.safeAreaInsets.top + geo.size.height - 8 - Metrics.pill - Self.railBack,
                         bookmarks: { browser.showingBookmarks = true }
                     )
                     .opacity(browser.finding || browser.editing ? 0 : 1)
@@ -201,6 +200,19 @@ struct ContentView: View {
                     // page had quite finished landing. Over the tabs at
                     // once too, so two quick taps on Tabs open a new one.
                     .allowsHitTesting(!landing && !browser.holding && !browser.finding && !browser.editing)
+                }
+
+                // Back up the Duo's rail, under the clock: a view of its
+                // own, placed from the top, so its taps are its own.
+                if rail.on, let tab = browser.active {
+                    RailBack(tab: tab, morph: max(0, min(1, lift)), over: browser.showingTabs) {
+                        browser.showingBookmarks = true
+                    }
+                    .padding(rail.edge, rail.inset)
+                    .padding(.top, Self.railBack - geo.safeAreaInsets.top)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: rail.leading ? .topLeading : .topTrailing)
+                    .opacity(browser.finding || browser.editing ? 0 : 1)
+                    .allowsHitTesting(!landing && !browser.finding && !browser.editing)
                 }
 
                 // Always there, shown by scale and opacity: put in and taken
@@ -700,6 +712,6 @@ struct RailBand: View {
     @ObservedObject var tab: Tab
 
     var body: some View {
-        (tab.isBlank || tab.failure != nil ? nil : tab.behindClock).map { Color(uiColor: $0) } ?? Palette.ground
+        (tab.isBlank || tab.failure != nil ? nil : tab.railColour).map { Color(uiColor: $0) } ?? Palette.ground
     }
 }

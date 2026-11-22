@@ -23,7 +23,8 @@ struct Page: View {
     /// background; nothing while a blank tab or an error page shows.
     private var behindClock: UIColor? {
         guard !covered, !tab.isBlank, tab.failure == nil else { return nil }
-        return tab.behindClock
+        // Beside a Duo's rail the clock sits on the rail, not on the page.
+        return edges == .all ? tab.behindClock : tab.railColour
     }
 
     private var statusKey: String {

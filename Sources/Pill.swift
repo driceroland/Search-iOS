@@ -37,8 +37,6 @@ struct Pill: View {
     var newPrivate = false
     /// The Duo's column beside the camera, where Back and Tabs stand.
     var rail = Rail()
-    /// How far above Tabs Back stands in the rail.
-    var backRise: CGFloat = Metrics.pill + 10
     var bookmarks: () -> Void = {}
 
     private enum Axis { case none, walk, lift, ignored }
@@ -100,12 +98,10 @@ struct Pill: View {
     /// where they are and leave outward, fading, as the pill closes in.
     @ViewBuilder private var buttons: some View {
         if rail.on {
-            // Back over Tabs, by offset: as a stack it made the bar
-            // taller and pushed it down off the screen.
+            // Tabs alone here: Back stands up the rail on its own (RailBack).
+            // Drawn from here, offset above the bar, it showed but no tap
+            // ever reached it, outside the bar's own frame.
             tabsButton
-                .overlay(alignment: .bottom) {
-                    back.offset(y: -max(Metrics.pill + 10, backRise))
-                }
             .padding(rail.edge, rail.inset)
             .offset(x: 28 * f * rail.out)
             .frame(maxWidth: .infinity, alignment: rail.alignment)
@@ -590,5 +586,40 @@ struct Handover: ViewModifier, Animatable {
         return content
             .opacity(Double(leaving ? max(0, 1 - p * 2) : max(0, p * 2 - 1)))
             .scaleEffect(leaving ? 1 - shrink * p : 1 - shrink + shrink * p)
+    }
+}
+
+/// Back, standing up a Duo's rail under the clock, where a thumb reaches
+/// it; Bookmarks over the tabs, its icon turning as the bar's do.
+struct RailBack: View {
+    @ObservedObject var tab: Tab
+    let morph: CGFloat
+    let over: Bool
+    let bookmarks: () -> Void
+
+    var body: some View {
+        ZStack {
+            Image(systemName: "chevron.left")
+                .modifier(Handover(t: morph, leaving: true, shrink: 0.3))
+            Image(systemName: "book")
+                .modifier(Handover(t: morph, leaving: false, shrink: 0.3))
+        }
+        .font(.scaled(17, weight: .medium))
+        .foregroundStyle(.primary)
+        .opacity(tab.canGoBack || over ? 1 : 0.35 + 0.65 * Double(morph))
+        .frame(width: Metrics.pill, height: Metrics.pill)
+        .glass(Circle(), interactive: true, else: .clear)
+        .background { if #unavailable(iOS 26.0) { Glass(shape: Circle()) } }
+        .contentShape(Circle())
+        .onTapGesture {
+            if over {
+                bookmarks()
+            } else if tab.canGoBack {
+                Feel.tick()
+                tab.back()
+            }
+        }
+        .accessibilityLabel(morph > 0.5 ? "Bookmarks" : "Back")
+        .accessibilityAddTraits(.isButton)
     }
 }

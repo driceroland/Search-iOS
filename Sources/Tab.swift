@@ -72,6 +72,11 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// Behind the clock: what the page shows at its top, else the colour it
     /// names for itself, else its background.
     var behindClock: UIColor? { edge ?? tint ?? ground }
+
+    /// The colour of a Duo's rail beside the page: the page's own background,
+    /// as Safari does there, steady as the page scrolls; not its top bar,
+    /// which made a white page's rail black.
+    var railColour: UIColor? { ground ?? tint }
     /// What the page last looked like, for walking past it and the sheet.
     @Published private(set) var snapshot: UIImage?
     /// One letter, when the tab has been pinned.
