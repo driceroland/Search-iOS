@@ -90,17 +90,6 @@ struct ContentView: View {
 
                 deck(width: width, top: geo.safeAreaInsets.top)
 
-                // The page fades into a blur toward the bottom edge, under
-                // the pill, the way iOS's own bars sit on what scrolls.
-                Color.clear
-                    .overlay(alignment: .bottom) {
-                        Fade()
-                            .frame(height: Metrics.foot(geo.safeAreaInsets.bottom))
-                    }
-                    .opacity(Double(1 - min(1, lift)))
-                    .allowsHitTesting(false)
-                    .ignoresSafeArea()
-
                 // The dim, the pill and the field are always there, shown and
                 // hidden by opacity rather than put in and taken out: a view
                 // taken out mid-change was leaving in one frame.
@@ -137,6 +126,20 @@ struct ContentView: View {
                         }
                     }
                     .allowsHitTesting(false)
+
+                // The page fades into a blur toward the bottom edge, under
+                // the pill, the way iOS's own bars sit on what scrolls. Over
+                // the page on its way, not under it: under it, it came back
+                // all at once when the live page took the picture's place.
+                // Gone in the first steps out, back in the last steps home.
+                Color.clear
+                    .overlay(alignment: .bottom) {
+                        Fade()
+                            .frame(height: Metrics.foot(geo.safeAreaInsets.bottom))
+                    }
+                    .opacity(Double(max(0, 1 - min(1, lift) * 5)))
+                    .allowsHitTesting(false)
+                    .ignoresSafeArea()
 
                 // The buttons along the top, coming down over the page.
                 sheet(.chrome, size: geo.size, screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom))

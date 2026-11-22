@@ -383,9 +383,13 @@ struct Zoom: View, Animatable {
         .frame(width: screen.width, height: screen.height, alignment: .topLeading)
         .overlay(alignment: .topLeading) {
             if let tab {
+                // At the card's own width from the start, so its words are
+                // cut once and never again: re-cut on every frame as the
+                // width changed, they jumped sideways while going down.
                 CardName(tab: tab, live: true)
-                    .frame(width: screen.width * scale)
-                    .offset(x: target.minX * p, y: target.minY * p + height * scale + 7)
+                    .frame(width: target.width)
+                    .offset(x: target.minX * p + (screen.width * scale - target.width) / 2,
+                            y: target.minY * p + height * scale + 7)
                     .opacity(Double(max(0, min(1, (p - 0.15) / 0.6))))
             }
         }

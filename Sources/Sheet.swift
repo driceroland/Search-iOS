@@ -210,6 +210,7 @@ struct Sheet: View {
             .padding(.horizontal, 14)
         }
         .scrollBounceBehavior(.basedOnSize)
+        .scrollIndicators(.hidden)
         .contentMargins(.top, topRoom + 4, for: .scrollContent)
         .contentMargins(.bottom, footRoom + 8, for: .scrollContent)
         .onScrollGeometryChange(for: CGFloat.self) { geo in
@@ -285,6 +286,12 @@ struct Sheet: View {
             .onScrollGeometryChange(for: CGFloat.self) { $0.contentSize.height } action: { _, tall in
                 if abs(tall - gridContent) > 0.5 { gridContent = tall }
             }
+            .onScrollGeometryChange(for: Room.self) { geo in
+                Room(content: geo.contentSize.height, container: geo.containerSize.height,
+                     top: geo.contentInsets.top, bottom: geo.contentInsets.bottom)
+            } action: { _, room in self.room = room }
+            .scrollPosition($position)
+            .scrollIndicators(.hidden)
             .onGeometryChange(for: CGFloat.self) { $0.size.width - 28 } action: { gridWidth = $0 }
             .onScrollGeometryChange(for: CGFloat.self) { geo in
                 geo.contentOffset.y + geo.contentInsets.top
@@ -301,14 +308,44 @@ struct Sheet: View {
             // there while the screen is away, never while it shows or
             // moves, so the page always zooms to a card that stays put.
             .onChange(of: away, initial: true) { _, away in
-                guard away, let id = browser.activeID else { return }
-                reader.scrollTo(id, anchor: .center)
+                if away { aim() }
             }
-            .onChange(of: browser.activeID) { _, id in
-                guard away, let id else { return }
-                reader.scrollTo(id, anchor: .center)
+            .onChange(of: browser.activeID) { _, _ in
+                if away { aim() }
+            }
+            // The room changed (a tab came or went, the cards were measured
+            // for the first time): aimed again while unseen.
+            .onChange(of: room) { _, _ in
+                if away { aim() }
             }
         }
+    }
+
+    /// What the grid has and what it shows, to know where it may be scrolled.
+    struct Room: Equatable {
+        var content: CGFloat = 0
+        var container: CGFloat = 0
+        var top: CGFloat = 0
+        var bottom: CGFloat = 0
+    }
+    @State private var room = Room()
+    @State private var position = ScrollPosition(edge: .top)
+
+    /// The page's card in the middle of what shows, never past either end:
+    /// cards that all fit stay at the top, under the buttons, whichever is
+    /// the page's. Worked out, not left to scrollTo, which with a few cards
+    /// put them half way down an empty screen.
+    private func aim() {
+        guard room.container > 0 else { return }
+        let seen = room.container - room.top - room.bottom
+        let most = max(0, room.content - seen)
+        guard most > 0.5, let at = loose.firstIndex(where: { $0.id == browser.activeID }) else {
+            position.scrollTo(edge: .top)
+            return
+        }
+        let rowTop = CGFloat(at / 2) * (cardHeight + gap)
+        let y = max(0, min(most, rowTop + cardHeight / 2 - seen / 2))
+        position.scrollTo(y: y)
     }
 
     /// Where a card is from the page's own, in rows and columns, and in
