@@ -155,3 +155,19 @@ Known and left: a page that animates on its own (a carousel) goes on under
 its picture while the sheet is up; closing by tap re-takes the picture just
 before the card grows back, but closing by a drag can still show the
 carousel's slide change in the frame the live page takes over.
+
+## Default browser (when Apple grants the entitlement)
+
+Requested 22 Nov 2026 (request TT5A52YG77). Until Apple adds
+`com.apple.developer.web-browser` to the App ID, a build that asks for it
+won't sign. Once granted, build with both switches, together:
+
+```
+xcodebuild … CODE_SIGN_ENTITLEMENTS=Sources/Search.browser.entitlements \
+  SWIFT_ACTIVE_COMPILATION_CONDITIONS='$(inherited) DEFAULT_BROWSER'
+```
+
+Then make them the project's defaults. Check: Settings shows "Default
+browser app"; choose Search in iOS Settings; a link tapped in Mail or
+Messages opens in a new tab in front, over Settings, the welcome or the
+tabs; a passkey sign-in works on a site that offers one.

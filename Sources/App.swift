@@ -288,7 +288,19 @@ struct ContentView: View {
             guard !browser.showingTabs else { return }
             browser.privateView = browser.active?.isPrivate ?? false
         }
-        .onOpenURL { browser.open($0) }
+        // A link from another app (Search as the default browser): the page,
+        // in front, whatever was showing over it.
+        .onOpenURL { url in
+            browser.settings = false
+            browser.showingBookmarks = false
+            browser.showingOthers = false
+            browser.siteSheet = false
+            if welcoming {
+                Prefs.shared.welcomed = true
+                welcoming = false
+            }
+            browser.open(url)
+        }
         .onContinueUserActivity(Handoff.browsing) { activity in
             if let url = Handoff.address(in: activity) { browser.open(url) }
         }

@@ -16,6 +16,8 @@ struct Settings: View {
     var body: some View {
         NavigationStack {
             Form {
+                DefaultBrowserSection()
+
                 Section {
                     Picker("Search with", selection: $prefs.engine) {
                         ForEach(Engine.allCases) { engine in
@@ -172,5 +174,73 @@ struct Settings: View {
         let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = info?["CFBundleVersion"] as? String ?? ""
         return build.isEmpty ? short : "\(short) (\(build))"
+    }
+}
+
+/// Search as the iPhone's browser, once Apple lets it be one: whether it is,
+/// and the way to the system's own switch (an app can't set itself).
+/// Hidden until the build carries the default browser entitlement, which
+/// is when iOS lists Search at all.
+struct DefaultBrowserSection: View {
+    @State private var status: Bool?
+    @Environment(\.scenePhase) private var phase
+
+    var body: some View {
+        if DefaultBrowser.eligible {
+            Section {
+                Button {
+                    DefaultBrowser.openSettings()
+                } label: {
+                    HStack {
+                        Text("Default browser app")
+                            .foregroundStyle(Palette.ink)
+                        Spacer()
+                        Text(status == true ? "Search" : status == false ? "Another app" : "")
+                            .foregroundStyle(Palette.muted)
+                        Image(systemName: "chevron.right")
+                            .font(.scaled(12, weight: .semibold))
+                            .foregroundStyle(Palette.faint)
+                    }
+                }
+            } footer: {
+                Text(status == true
+                     ? "Links you tap in other apps open here."
+                     : "Make Search the app links open in: choose it in the list Settings shows.")
+            }
+            .task(id: phase) { status = DefaultBrowser.isDefault() }
+        }
+    }
+}
+
+enum DefaultBrowser {
+    /// This build may be the default browser: it carries the entitlement.
+    /// Built with DEFAULT_BROWSER, which goes with Search.browser.entitlements
+    /// (see CHECKLIST.md): the two are switched on together.
+    static var eligible: Bool {
+        #if DEFAULT_BROWSER
+        return true
+        #else
+        return false
+        #endif
+    }
+
+    /// Asked of the system, which allows only a few asks a day: nil when
+    /// it won't say.
+    static func isDefault() -> Bool? {
+        if #available(iOS 18.2, *) {
+            return try? UIApplication.shared.isDefault(.webBrowser)
+        }
+        return nil
+    }
+
+    /// Settings, at the list of default apps where it can.
+    static func openSettings() {
+        let address: String
+        if #available(iOS 18.3, *) {
+            address = UIApplication.openDefaultApplicationsSettingsURLString
+        } else {
+            address = UIApplication.openSettingsURLString
+        }
+        if let url = URL(string: address) { UIApplication.shared.open(url) }
     }
 }
