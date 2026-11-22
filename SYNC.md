@@ -29,6 +29,7 @@ One record type, `Item`. Its record name says what it holds:
 | `pins.<space-uuid>` | `[PinDef]`: one space's pins, in order | any device |
 | `bookmarks` | `[Bookmark]`: the whole tree | any device |
 | `spaces` | `[Space]`: the Mac's spaces | the Mac |
+| `pinfolders.<space-uuid>` | `[{id, name, parent?, feed?}]`: one space's pin folders | the Mac; the iPhone keeps it as-is and doesn't apply it |
 | `settings` | `SharedSettings` | any device |
 
 Fields of every `Item`:
