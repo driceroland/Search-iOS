@@ -6,8 +6,8 @@ import SwiftUI
 /// Mac's rule: 5 → 3 + 2). Then one line per page, the way the Mac's tabs are
 /// one line: what it is, then where it came from, and the grey behind the one
 /// you're on, which slides to the one you pick. Swipe a line left to close it,
-/// right to pin it. Not a wall of screenshots: titles say more than six blurred
-/// pictures do.
+/// right to pin it. Or, as most people know them on a phone and by default,
+/// as cards: a picture of each page, two by two, its name under it.
 ///
 /// The sheet goes where the finger takes it. Drag it down by its top, or pull
 /// the list down past its start, and let go.
@@ -27,6 +27,9 @@ struct Sheet: View {
     @State private var dragging: Bool?
     /// A line lifted to be put somewhere else.
     @State private var carried: Tab?
+    @ObservedObject private var prefs = Prefs.shared
+    /// How wide the cards have to share.
+    @State private var gridWidth: CGFloat = 360
 
     private var pinned: [Tab] { browser.tabs.filter { $0.pin != nil } }
     private var loose: [Tab] { browser.tabs.filter { $0.pin == nil } }
@@ -39,7 +42,7 @@ struct Sheet: View {
     var body: some View {
         VStack(spacing: 0) {
             top
-            list
+            if prefs.tabCards { cards } else { list }
             foot
         }
         .padding(.bottom, 8)
@@ -141,20 +144,7 @@ struct Sheet: View {
                     }
                     // Held: what can be done with it. Held and moved: it
                     // goes where it's let go.
-                    .contextMenu {
-                        Button {
-                            withAnimation(Motion.settle) { browser.pin(tab) }
-                        } label: { Label("Pin", systemImage: "pin") }
-                        if let url = tab.address, !tab.isPrivate {
-                            Button { Bookmarks.shared.add(url, title: tab.title) } label: {
-                                Label("Add to Bookmarks", systemImage: "book")
-                            }
-                            Button { UIPasteboard.general.url = url } label: { Label("Copy Link", systemImage: "link") }
-                        }
-                        Button(role: .destructive) {
-                            withAnimation(Motion.settle) { browser.close(tab) }
-                        } label: { Label("Close Tab", systemImage: "xmark") }
-                    }
+                    .contextMenu { menu(for: tab) }
                     .draggable(tab.id.uuidString) {
                         Line(tab: tab, live: false, space: space).frame(width: 300)
                     }
@@ -184,6 +174,83 @@ struct Sheet: View {
                 dropped(pull, 1200)
             }
         }
+    }
+
+    // MARK: - cards
+
+    private let gap: CGFloat = 12
+    private var cardWidth: CGFloat { max(80, (gridWidth - gap) / 2) }
+    /// A little taller than wide: the top of the page, where it says what it is.
+    private var pictureHeight: CGFloat { (cardWidth * 1.3).rounded() }
+    private var cardHeight: CGFloat { pictureHeight + 26 }
+    private var cardsHeight: CGFloat {
+        let rows = CGFloat((loose.count + 1) / 2)
+        return rows * cardHeight + max(0, rows - 1) * gap + 8
+    }
+    /// Two rows and a glimpse of the third at most: the sheet leaves the
+    /// page showing above it.
+    private var cardsRoom: CGFloat { cardHeight * 2.35 + gap * 2 }
+    private var cardsOverflow: Bool { cardsHeight > cardsRoom }
+
+    private var cards: some View {
+        ScrollViewReader { reader in
+            ScrollView {
+                LazyVGrid(columns: [GridItem(.flexible(), spacing: gap), GridItem(.flexible(), spacing: gap)], spacing: gap) {
+                    ForEach(loose) { tab in
+                        Card(tab: tab, live: tab.id == browser.activeID, hidden: browser.locked && tab.isPrivate, pictureHeight: pictureHeight) {
+                            Feel.tick()
+                            withAnimation(Motion.settle) { browser.close(tab) }
+                        }
+                        .onTapGesture { pick(tab) }
+                        .contextMenu { menu(for: tab) }
+                        .draggable(tab.id.uuidString) {
+                            Line(tab: tab, live: false, space: space).frame(width: 300)
+                        }
+                        .dropDestination(for: String.self) { ids, _ in drop(ids, on: tab) }
+                        .transition(.opacity.combined(with: .scale(0.9)))
+                        .id(tab.id)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.top, 4)
+                .padding(.bottom, 4)
+            }
+            .scrollBounceBehavior(.basedOnSize)
+            .scrollDisabled(!cardsOverflow)
+            .frame(height: min(cardsHeight, cardsRoom))
+            .onGeometryChange(for: CGFloat.self) { $0.size.width - 28 } action: { gridWidth = $0 }
+            .onScrollGeometryChange(for: CGFloat.self) { geo in
+                geo.contentOffset.y + geo.contentInsets.top
+            } action: { _, offset in
+                pull = max(0, -offset)
+                atTop = offset <= 1
+            }
+            .onScrollPhaseChange { old, new in
+                if cardsOverflow, old == .interacting, new != .interacting, pull > 70 {
+                    dropped(pull, 1200)
+                }
+            }
+            .onAppear {
+                // The page you're on in sight, not left three rows down.
+                if cardsOverflow, let id = browser.activeID { reader.scrollTo(id, anchor: .center) }
+            }
+        }
+    }
+
+    /// Held: what can be done with a tab, the same for a line or a card.
+    @ViewBuilder private func menu(for tab: Tab) -> some View {
+        Button {
+            withAnimation(Motion.settle) { browser.pin(tab) }
+        } label: { Label("Pin", systemImage: "pin") }
+        if let url = tab.address, !tab.isPrivate {
+            Button { Bookmarks.shared.add(url, title: tab.title) } label: {
+                Label("Add to Bookmarks", systemImage: "book")
+            }
+            Button { UIPasteboard.general.url = url } label: { Label("Copy Link", systemImage: "link") }
+        }
+        Button(role: .destructive) {
+            withAnimation(Motion.settle) { browser.close(tab) }
+        } label: { Label("Close Tab", systemImage: "xmark") }
     }
 
     /// What the sheet does besides the tabs, as a row of round buttons
@@ -248,6 +315,13 @@ struct Sheet: View {
                     }
                 }
                 Button { browser.settings = true } label: { Label("Settings", systemImage: "gearshape") }
+                Button {
+                    withAnimation(Motion.settle) { prefs.tabCards.toggle() }
+                } label: {
+                    prefs.tabCards
+                        ? Label("Show as List", systemImage: "list.bullet")
+                        : Label("Show as Cards", systemImage: "square.grid.2x2")
+                }
                 if loose.count > 1 {
                     Divider()
                     Button(role: .destructive) {
@@ -468,6 +542,124 @@ struct Sheet: View {
                         Button { UIPasteboard.general.url = url } label: { Label("Copy Link", systemImage: "link") }
                     }
                 }
+        }
+    }
+
+    /// A card: the page as it last looked, its name under it, a cross to
+    /// close it. Swiped left, it goes, as a line does.
+    private struct Card: View {
+        @ObservedObject var tab: Tab
+        let live: Bool
+        /// A private tab while private tabs are locked: no picture, no name.
+        var hidden = false
+        let pictureHeight: CGFloat
+        let close: () -> Void
+
+        @State private var shift: CGFloat = 0
+        @State private var sideways: Bool?
+        private let reach: CGFloat = 80
+
+        var body: some View {
+            VStack(spacing: 7) {
+                picture
+                    .frame(maxWidth: .infinity)
+                    .frame(height: pictureHeight)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(live ? Palette.ink : Palette.faint.opacity(0.4), lineWidth: live ? 2.5 : 0.5)
+                    }
+                    .overlay(alignment: .topTrailing) {
+                        Button(action: close) {
+                            Image(systemName: "xmark")
+                                .font(.scaled(10, weight: .bold))
+                                .foregroundStyle(Palette.ink)
+                                .frame(width: 26, height: 26)
+                                .glass(Circle(), interactive: true, else: Palette.ground.opacity(0.9))
+                                // Bigger to the finger than to the eye.
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Close Tab")
+                    }
+                    .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
+
+                HStack(spacing: 6) {
+                    Group {
+                        if tab.loading {
+                            Ring(size: 10)
+                        } else if !tab.isBlank, !hidden {
+                            Mark(icon: tab.icon, letter: tab.letter, size: 14)
+                        }
+                    }
+                    if tab.isPrivate {
+                        Image(systemName: "eyeglasses")
+                            .font(.scaled(10, weight: .medium))
+                            .foregroundStyle(Palette.muted)
+                    }
+                    Text(hidden ? String(localized: "Private tab") : tab.label)
+                        .font(.scaled(12.5, weight: live ? .medium : .regular))
+                        .foregroundStyle(live ? Palette.ink : Palette.muted)
+                        .lineLimit(1)
+                }
+                .frame(height: 19)
+                .padding(.horizontal, 4)
+            }
+            .contentShape(Rectangle())
+            .offset(x: shift)
+            .opacity(1 - Double(min(0.6, abs(shift) / 300)))
+            .simultaneousGesture(
+                DragGesture(minimumDistance: 12)
+                    .onChanged { value in
+                        if sideways == nil {
+                            sideways = value.translation.width < 0
+                                && abs(value.translation.width) > abs(value.translation.height) * 1.2
+                        }
+                        guard sideways == true else { return }
+                        let was = -shift > reach
+                        shift = min(0, value.translation.width)
+                        if was != (-shift > reach) { Feel.tick() }
+                    }
+                    .onEnded { value in
+                        defer { sideways = nil }
+                        guard sideways == true else { return }
+                        if value.translation.width + value.velocity.width * 0.1 < -reach {
+                            close()
+                        }
+                        withAnimation(Motion.settle) { shift = 0 }
+                    }
+            )
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(live ? [.isButton, .isSelected] : .isButton)
+        }
+
+        @ViewBuilder private var picture: some View {
+            if hidden {
+                Palette.wash.overlay {
+                    Image(systemName: "lock.fill")
+                        .font(.scaled(20))
+                        .foregroundStyle(Palette.muted)
+                }
+            } else if let image = tab.snapshot, !tab.isBlank {
+                // The top of the page, across its whole width.
+                Palette.wash.overlay(alignment: .top) {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                }
+                .clipped()
+            } else if tab.isBlank {
+                Palette.wash.overlay {
+                    Image(systemName: "plus")
+                        .font(.scaled(22, weight: .light))
+                        .foregroundStyle(Palette.muted)
+                }
+            } else {
+                Palette.wash.overlay {
+                    Mark(icon: tab.icon, letter: tab.letter, size: 34)
+                }
+            }
         }
     }
 

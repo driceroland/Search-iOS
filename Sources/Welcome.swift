@@ -1,6 +1,6 @@
 import SwiftUI
 
-// The first launch: three screens on what can't be seen, the gestures, and
+// The first launch: four screens on what can't be seen, the gestures, and
 // then never again. Each says one thing, with the pill drawn doing it.
 
 struct Welcome: View {
@@ -20,7 +20,9 @@ struct Welcome: View {
         Step(id: 1, symbol: "arrow.left.and.right", title: "Slide it",
              words: "Sideways to go from tab to tab, past the last for a new one. Up to see every tab."),
         Step(id: 2, symbol: "hand.draw", title: "Your tabs",
-             words: "In the list, swipe a tab right to pin it, left to close it. Hold it for more, or to move it."),
+             words: "Swipe a tab left to close it. Hold it to pin it, bookmark it, or move it."),
+        Step(id: 3, symbol: "macbook.and.iphone", title: "With your Mac",
+             words: "Your open tabs, pins and bookmarks follow you between Search on your iPhone and on your Mac, through your own iCloud. Turn on Sync with iCloud on the Mac too."),
     ]
 
     var body: some View {

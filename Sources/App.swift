@@ -247,6 +247,10 @@ struct ContentView: View {
             }
             // `-settings YES` opens Settings; `-look dark` then `-relook system`
             // switches the appearance while it's open, as a person would.
+            // `-tabs YES` raises the tabs sheet once the page has drawn.
+            if UserDefaults.standard.bool(forKey: "tabs") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4) { browser.showingTabs = true }
+            }
             if UserDefaults.standard.bool(forKey: "settings") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) { browser.settings = true }
             }

@@ -2,7 +2,7 @@ import SwiftUI
 import CloudKit
 
 // Sync: the same open tabs, pins, bookmarks and a few settings on the
-// iPhone and the Mac, through the person's own iCloud. Off until turned on.
+// iPhone and the Mac, through the person's own iCloud. On unless turned off.
 //
 // One private CloudKit zone, "Search", in the person's iCloud: no server of
 // ours, nothing we can read. Every record is one kind, "Item", named by what

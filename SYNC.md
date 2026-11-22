@@ -4,7 +4,9 @@ How Search on iPhone and Search on the Mac share open tabs, pins, bookmarks
 and a few settings. Both apps follow this page exactly; change it in both
 or not at all.
 
-Off by default on both. Turned on in Settings ("Sync with iCloud").
+On by default on the iPhone (since build 3), off by default on the Mac
+for now; either way it's switched in Settings ("Sync with iCloud"). A
+device that has it off simply doesn't take part.
 
 ## Where
 

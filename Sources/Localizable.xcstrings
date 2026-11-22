@@ -550,16 +550,6 @@
         }
       }
     },
-    "In the list, swipe a tab right to pin it, left to close it. Hold it for more, or to move it.": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Dans la liste, glissez un onglet vers la droite pour l'épingler, vers la gauche pour le fermer. Maintenez-le pour plus d'options, ou pour le déplacer."
-          }
-        }
-      }
-    },
     "Leave Reader": {
       "localizations": {
         "fr": {
@@ -1040,6 +1030,26 @@
         }
       }
     },
+    "Show as Cards": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher en cartes"
+          }
+        }
+      }
+    },
+    "Show as List": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher en liste"
+          }
+        }
+      }
+    },
     "Show the hidden element": {
       "localizations": {
         "fr": {
@@ -1106,6 +1116,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Arrêter"
+          }
+        }
+      }
+    },
+    "Swipe a tab left to close it. Hold it to pin it, bookmark it, or move it.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Glissez un onglet vers la gauche pour le fermer. Maintenez-le pour l'épingler, l'ajouter aux signets ou le déplacer."
           }
         }
       }
@@ -1370,6 +1390,16 @@
         }
       }
     },
+    "With your Mac": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Avec votre Mac"
+          }
+        }
+      }
+    },
     "Words typed in the field go to this search when they aren't an address. Nothing you type is sent anywhere until you press Go.": {
       "localizations": {
         "fr": {
@@ -1396,6 +1426,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Votre iCloud est plein."
+          }
+        }
+      }
+    },
+    "Your open tabs, pins and bookmarks follow you between Search on your iPhone and on your Mac, through your own iCloud. Turn on Sync with iCloud on the Mac too.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vos onglets ouverts, épingles et signets vous suivent entre Search sur votre iPhone et sur votre Mac, par votre propre iCloud. Activez aussi Synchroniser avec iCloud sur le Mac."
           }
         }
       }

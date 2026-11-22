@@ -6,7 +6,7 @@ import Combine
 // Apple's Handoff passes one address between two devices signed in to the
 // same Apple Account, nearby, and only when the person picks it up.
 //
-// Off until it's turned on in Settings. A private tab is never offered.
+// On unless it's turned off in Settings. A private tab is never offered.
 
 enum Handoff {
     /// The kind of activity both Searches offer and take up. With no Search
