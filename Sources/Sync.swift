@@ -715,7 +715,6 @@ struct OtherTabs: View {
             .refreshable { sync.refresh() }
         }
         .tint(Palette.ink)
-        .preferredColorScheme(Prefs.shared.look.scheme)
     }
 }
 
@@ -747,7 +746,6 @@ struct BookmarksView: View {
                 }
         }
         .tint(Palette.ink)
-        .preferredColorScheme(Prefs.shared.look.scheme)
     }
 
     private struct Folder: View {

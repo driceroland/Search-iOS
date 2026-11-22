@@ -244,7 +244,7 @@ struct SiteSheet: View {
                     Toggle("Desktop version", isOn: Binding(
                         get: { prefs.desktop ?? false },
                         set: { _ in browser.desktop(tab) }
-                    ))
+                    )).tint(.green)
                     LabeledContent("Text size") {
                         HStack(spacing: 18) {
                             Button { browser.zoom(tab, step: -1) } label: { Text("A").font(.scaled(13)) }
@@ -259,7 +259,7 @@ struct SiteSheet: View {
                         Toggle("Block ads", isOn: Binding(
                             get: { blocking },
                             set: { _ in browser.shield(tab) }
-                        ))
+                        )).tint(.green)
                     }
                 }
 
@@ -302,7 +302,6 @@ struct SiteSheet: View {
             }
         }
         .tint(Palette.ink)
-        .preferredColorScheme(Prefs.shared.look.scheme)
     }
 }
 

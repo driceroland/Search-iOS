@@ -21,6 +21,25 @@ struct Field: View {
 
     private var blank: Bool { browser.active?.isBlank ?? true }
 
+    /// The selection, only while it still falls inside what's typed. The text
+    /// can be replaced under it (a new tab, a suggestion taken); handing the
+    /// field a range past the end of the new text stops the app.
+    private var fitting: Binding<TextSelection?> {
+        Binding(
+            get: {
+                guard let selection else { return nil }
+                let text = browser.typed
+                switch selection.indices {
+                case .selection(let range):
+                    return range.lowerBound >= text.startIndex && range.upperBound <= text.endIndex ? selection : nil
+                default:
+                    return nil
+                }
+            },
+            set: { selection = $0 }
+        )
+    }
+
     var body: some View {
         VStack(spacing: 8) {
             Spacer(minLength: 0)
@@ -56,7 +75,11 @@ struct Field: View {
         // it's raised and gives it back when it's put away.
         .onChange(of: browser.editing, initial: true) { _, raised in
             typing = raised
-            guard raised else { return }
+            guard raised else {
+                // Put away: the selection was over that text, not the next.
+                selection = nil
+                return
+            }
             // Selected once the field has the caret: a selection set before
             // it does is dropped by the focus change.
             DispatchQueue.main.async {
@@ -139,7 +162,7 @@ struct Field: View {
                         + Text(ending).foregroundStyle(Palette.ink.opacity(0.4)))
                         .lineLimit(1)
                 }
-                TextField("", text: $browser.typed, selection: $selection)
+                TextField("", text: $browser.typed, selection: fitting)
                     .textFieldStyle(.plain)
                     .foregroundStyle(Palette.ink)
                     .focused($typing)

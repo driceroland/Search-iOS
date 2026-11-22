@@ -800,6 +800,26 @@
         }
       }
     },
+    "Open Behind": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir en arrière-plan"
+          }
+        }
+      }
+    },
+    "Open in New Tab": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ouvrir dans un nouvel onglet"
+          }
+        }
+      }
+    },
     "Opened behind": {
       "localizations": {
         "fr": {
@@ -996,6 +1016,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Partager"
+          }
+        }
+      }
+    },
+    "Share…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partager…"
           }
         }
       }

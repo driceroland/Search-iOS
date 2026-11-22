@@ -30,7 +30,7 @@ struct Settings: View {
                             .font(.scaled(15))
                             .foregroundStyle(Engine.accepts(prefs.customEngine) || prefs.customEngine.isEmpty ? Palette.ink : .red)
                     }
-                    Toggle("Search suggestions", isOn: $prefs.engineSuggestions)
+                    Toggle("Search suggestions", isOn: $prefs.engineSuggestions).tint(.green)
                 } footer: {
                     if prefs.engineSuggestions {
                         Text("What you type is sent to \(prefs.engine.name(custom: prefs.customEngine)) as you type, so it can suggest searches. Never from private tabs.")
@@ -43,13 +43,13 @@ struct Settings: View {
                     Picker("Close tabs", selection: $prefs.autoClose) {
                         ForEach(AutoClose.allCases) { Text($0.title).tag($0) }
                     }
-                    Toggle("Lock private tabs", isOn: $prefs.lockPrivate)
+                    Toggle("Lock private tabs", isOn: $prefs.lockPrivate).tint(.green)
                 } footer: {
                     Text("Tabs you haven't looked at for that long close by themselves; pinned tabs never do. Locked private tabs ask for Face ID when you come back to Search.")
                 }
 
                 Section {
-                    Toggle("Block ads and trackers", isOn: $prefs.shield)
+                    Toggle("Block ads and trackers", isOn: $prefs.shield).tint(.green)
                         .onChange(of: prefs.shield) { _, _ in
                             Shield.shared.apply(to: browser.tabs.map { $0.web.configuration.userContentController })
                         }
@@ -58,7 +58,7 @@ struct Settings: View {
                 }
 
                 Section {
-                    Toggle("Sync with iCloud", isOn: $prefs.sync)
+                    Toggle("Sync with iCloud", isOn: $prefs.sync).tint(.green)
                     if prefs.sync, sync.spaces.count > 1 {
                         Picker("Pins from", selection: Binding(
                             get: { sync.pinSpace },
@@ -78,7 +78,7 @@ struct Settings: View {
                 }
 
                 Section {
-                    Toggle("Handoff", isOn: $prefs.handoff)
+                    Toggle("Handoff", isOn: $prefs.handoff).tint(.green)
                 } footer: {
                     Text("The page you're on shows up on your Mac, and your Mac's page here, through Apple's Handoff: your own devices, nearby, on the same Apple Account. Private tabs never. Handoff itself keeps nothing.")
                 }
@@ -152,7 +152,6 @@ struct Settings: View {
             }
         }
         .tint(Palette.ink)
-        .preferredColorScheme(prefs.look.scheme)
     }
 
     /// History from a moment on, or all of it; all of it takes the icons too.

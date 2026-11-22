@@ -17,14 +17,18 @@ struct SearchApp: App {
                 MockScreen(number: number)
             } else {
                 ContentView(browser: browser)
-                    .preferredColorScheme(prefs.look.scheme)
             }
             #else
             ContentView(browser: browser)
-                .preferredColorScheme(prefs.look.scheme)
             #endif
         }
+        .onChange(of: prefs.look, initial: true) { _, look in
+            // The window may not be there yet on the first pass: once more after.
+            look.apply()
+            DispatchQueue.main.async { look.apply() }
+        }
         .onChange(of: phase) { _, now in
+            if now == .active { prefs.look.apply() }
             if now == .background {
                 browser.rest()
                 browser.lock()
@@ -213,7 +217,6 @@ struct ContentView: View {
                 if browser.active?.isBlank == true { browser.editing = true }
             }
             .onAppear { browser.editing = false }
-            .preferredColorScheme(Prefs.shared.look.scheme)
         }
         .sheet(isPresented: $browser.showingBookmarks) {
             BookmarksView(browser: browser)
@@ -241,6 +244,17 @@ struct ContentView: View {
             // Test runs: `-open https://…` opens it, no typing needed.
             if let address = UserDefaults.standard.string(forKey: "open"), let url = URL(string: address) {
                 browser.open(url)
+            }
+            // `-settings YES` opens Settings; `-look dark` then `-relook system`
+            // switches the appearance while it's open, as a person would.
+            if UserDefaults.standard.bool(forKey: "settings") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) { browser.settings = true }
+            }
+            if let first = UserDefaults.standard.string(forKey: "look").flatMap(Look.init) {
+                Prefs.shared.look = first
+            }
+            if let then = UserDefaults.standard.string(forKey: "relook").flatMap(Look.init) {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4) { Prefs.shared.look = then }
             }
             #endif
         }

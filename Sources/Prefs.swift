@@ -24,6 +24,20 @@ enum Look: String, CaseIterable, Identifiable {
         case .dark: return .dark
         }
     }
+
+    /// Put on every window, so the app and every sheet over it follow it at
+    /// once, back to the iPhone's own included. (SwiftUI's preferred scheme
+    /// doesn't let go of a sheet when it goes back to "none".)
+    @MainActor func apply() {
+        let style: UIUserInterfaceStyle = switch self {
+        case .system: .unspecified
+        case .light: .light
+        case .dark: .dark
+        }
+        for case let scene as UIWindowScene in UIApplication.shared.connectedScenes {
+            for window in scene.windows { window.overrideUserInterfaceStyle = style }
+        }
+    }
 }
 
 /// How long a tab may be left alone before it closes by itself.

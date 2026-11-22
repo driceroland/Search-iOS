@@ -739,7 +739,7 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
     /// Holding a link: open it in a new tab here or behind, copy it, share it.
     func webView(
         _ webView: WKWebView,
-        contextMenuConfigurationFor element: WKContextMenuElementInfo,
+        contextMenuConfigurationForElement element: WKContextMenuElementInfo,
         completionHandler: @escaping @MainActor (UIContextMenuConfiguration?) -> Void
     ) {
         guard let url = element.linkURL else {
@@ -750,16 +750,16 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         // No preview of our own: WebKit shows the page itself above the menu.
         let menu = UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { _ in
             UIMenu(children: [
-                UIAction(title: "Open in New Tab", image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in
+                UIAction(title: String(localized: "Open in New Tab"), image: UIImage(systemName: "plus.square.on.square")) { [weak self] _ in
                     self?.open(url, private: opener?.isPrivate ?? false, behind: false)
                 },
-                UIAction(title: "Open Behind", image: UIImage(systemName: "square.on.square")) { [weak self] _ in
+                UIAction(title: String(localized: "Open Behind"), image: UIImage(systemName: "square.on.square")) { [weak self] _ in
                     self?.open(url, private: opener?.isPrivate ?? false, behind: true)
                 },
-                UIAction(title: "Copy Link", image: UIImage(systemName: "link")) { _ in
+                UIAction(title: String(localized: "Copy Link"), image: UIImage(systemName: "link")) { _ in
                     UIPasteboard.general.url = url
                 },
-                UIAction(title: "Share…", image: UIImage(systemName: "square.and.arrow.up")) { _ in
+                UIAction(title: String(localized: "Share…"), image: UIImage(systemName: "square.and.arrow.up")) { _ in
                     Present.share([url])
                 },
             ])

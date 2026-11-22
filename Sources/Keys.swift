@@ -15,16 +15,26 @@ final class Shortcuts: UIResponder, UIApplicationDelegate {
             guard turning != oldValue else { return }
             let scene = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first
             scene?.keyWindow?.rootViewController?.setNeedsUpdateOfSupportedInterfaceOrientations()
-            if !turning {
+            if !turning, !onPad {
                 scene?.requestGeometryUpdate(.iOS(interfaceOrientations: .portrait))
             }
         }
     }
 
     func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
-        if UIDevice.current.userInterfaceIdiom == .pad { return .all }
+        if UIDevice.current.userInterfaceIdiom == .pad || Shortcuts.onPad { return .all }
         return MainActor.assumeIsolated { Shortcuts.turning } ? .allButUpsideDown : .portrait
     }
+
+    /// Run on an iPad as an iPhone app: the idiom says phone, the hardware
+    /// says iPad. Held to portrait there, the app shows up turned on its side
+    /// when the iPad is held the long way, so it turns with the iPad instead.
+    static let onPad: Bool = {
+        var info = utsname()
+        uname(&info)
+        let machine = withUnsafeBytes(of: &info.machine) { String(decoding: $0.prefix { $0 != 0 }, as: UTF8.self) }
+        return machine.hasPrefix("iPad")
+    }()
 
     override var keyCommands: [UIKeyCommand]? {
         var keys: [UIKeyCommand] = [
