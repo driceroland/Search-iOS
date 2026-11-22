@@ -33,6 +33,8 @@ struct Pill: View {
     /// The tabs are up: taps and drags are theirs.
     var over = false
     var newTab: () -> Void = {}
+    /// New tab makes a private one: the private side of the tabs shows.
+    var newPrivate = false
     var bookmarks: () -> Void = {}
 
     private enum Axis { case none, walk, lift, ignored }
@@ -56,28 +58,41 @@ struct Pill: View {
             // Open: between the two buttons. Folded: just round the name.
             let open = 16 + Metrics.pill + 8
             let inset = open + ((16 + (full - small) / 2) - open) * f
-            // Over the tabs, Back's room is the pill's.
-            let leading = inset + (16 - inset) * morph
+            // Over the tabs, Tabs' room is the pill's: New tab reaches the
+            // right edge, where the thumb that opened the tabs already is.
+            let trailing = inset + (16 - inset) * morph
             ZStack(alignment: .bottom) {
                 address
-                    .padding(.leading, leading)
-                    .padding(.trailing, inset)
+                    .padding(.leading, inset)
+                    .padding(.trailing, trailing)
                 // The buttons stay at the edges and leave outward, fading,
                 // as the pill closes in: two movements, not one melting
                 // into the other.
                 HStack(spacing: 0) {
-                    side("chevron.left", "Back", enabled: tab.canGoBack) {
-                        guard tab.canGoBack else { return }
-                        Feel.tick()
-                        tab.back()
+                    // Back on a page, Bookmarks over the tabs: one button,
+                    // its icon turning.
+                    side("chevron.left", morph > 0.5 ? "Bookmarks" : "Back",
+                         strength: tab.canGoBack ? 1 : 0.35 + 0.65 * Double(morph),
+                         other: "book", turn: morph) {
+                        if over {
+                            bookmarks()
+                        } else if tab.canGoBack {
+                            Feel.tick()
+                            tab.back()
+                        }
                     }
-                    .offset(x: -28 * f - (Metrics.pill + 24) * morph)
-                    .opacity(Double(1 - morph))
+                    .offset(x: -28 * f)
                     Spacer(minLength: 0)
-                    side(morph > 0.5 ? "book" : "square.on.square", morph > 0.5 ? "Bookmarks" : "Tabs", enabled: true, other: "book", turn: morph) {
-                        if over { bookmarks() } else { tabs() }
+                    // Tabs, melting into New tab as the pill reaches it.
+                    // Still there to the finger: tapped twice, it opens the
+                    // tabs, then a new one.
+                    side("square.on.square", "Tabs") {
+                        if over { newTab() } else { tabs() }
                     }
-                    .accessibilityValue(over ? Text("") : Text("\(count)"))
+                    .opacity(Double(max(0, 1 - morph * 1.6)))
+                    .scaleEffect(1 - 0.25 * morph)
+                    .accessibilityValue(Text("\(count)"))
+                    .accessibilityHidden(morph > 0.5)
                     .offset(x: 28 * f)
                 }
                 .padding(.horizontal, 16)
@@ -134,7 +149,7 @@ struct Pill: View {
         }
         .opacity(Double(max(0, 1 - morph * 2)))
         .scaleEffect(1 - 0.08 * morph)
-        Label("New tab", systemImage: "plus")
+        Label(newPrivate ? "New private tab" : "New tab", systemImage: newPrivate ? "eyeglasses" : "plus")
             .labelStyle(.titleAndIcon)
             .font(.scaled(15, weight: .medium))
             .foregroundStyle(.primary)
@@ -181,10 +196,10 @@ struct Pill: View {
     /// A round glass button either side of the pill: Back on the left, as in
     /// Safari, every tab on the right. White on the glass; dimmed when there
     /// is nowhere to go.
-    private func side(_ symbol: String, _ name: LocalizedStringKey, enabled: Bool, other: String? = nil, turn: CGFloat = 0, action: @escaping () -> Void) -> some View {
+    private func side(_ symbol: String, _ name: LocalizedStringKey, strength: Double = 1, other: String? = nil, turn: CGFloat = 0, action: @escaping () -> Void) -> some View {
         // One button, its icon turning into the other one's.
         ZStack {
-            Image(systemName: other == nil ? symbol : "square.on.square")
+            Image(systemName: symbol)
                 .opacity(Double(other == nil ? 1 : max(0, 1 - turn * 2)))
                 .scaleEffect(other == nil ? 1 : 1 - 0.3 * turn)
             if let other {
@@ -195,7 +210,7 @@ struct Pill: View {
         }
             .font(.scaled(17, weight: .medium))
             .foregroundStyle(.primary)
-            .opacity(enabled ? 1 : 0.35)
+            .opacity(strength)
             .frame(width: Metrics.pill, height: Metrics.pill)
             .glass(Circle(), interactive: true, else: .clear)
             .background { if #unavailable(iOS 26.0) { Glass(shape: Circle()) } }

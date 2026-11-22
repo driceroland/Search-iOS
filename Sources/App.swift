@@ -166,12 +166,16 @@ struct ContentView: View {
                         source: !browser.editing,
                         morph: max(0, min(1, lift)),
                         over: browser.showingTabs,
-                        newTab: { Feel.tick(); browser.newTab() },
+                        newTab: { Feel.tick(); browser.newTab(private: browser.privateView) },
+                        newPrivate: browser.privateView,
                         bookmarks: { browser.showingBookmarks = true }
                     )
                     .opacity(browser.finding || browser.editing ? 0 : 1)
-                    .allowsHitTesting((lift == 0 || (browser.showingTabs && lift >= 0.999)) && !moving
-                        && !landing && !browser.holding && !browser.finding && !browser.editing)
+                    // Free as soon as it's on its way back: a thumb that came
+                    // straight back for the tabs found it deaf until the
+                    // page had quite finished landing. Over the tabs at
+                    // once too, so two quick taps on Tabs open a new one.
+                    .allowsHitTesting(!landing && !browser.holding && !browser.finding && !browser.editing)
                 }
 
                 // Always there, shown by scale and opacity: put in and taken
@@ -251,6 +255,10 @@ struct ContentView: View {
             }
         }
         .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { browser.safe = $0 }
+        .onChange(of: browser.activeID, initial: true) { _, _ in
+            guard !browser.showingTabs else { return }
+            browser.privateView = browser.active?.isPrivate ?? false
+        }
         .onOpenURL { browser.open($0) }
         .onContinueUserActivity(Handoff.browsing) { activity in
             if let url = Handoff.address(in: activity) { browser.open(url) }
@@ -364,6 +372,7 @@ struct ContentView: View {
 
     private var zoomTarget: CGRect? {
         guard Prefs.shared.tabCards, let tab = browser.active, tab.pin == nil,
+              tab.isPrivate == browser.privateView,
               let rect = cardFrames.rects[tab.id], rect.width > 10 else { return nil }
         return rect
     }
@@ -540,6 +549,7 @@ struct ContentView: View {
     // MARK: - the sheet
 
     private func lifting(_ moved: CGFloat) {
+        let first = !dragging
         dragging = true
         // Over the tabs the bar takes them away, down.
         if browser.showingTabs {
@@ -552,6 +562,10 @@ struct ContentView: View {
             // off. Waited for: from where the finger is when it comes.
             guard frozen != nil else { liftFrom = moved; return }
             liftFrom = 0
+        } else if first {
+            // Caught while still settling back into the page: it goes on
+            // from where it is, not from where the last drag left off.
+            liftFrom = moved + max(0, lift) * travel
         }
         let up = -(moved - liftFrom)
         lift = up <= travel ? max(0, up / travel) : 1 + Self.give(up - travel) / travel

@@ -756,7 +756,9 @@ struct BookmarksView: View {
         var body: some View {
             List {
                 if nodes.isEmpty {
-                    Text("No bookmarks yet. Add the page you're on, or turn on sync to bring your Mac's.")
+                    Text(Prefs.shared.sync
+                         ? "No bookmarks yet. Add the page you're on; the ones you keep in Search on your Mac show here too."
+                         : "No bookmarks yet. Add the page you're on, or turn on sync to bring your Mac's.")
                         .foregroundStyle(Palette.muted)
                 }
                 ForEach(nodes) { node in

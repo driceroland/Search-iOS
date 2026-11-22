@@ -27,6 +27,9 @@ final class Browser: NSObject, ObservableObject {
     /// Asked for the sheet of every tab. The sheet's own position belongs to
     /// the gesture that moves it; this only says where it should end up.
     @Published var showingTabs = false
+    /// Which tabs the tabs screen shows: the private ones, or the others.
+    /// Follows the page in front while the screen is away.
+    @Published var privateView = false
     /// The pill held: the page's own menu.
     @Published var holding = false
     /// The system's find bar is up; the pill steps aside for it.
@@ -148,7 +151,9 @@ final class Browser: NSObject, ObservableObject {
     // MARK: - tabs
 
     func newTab(private: Bool = false) {
-        active?.capture()
+        // From the tabs, the page in front is hidden under its picture:
+        // pictured again it would come out blank.
+        if !showingTabs { active?.capture() }
         let tab = `private`
             ? Tab(configuration: Web.configuration(private: true), isPrivate: true)
             : Tab()

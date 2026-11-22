@@ -54,7 +54,8 @@ struct Sheet: View {
     @State private var gridContent: CGFloat = 0
 
     private var pinned: [Tab] { browser.tabs.filter { $0.pin != nil } }
-    private var loose: [Tab] { browser.tabs.filter { $0.pin == nil } }
+    /// The tabs of the side shown: private, or the others.
+    private var loose: [Tab] { browser.tabs.filter { $0.pin == nil && $0.isPrivate == browser.privateView } }
 
     private let row: CGFloat = 48
 
@@ -88,6 +89,14 @@ struct Sheet: View {
                 if prefs.tabCards { cards } else { list }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .overlay {
+                if loose.isEmpty {
+                    Text(browser.privateView ? "No private tabs" : "No tabs")
+                        .font(.scaled(15))
+                        .foregroundStyle(Palette.muted)
+                        .allowsHitTesting(false)
+                }
+            }
             // Never quite 0: at 0 the grid wasn't laid out, and the page had
             // no card to go to until it was let go.
             .opacity(max(0.002, Double(min(1, shown * 2))))
@@ -313,6 +322,10 @@ struct Sheet: View {
             .onChange(of: browser.activeID) { _, _ in
                 if away { aim() }
             }
+            // The other side: from its start.
+            .onChange(of: browser.privateView) { _, _ in
+                if !away { position.scrollTo(edge: .top) }
+            }
             // The room changed (a tab came or went, the cards were measured
             // for the first time): aimed again while unseen.
             .onChange(of: room) { _, _ in
@@ -330,6 +343,7 @@ struct Sheet: View {
     }
     @State private var room = Room()
     @State private var position = ScrollPosition(edge: .top)
+    @Namespace private var sideSpace
 
     /// The page's card in the middle of what shows, never past either end:
     /// cards that all fit stay at the top, under the buttons, whichever is
@@ -400,12 +414,7 @@ struct Sheet: View {
             .disabled(loose.isEmpty)
             .accessibilityLabel("Close All")
 
-            Button {
-                Feel.tick()
-                browser.newTab(private: true)
-            } label: { headerButton("eyeglasses") }
-            .buttonStyle(.plain)
-            .accessibilityLabel("New private tab")
+            sides
 
             Menu {
                 Button {
@@ -444,6 +453,39 @@ struct Sheet: View {
 
             Spacer(minLength: 0)
         }
+    }
+
+    /// The tabs, or the private ones: two sides of one glass switch.
+    private var sides: some View {
+        HStack(spacing: 2) {
+            side("square.on.square", "Tabs", on: !browser.privateView) { browser.privateView = false }
+            side("eyeglasses", "Private", on: browser.privateView) { browser.privateView = true }
+        }
+        .padding(3)
+        .glass(Capsule(), interactive: true, else: Palette.wash)
+    }
+
+    private func side(_ symbol: String, _ name: LocalizedStringKey, on: Bool, pick: @escaping () -> Void) -> some View {
+        Button {
+            guard !on else { return }
+            Feel.tick()
+            withAnimation(Motion.settle) { pick() }
+        } label: {
+            Image(systemName: symbol)
+                .font(.scaled(15, weight: .semibold))
+                .foregroundStyle(on ? Palette.ink : Palette.muted)
+                .frame(width: 44, height: 34)
+                .background {
+                    if on {
+                        Capsule().fill(Palette.ink.opacity(0.1))
+                            .matchedGeometryEffect(id: "side", in: sideSpace)
+                    }
+                }
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(name)
+        .accessibilityAddTraits(on ? .isSelected : [])
     }
 
     private func headerButton(_ symbol: String) -> some View {
