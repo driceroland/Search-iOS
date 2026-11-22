@@ -299,7 +299,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
                 // Copied into pixels of its own: what WebKit hands back can
                 // go on tracking the live page.
                 let image = taken.flatMap { Tab.copy($0) }
-                if let self, let image {
+                // Not kept while the page is still coming in: a card of a
+                // blank page in the making says less than the old picture.
+                if let self, let image, !(self.loading && self.progress < 0.8) {
                     self.snapshot = image
                     if !self.isPrivate { Snapshots.write(image, for: self.key) }
                 }

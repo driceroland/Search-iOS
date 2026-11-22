@@ -28,6 +28,9 @@ enum Motion {
     static let glide = Animation.spring(response: 0.34, dampingFraction: 0.82)
     /// Things that arrive or leave.
     static let settle = Animation.spring(response: 0.30, dampingFraction: 0.86)
+    /// Things that make room for each other, with a little give: cards
+    /// closing up the gap one left.
+    static let bouncy = Animation.spring(response: 0.38, dampingFraction: 0.74)
     /// Fades.
     static let quick = Animation.easeOut(duration: 0.14)
 

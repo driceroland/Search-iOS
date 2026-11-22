@@ -161,7 +161,7 @@ struct Sheet: View {
         .scrollDisabled(!overflows)
         // Hugs what it holds. A sheet that always reserves room for ten tabs
         // looks broken when it is showing one.
-        .frame(height: min(CGFloat(loose.count) * (row + 2) + 4, 420))
+        .frame(maxHeight: min(CGFloat(loose.count) * (row + 2) + 4, 420))
         .onScrollGeometryChange(for: CGFloat.self) { geo in
             geo.contentOffset.y + geo.contentInsets.top
         } action: { _, offset in
@@ -189,7 +189,7 @@ struct Sheet: View {
     }
     /// Two rows and a glimpse of the third at most: the sheet leaves the
     /// page showing above it.
-    private var cardsRoom: CGFloat { cardHeight * 2.35 + gap * 2 }
+    private var cardsRoom: CGFloat { cardHeight * 2.2 + gap * 2 }
     private var cardsOverflow: Bool { cardsHeight > cardsRoom }
 
     private var cards: some View {
@@ -198,16 +198,20 @@ struct Sheet: View {
                 LazyVGrid(columns: [GridItem(.flexible(), spacing: gap), GridItem(.flexible(), spacing: gap)], spacing: gap) {
                     ForEach(loose) { tab in
                         Card(tab: tab, live: tab.id == browser.activeID, hidden: browser.locked && tab.isPrivate, pictureHeight: pictureHeight) {
+                            pick(tab)
+                        } close: {
                             Feel.tick()
-                            withAnimation(Motion.settle) { browser.close(tab) }
+                            withAnimation(Motion.bouncy) { browser.close(tab) }
                         }
-                        .onTapGesture { pick(tab) }
                         .contextMenu { menu(for: tab) }
                         .draggable(tab.id.uuidString) {
                             Line(tab: tab, live: false, space: space).frame(width: 300)
                         }
                         .dropDestination(for: String.self) { ids, _ in drop(ids, on: tab) }
-                        .transition(.opacity.combined(with: .scale(0.9)))
+                        .transition(.asymmetric(
+                            insertion: .scale(scale: 0.85).combined(with: .opacity),
+                            removal: .scale(scale: 0.8).combined(with: .opacity)
+                        ))
                         .id(tab.id)
                     }
                 }
@@ -217,7 +221,9 @@ struct Sheet: View {
             }
             .scrollBounceBehavior(.basedOnSize)
             .scrollDisabled(!cardsOverflow)
-            .frame(height: min(cardsHeight, cardsRoom))
+            // Room it may take, not room it must: on a short screen the
+            // sheet gives it less and it scrolls.
+            .frame(maxHeight: min(cardsHeight, cardsRoom))
             .onGeometryChange(for: CGFloat.self) { $0.size.width - 28 } action: { gridWidth = $0 }
             .onScrollGeometryChange(for: CGFloat.self) { geo in
                 geo.contentOffset.y + geo.contentInsets.top
@@ -230,9 +236,11 @@ struct Sheet: View {
                     dropped(pull, 1200)
                 }
             }
-            .onAppear {
-                // The page you're on in sight, not left three rows down.
-                if cardsOverflow, let id = browser.activeID { reader.scrollTo(id, anchor: .center) }
+            // The page you're on in sight, not left three rows down. The
+            // sheet is always there, below the edge: it's raised, not shown.
+            .onChange(of: browser.showingTabs, initial: true) { _, raised in
+                guard raised, cardsOverflow, let id = browser.activeID else { return }
+                reader.scrollTo(id, anchor: .center)
             }
         }
     }
@@ -300,8 +308,8 @@ struct Sheet: View {
         .contentShape(Rectangle())
     }
 
-    /// The sheet's head, as the system draws one: what else can be done on
-    /// the left, what this is in the middle, Done on the right.
+    /// The sheet's head: what else can be done on the left, Done on the
+    /// right, and nothing in between to read.
     private var header: some View {
         HStack {
             Menu {
@@ -333,18 +341,6 @@ struct Sheet: View {
                 headerButton("ellipsis")
             }
             .accessibilityLabel("More")
-
-            Spacer(minLength: 8)
-
-            VStack(spacing: 1) {
-                Text("Search")
-                    .font(.scaled(16, weight: .semibold))
-                    .foregroundStyle(Palette.ink)
-                Text(browser.tabs.count == 1 ? String(localized: "1 tab") : String(localized: "\(browser.tabs.count) tabs"))
-                    .font(.scaled(12.5))
-                    .foregroundStyle(Palette.muted)
-                    .contentTransition(.numericText())
-            }
 
             Spacer(minLength: 8)
 
@@ -546,92 +542,118 @@ struct Sheet: View {
     }
 
     /// A card: the page as it last looked, its name under it, a cross to
-    /// close it. Swiped left, it goes, as a line does.
+    /// close it. Pressed, it gives a little; swiped left, it follows the
+    /// finger and, let go far enough, flies off the way it was thrown.
     private struct Card: View {
         @ObservedObject var tab: Tab
         let live: Bool
         /// A private tab while private tabs are locked: no picture, no name.
         var hidden = false
         let pictureHeight: CGFloat
+        let open: () -> Void
         let close: () -> Void
 
         @State private var shift: CGFloat = 0
         @State private var sideways: Bool?
-        private let reach: CGFloat = 80
+        @State private var gone = false
+        private let reach: CGFloat = 90
 
         var body: some View {
-            VStack(spacing: 7) {
-                picture
-                    .frame(maxWidth: .infinity)
-                    .frame(height: pictureHeight)
-                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-                    .overlay {
-                        RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .strokeBorder(live ? Palette.ink : Palette.faint.opacity(0.4), lineWidth: live ? 2.5 : 0.5)
-                    }
-                    .overlay(alignment: .topTrailing) {
-                        Button(action: close) {
-                            Image(systemName: "xmark")
-                                .font(.scaled(10, weight: .bold))
-                                .foregroundStyle(Palette.ink)
-                                .frame(width: 26, height: 26)
-                                .glass(Circle(), interactive: true, else: Palette.ground.opacity(0.9))
-                                // Bigger to the finger than to the eye.
-                                .frame(width: 44, height: 44)
-                                .contentShape(Rectangle())
+            Button(action: open) {
+                VStack(spacing: 7) {
+                    picture
+                        .frame(maxWidth: .infinity)
+                        .frame(height: pictureHeight)
+                        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .overlay {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .strokeBorder(Palette.faint.opacity(0.35), lineWidth: 0.5)
                         }
-                        .buttonStyle(.plain)
-                        .accessibilityLabel("Close Tab")
-                    }
-                    .shadow(color: .black.opacity(0.08), radius: 8, y: 2)
-
-                HStack(spacing: 6) {
-                    Group {
-                        if tab.loading {
-                            Ring(size: 10)
-                        } else if !tab.isBlank, !hidden {
-                            Mark(icon: tab.icon, letter: tab.letter, size: 14)
-                        }
-                    }
-                    if tab.isPrivate {
-                        Image(systemName: "eyeglasses")
-                            .font(.scaled(10, weight: .medium))
-                            .foregroundStyle(Palette.muted)
-                    }
-                    Text(hidden ? String(localized: "Private tab") : tab.label)
-                        .font(.scaled(12.5, weight: live ? .medium : .regular))
-                        .foregroundStyle(live ? Palette.ink : Palette.muted)
-                        .lineLimit(1)
+                        .shadow(color: .black.opacity(live ? 0.16 : 0.07), radius: live ? 12 : 7, y: live ? 4 : 2)
+                    name
                 }
-                .frame(height: 19)
-                .padding(.horizontal, 4)
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
+            .buttonStyle(Press())
+            .overlay(alignment: .topTrailing) {
+                Button {
+                    flyOff(to: 0)
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.scaled(9.5, weight: .bold))
+                        .foregroundStyle(Palette.ink.opacity(0.75))
+                        .frame(width: 22, height: 22)
+                        .background(.ultraThinMaterial, in: Circle())
+                        // Bigger to the finger than to the eye.
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Close Tab")
+            }
             .offset(x: shift)
-            .opacity(1 - Double(min(0.6, abs(shift) / 300)))
+            .scaleEffect(gone ? 0.85 : 1)
+            .opacity(gone ? 0 : 1)
             .simultaneousGesture(
-                DragGesture(minimumDistance: 12)
+                DragGesture(minimumDistance: 14)
                     .onChanged { value in
                         if sideways == nil {
                             sideways = value.translation.width < 0
-                                && abs(value.translation.width) > abs(value.translation.height) * 1.2
+                                && abs(value.translation.width) > abs(value.translation.height) * 1.3
                         }
                         guard sideways == true else { return }
                         let was = -shift > reach
-                        shift = min(0, value.translation.width)
+                        // Free going left; a little give the other way.
+                        let x = value.translation.width
+                        shift = x < 0 ? x : x * 0.15
                         if was != (-shift > reach) { Feel.tick() }
                     }
                     .onEnded { value in
                         defer { sideways = nil }
                         guard sideways == true else { return }
-                        if value.translation.width + value.velocity.width * 0.1 < -reach {
-                            close()
+                        let landing = value.translation.width + value.velocity.width * 0.15
+                        if landing < -reach {
+                            flyOff(to: -420, speed: value.velocity.width)
+                        } else {
+                            withAnimation(Motion.bouncy) { shift = 0 }
                         }
-                        withAnimation(Motion.settle) { shift = 0 }
                     }
             )
             .accessibilityElement(children: .combine)
             .accessibilityAddTraits(live ? [.isButton, .isSelected] : .isButton)
+            .accessibilityAction(named: "Close Tab") { close() }
+        }
+
+        /// Off the way it was going, then gone from the grid, the others
+        /// closing up behind it.
+        private func flyOff(to x: CGFloat, speed: CGFloat = 0) {
+            withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
+                if x != 0 { shift = x } else { gone = true }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { close() }
+        }
+
+        private var name: some View {
+            HStack(spacing: 6) {
+                Group {
+                    if tab.loading {
+                        Ring(size: 10)
+                    } else if !tab.isBlank, !hidden {
+                        Mark(icon: tab.icon, letter: tab.letter, size: 14)
+                    }
+                }
+                if tab.isPrivate {
+                    Image(systemName: "eyeglasses")
+                        .font(.scaled(10, weight: .medium))
+                        .foregroundStyle(Palette.muted)
+                }
+                Text(hidden ? String(localized: "Private tab") : tab.label)
+                    .font(.scaled(12.5, weight: live ? .semibold : .regular))
+                    .foregroundStyle(live ? Palette.ink : Palette.muted)
+                    .lineLimit(1)
+            }
+            .frame(height: 19)
+            .padding(.horizontal, 4)
         }
 
         @ViewBuilder private var picture: some View {
@@ -659,6 +681,15 @@ struct Sheet: View {
                 Palette.wash.overlay {
                     Mark(icon: tab.icon, letter: tab.letter, size: 34)
                 }
+            }
+        }
+
+        /// Gives under the finger, springs back when let go.
+        private struct Press: ButtonStyle {
+            func makeBody(configuration: Configuration) -> some View {
+                configuration.label
+                    .scaleEffect(configuration.isPressed ? 0.95 : 1)
+                    .animation(.spring(response: 0.25, dampingFraction: 0.6), value: configuration.isPressed)
             }
         }
     }

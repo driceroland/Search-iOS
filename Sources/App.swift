@@ -146,6 +146,10 @@ struct ContentView: View {
                         dropped: { moved, speed in dropped(moved, speed: speed) },
                         height: { sheetHeight = max(200, $0) }
                     )
+                    // Never taller than the screen: a taller sheet grew the
+                    // whole stack, and everything aligned to its foot (the
+                    // field above the keyboard, the page) slid down with it.
+                    .frame(maxHeight: geo.size.height - 20, alignment: .bottom)
                     .offset(y: (1 - lift) * (sheetHeight + 40))
                     .allowsHitTesting(browser.showingTabs)
                     .accessibilityHidden(!browser.showingTabs)
@@ -247,6 +251,12 @@ struct ContentView: View {
             }
             // `-settings YES` opens Settings; `-look dark` then `-relook system`
             // switches the appearance while it's open, as a person would.
+            // `-newtabs N` opens N new tabs, one every 3 seconds, as a person
+            // tapping New tab would.
+            let count = UserDefaults.standard.integer(forKey: "newtabs")
+            for index in 0..<count {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3 + Double(index) * 3) { browser.newTab() }
+            }
             // `-tabs YES` raises the tabs sheet once the page has drawn.
             if UserDefaults.standard.bool(forKey: "tabs") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 4) { browser.showingTabs = true }
