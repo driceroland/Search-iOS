@@ -293,6 +293,12 @@ struct ContentView: View {
             if stop > 0 {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 4) { freeze { lift = stop } }
             }
+            // `-reader YES` turns Reader on once the page has loaded.
+            if UserDefaults.standard.bool(forKey: "reader") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 6) { if let tab = browser.active { browser.read(tab) } }
+                let down = UserDefaults.standard.integer(forKey: "scrollY")
+                DispatchQueue.main.asyncAfter(deadline: .now() + 9) { browser.active?.web.evaluateJavaScript("scrollTo(0,\(down))") }
+            }
             // `-tabs YES` raises the tabs sheet once the page has drawn.
             if UserDefaults.standard.bool(forKey: "tabs") {
                 DispatchQueue.main.asyncAfter(deadline: .now() + 4) { browser.showingTabs = true }

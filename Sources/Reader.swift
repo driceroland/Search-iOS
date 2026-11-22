@@ -106,7 +106,15 @@ enum Reader {
         '#office-reader,#office-reader a{color:#ededed}',
         '#office-reader .office-from,#office-reader figcaption{color:#8f8f8f}',
         '#office-reader pre{background:#2a2a2a}',
-        '#office-reader blockquote{border-left-color:#333;color:#b5b5b5}}'
+        '#office-reader blockquote{border-left-color:#333;color:#b5b5b5}',
+        // What the page painted itself (an infobox, a table, a note): its
+        // light grounds and dark inks give way to the reader's, or it reads
+        // as light text on white.
+        '#office-reader table,#office-reader thead,#office-reader tbody,#office-reader tr,',
+        '#office-reader th,#office-reader td,#office-reader div,#office-reader span,',
+        '#office-reader section,#office-reader aside,#office-reader caption,#office-reader li',
+        '{background-color:transparent !important;color:inherit !important;border-color:#3a3a3a !important}',
+        '#office-reader th{background-color:#262626 !important}}'
       ].join('');
 
       var wrap = document.createElement('div');
