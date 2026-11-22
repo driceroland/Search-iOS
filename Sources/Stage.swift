@@ -39,6 +39,23 @@ struct Page: View {
         .overlay {
             if let failure = tab.failure { Failed(tab: tab, failure: failure) }
         }
+        .overlay(alignment: .top) {
+            // Pull to refresh, said: an arrow that turns as the page is
+            // pulled, and stands when letting go will reload.
+            if tab.pull > 0 {
+                Image(systemName: "arrow.clockwise")
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundStyle(Palette.ink)
+                    .rotationEffect(.degrees(Double(tab.pull) * 270))
+                    .frame(width: 36, height: 36)
+                    .glass(Circle(), else: Palette.wash)
+                    .opacity(Double(min(1, tab.pull * 1.5)))
+                    .scaleEffect(tab.pull >= 1 ? 1.1 : 0.8 + 0.2 * tab.pull)
+                    .padding(.top, top + 10)
+                    .animation(Motion.quick, value: tab.pull >= 1)
+                    .allowsHitTesting(false)
+            }
+        }
         .overlay {
             if tab.waking {
                 Card(tab: tab, top: top)

@@ -95,6 +95,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
 
     private var watch: [NSKeyValueObservation] = []
     private var lastY: CGFloat = 0
+    /// A pull from the top, 0 to 1 at the distance that reloads.
+    @Published private(set) var pull: CGFloat = 0
+    static let pullReach: CGFloat = 80
     private var startedAtTop = false
     /// Brought back from the last launch and not shown since: it has an
     /// address, a title and a picture, and no page until it's looked at.
@@ -256,6 +259,12 @@ final class Tab: NSObject, ObservableObject, Identifiable {
             if web.scrollView.contentInset.top != top {
                 web.scrollView.contentInset.top = top
             }
+            // And the end of the page clear of the bar: obscured insets alone
+            // left the last stretch of every page under the pill, out of
+            // reach. The folded bar's room, since reaching the end folds it.
+            if web.scrollView.contentInset.bottom != least {
+                web.scrollView.contentInset.bottom = least
+            }
             web.scrollView.verticalScrollIndicatorInsets = UIEdgeInsets(top: top, left: 0, bottom: bottom, right: 0)
         }
         let low = UIEdgeInsets(top: top, left: 0, bottom: least, right: 0)
@@ -340,6 +349,10 @@ extension Tab: UIScrollViewDelegate {
     }
 
     func scrollViewDidScroll(_ view: UIScrollView) {
+        // How far a pull from the top has gone, for the arrow that shows it.
+        let past = -view.adjustedContentInset.top - view.contentOffset.y
+        let next = startedAtTop && view.isTracking ? max(0, min(1, past / Tab.pullReach)) : 0
+        if abs(next - pull) > 0.01 || (next == 0) != (pull == 0) { pull = next }
         guard view.isTracking || view.isDecelerating else { return }
         let y = view.contentOffset.y
         let top = -view.adjustedContentInset.top
@@ -358,7 +371,8 @@ extension Tab: UIScrollViewDelegate {
         // Let go well past the top: load the page again.
         // Only a pull that began at the top: a fling back up that
         // overshoots isn't asking for anything.
-        if startedAtTop, view.contentOffset.y < -view.adjustedContentInset.top - 90 { pulled() }
+        if startedAtTop, view.contentOffset.y < -view.adjustedContentInset.top - Tab.pullReach { pulled() }
+        pull = 0
         if !willDecelerate { scrolled?(.rest) }
     }
 
