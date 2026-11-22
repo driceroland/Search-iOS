@@ -100,7 +100,7 @@ struct ContentView: View {
                     .allowsHitTesting(browser.editing)
 
                 // The cards and the pins, under the page as it shrinks.
-                sheet(.tabs, size: geo.size, screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom))
+                sheet(.tabs, size: CGSize(width: width, height: geo.size.height), screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom))
 
                 // The page on its way into its card, or out of it: over the
                 // cards, so it lands on one rather than behind it. Laid over
@@ -142,7 +142,7 @@ struct ContentView: View {
                     .ignoresSafeArea()
 
                 // The buttons along the top, coming down over the page.
-                sheet(.chrome, size: geo.size, screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom))
+                sheet(.chrome, size: CGSize(width: width, height: geo.size.height), screen: CGSize(width: width, height: geo.size.height + geo.safeAreaInsets.top + geo.safeAreaInsets.bottom))
 
                 // Over everything, and the same thing on a page and over the
                 // tabs: where you are becomes New tab, Back leaves by the
@@ -168,6 +168,7 @@ struct ContentView: View {
                         over: browser.showingTabs,
                         newTab: { Feel.tick(); browser.newTab(private: browser.privateView) },
                         newPrivate: browser.privateView,
+                        rail: browser.rail,
                         bookmarks: { browser.showingBookmarks = true }
                     )
                     .opacity(browser.finding || browser.editing ? 0 : 1)
@@ -216,6 +217,11 @@ struct ContentView: View {
                         .allowsHitTesting(false)
                 }
             }
+            // The whole width, the camera's column included: what sits in
+            // it (the Duo's rail) is placed there by hand. Left to the safe
+            // area, the page (wider than it) pushed everything aside and
+            // left a grey strip at the other edge.
+            .ignoresSafeArea(.container, edges: .horizontal)
             // The pill becomes the field, and the field the pill, on the
             // keyboard's curve and in its time.
             .animation(still ? Motion.quick : keyboard.curve, value: browser.editing)
@@ -242,14 +248,13 @@ struct ContentView: View {
                 frozen = tab.isBlank ? UIImage() : (tab.snapshot ?? UIImage())
                 frozenID = tab.id
                 go()
-            } else if !open, frozen != nil, let tab = browser.active {
+            } else if !open, frozen != nil, let tab = browser.active, let image = tab.now() {
                 // The page went on living under its picture (a carousel, a
-                // video): pictured again before it grows back, so the live
-                // page takes over from what it really looks like now.
-                tab.snap { image in
-                    if let image { frozen = image }
-                    go()
-                }
+                // video): pictured again, at once, so the live page takes
+                // over from what it really looks like now. WebKit's own
+                // picture took long enough, now and then, to be felt.
+                frozen = image
+                go()
             } else {
                 go()
             }
@@ -348,6 +353,17 @@ struct ContentView: View {
             space: space,
             drag: { moved in lift = moved < 0 ? 1 + Self.give(-moved) / travel : 1 - moved / travel },
             dropped: { moved, speed in dropped(moved, speed: speed) },
+            cardAt: { point in
+                // The card's picture and the name under it.
+                cardFrames.rects.first { $0.value.insetBy(dx: -4, dy: -4).offsetBy(dx: 0, dy: 15).union($0.value).contains(point) }?.key
+            },
+            grab: { id in
+                // Pulled down from a card: that page grows out of it.
+                guard let tab = browser.tabs.first(where: { $0.id == id }) else { return }
+                browser.hold(tab)
+                frozen = tab.isBlank ? UIImage() : (tab.snapshot ?? UIImage())
+                frozenID = tab.id
+            },
             lift: lift,
             away: lift == 0 && !moving && !dragging,
             frames: { id, rect in cardFrames.rects[id] = rect },

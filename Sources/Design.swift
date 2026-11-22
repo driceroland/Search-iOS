@@ -53,6 +53,30 @@ enum Motion {
     }
 }
 
+/// The column beside the camera on a screen that has one at its side (the
+/// iPhone Duo's outer screen, and its inner one held sideways): the buttons
+/// live there, by the hand, and the page runs the whole width under it.
+struct Rail: Equatable {
+    var width: CGFloat = 0
+    /// The column is on the left (the screen turned the other way).
+    var leading = false
+
+    var on: Bool { width > 40 }
+
+    static func of(_ insets: EdgeInsets) -> Rail {
+        if insets.trailing > 40 { return Rail(width: insets.trailing) }
+        if insets.leading > 40 { return Rail(width: insets.leading, leading: true) }
+        return Rail()
+    }
+
+    /// Where a round button sits across the column.
+    var inset: CGFloat { (width - Metrics.pill) / 2 }
+    var edge: Edge.Set { leading ? .leading : .trailing }
+    var alignment: Alignment { leading ? .bottomLeading : .bottomTrailing }
+    /// Outward, toward the column's edge.
+    var out: CGFloat { leading ? -1 : 1 }
+}
+
 enum Metrics {
     /// The pill at rest, and folded while a page scrolls.
     static let pill: CGFloat = 48

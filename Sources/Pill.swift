@@ -35,6 +35,8 @@ struct Pill: View {
     var newTab: () -> Void = {}
     /// New tab makes a private one: the private side of the tabs shows.
     var newPrivate = false
+    /// The Duo's column beside the camera, where Back and Tabs stand.
+    var rail = Rail()
     var bookmarks: () -> Void = {}
 
     private enum Axis { case none, walk, lift, ignored }
@@ -55,51 +57,29 @@ struct Pill: View {
         GeometryReader { geo in
             let full = geo.size.width - 32
             let small = min(full, nameWidth + 36)
-            // Open: between the two buttons. Folded: just round the name.
-            let open = 16 + Metrics.pill + 8
-            let inset = open + ((16 + (full - small) / 2) - open) * f
+            // Folded: just round the name.
+            let folded = 16 + (full - small) / 2
+            // Open: between the two buttons; with a rail, from the far edge
+            // to the rail, its buttons standing in it.
+            let between = 16 + Metrics.pill + 8
+            let openL = rail.on ? (rail.leading ? rail.width + 8 : 16) : between
+            let openR = rail.on ? (rail.leading ? 16 : rail.width + 8) : between
+            let l0 = openL + (folded - openL) * f
+            let r0 = openR + (folded - openR) * f
             // Over the tabs, Tabs' room is the pill's: New tab reaches the
-            // right edge, where the thumb that opened the tabs already is.
-            let trailing = inset + (16 - inset) * morph
+            // edge where the thumb that opened the tabs already is.
+            let tabsLeading = rail.on && rail.leading
+            let l = tabsLeading ? l0 + (16 - l0) * morph : l0
+            let r = tabsLeading ? r0 : r0 + (16 - r0) * morph
             ZStack(alignment: .bottom) {
                 address
-                    .padding(.leading, inset)
-                    .padding(.trailing, trailing)
-                // The buttons stay at the edges and leave outward, fading,
-                // as the pill closes in: two movements, not one melting
-                // into the other.
-                HStack(spacing: 0) {
-                    // Back on a page, Bookmarks over the tabs: one button,
-                    // its icon turning.
-                    side("chevron.left", morph > 0.5 ? "Bookmarks" : "Back",
-                         strength: tab.canGoBack ? 1 : 0.35 + 0.65 * Double(morph),
-                         other: "book", turn: morph) {
-                        if over {
-                            bookmarks()
-                        } else if tab.canGoBack {
-                            Feel.tick()
-                            tab.back()
-                        }
-                    }
-                    .offset(x: -28 * f)
-                    Spacer(minLength: 0)
-                    // Tabs, melting into New tab as the pill reaches it.
-                    // Still there to the finger: tapped twice, it opens the
-                    // tabs, then a new one.
-                    side("square.on.square", "Tabs") {
-                        if over { newTab() } else { tabs() }
-                    }
-                    .opacity(Double(max(0, 1 - morph * 1.6)))
-                    .scaleEffect(1 - 0.25 * morph)
-                    .accessibilityValue(Text("\(count)"))
-                    .accessibilityHidden(morph > 0.5)
-                    .offset(x: 28 * f)
-                }
-                .padding(.horizontal, 16)
-                .opacity(Double(max(0, 1 - f * 2)))
-                .scaleEffect(1 - 0.12 * f, anchor: .bottom)
-                .allowsHitTesting(!tucked)
-                .accessibilityHidden(tucked)
+                    .padding(.leading, l)
+                    .padding(.trailing, r)
+                buttons
+                    .opacity(Double(max(0, 1 - f * 2)))
+                    .scaleEffect(1 - 0.12 * f, anchor: .bottom)
+                    .allowsHitTesting(!tucked)
+                    .accessibilityHidden(tucked)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
@@ -107,7 +87,60 @@ struct Pill: View {
         .padding(.bottom, 8 - 6 * f)
         .contentShape(Rectangle())
         .gesture(Pan(action: pan))
+        // Folded, the bar is small: a tap anywhere about it opens it again,
+        // not only one that lands on the capsule itself.
+        .gesture(Tap { if tucked { chrome.unfold(animated: true) } })
         .gesture(Hold { if !tucked, !over { Feel.nudge(); hold() } })
+    }
+
+    /// Back and Tabs: either side of the pill on an iPhone; one over the
+    /// other in the rail on a Duo, Tabs at the foot by the thumb. They stay
+    /// where they are and leave outward, fading, as the pill closes in.
+    @ViewBuilder private var buttons: some View {
+        if rail.on {
+            // Back over Tabs, by offset: as a stack it made the bar
+            // taller and pushed it down off the screen.
+            tabsButton
+                .overlay(alignment: .bottom) {
+                    back.offset(y: -(Metrics.pill + 10))
+                }
+            .padding(rail.edge, rail.inset)
+            .offset(x: 28 * f * rail.out)
+            .frame(maxWidth: .infinity, alignment: rail.alignment)
+        } else {
+            HStack(spacing: 0) {
+                back.offset(x: -28 * f)
+                Spacer(minLength: 0)
+                tabsButton.offset(x: 28 * f)
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    /// Back on a page, Bookmarks over the tabs: one button, its icon turning.
+    private var back: some View {
+        side("chevron.left", morph > 0.5 ? "Bookmarks" : "Back",
+             strength: tab.canGoBack ? 1 : 0.35 + 0.65 * Double(morph),
+             other: "book", turn: morph) {
+            if over {
+                bookmarks()
+            } else if tab.canGoBack {
+                Feel.tick()
+                tab.back()
+            }
+        }
+    }
+
+    /// Tabs, melting into New tab as the pill reaches it. Still there to
+    /// the finger: tapped twice, it opens the tabs, then a new one.
+    private var tabsButton: some View {
+        side("square.on.square", "Tabs") {
+            if over { newTab() } else { tabs() }
+        }
+        .opacity(Double(max(0, 1 - morph * 1.6)))
+        .scaleEffect(1 - 0.25 * morph)
+        .accessibilityValue(Text("\(count)"))
+        .accessibilityHidden(morph > 0.5)
     }
 
     private var address: some View {
@@ -232,8 +265,9 @@ struct Pill: View {
             // Decided on the first real movement — a pan can begin at zero.
             if axis == .none, max(abs(moved.x), abs(moved.y)) > 3 {
                 if over {
-                    // Over the tabs: down takes them away; nothing else.
-                    axis = abs(moved.y) > abs(moved.x) && moved.y > 0 ? .lift : .ignored
+                    // Over the tabs the bar is New tab: a drag on it goes
+                    // nowhere. Only a card, pulled down, goes back to a page.
+                    axis = .ignored
                 } else {
                     axis = abs(moved.x) > abs(moved.y) ? .walk : (moved.y < 0 ? .lift : .ignored)
                 }

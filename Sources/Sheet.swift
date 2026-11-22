@@ -17,6 +17,10 @@ struct Sheet: View {
 
     var drag: (CGFloat) -> Void
     var dropped: (CGFloat, CGFloat) -> Void
+    /// The card under a point on screen, if any.
+    var cardAt: (CGPoint) -> Tab.ID? = { _ in nil }
+    /// A drag down set off from this card: its page is the one to go back to.
+    var grab: (Tab.ID) -> Void = { _ in }
     /// How far it has come: 0 away, 1 all there. The top comes down from
     /// above and the foot up from below as it does; the cards in between.
     var lift: CGFloat
@@ -66,7 +70,15 @@ struct Sheet: View {
 
     private var shown: CGFloat { max(0, min(1, lift)) }
     /// The buttons along the top: the cards scroll on under them.
-    private var topRoom: CGFloat { 56 }
+    private var rail: Rail { browser.rail }
+    /// The buttons along the top; none with a rail, where they stand in it.
+    private var topRoom: CGFloat { rail.on ? 12 : 56 }
+    /// Room the tabs leave at each side: the rail's column on its side.
+    private var padL: CGFloat { rail.on && rail.leading ? rail.width + 6 : 14 }
+    private var padR: CGFloat { rail.on && !rail.leading ? rail.width + 6 : 14 }
+    /// As many across as fit at a card's least width: two on an iPhone,
+    /// more on a Duo's wide screen.
+    private var cols: Int { max(2, Int((gridWidth + gap) / (170 + gap))) }
     private var pinsTall: CGFloat {
         let rows = CGFloat(Self.rows(of: pinned).count)
         return rows == 0 ? 0 : 10 + rows * 50 + (rows - 1) * 6
@@ -100,14 +112,13 @@ struct Sheet: View {
             // Never quite 0: at 0 the grid wasn't laid out, and the page had
             // no card to go to until it was let go.
             .opacity(max(0.002, Double(min(1, shown * 2))))
-            .simultaneousGesture(down(always: false))
+            .simultaneousGesture(down)
 
             // The pins over a plain floor: the cards stop at a straight line,
             // no shadow, no fade.
             foot
                 .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { footFrame = $0 }
                 .offset(y: out * (footRoom + browser.safe.bottom + 12))
-                .simultaneousGesture(down(always: true))
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         // A screen of its own, not a sheet: the ground comes up quickly, so
@@ -115,12 +126,25 @@ struct Sheet: View {
         .background(Palette.ground.opacity(Double(min(1, shown * 1.8))).ignoresSafeArea())
     }
 
-    private var chromeLayer: some View {
+    @ViewBuilder private var chromeLayer: some View {
+        if rail.on {
+            // In the rail, over Bookmarks, by the hand: they come in from
+            // the column's edge.
+            column
+                .padding(rail.edge, rail.inset)
+                .padding(.bottom, 8 + (Metrics.pill + 10) * 2)
+                .offset(x: (1 - shown) * (rail.width + 20) * rail.out)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: rail.alignment)
+        } else {
+            topChrome
+        }
+    }
+
+    private var topChrome: some View {
         VStack(spacing: 0) {
             // Moved, never faded: glass faded drew a grey slab over the top.
             top
                 .offset(y: -(1 - shown) * (topRoom + browser.safe.top + 40))
-                .simultaneousGesture(down(always: true))
             Spacer(minLength: 0)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -129,13 +153,21 @@ struct Sheet: View {
     /// A drag down that takes the screen away: from the top or the pins
     /// always; from the cards once they're scrolled to their start. A drag
     /// that sets off sideways is a card's, and a tap still picks.
-    private func down(always: Bool) -> some Gesture {
+    private var down: some Gesture {
         DragGesture(minimumDistance: 12, coordinateSpace: .global)
             .onChanged { value in
                 if dragging == nil {
                     let down = value.translation.height > 0
                         && value.translation.height > abs(value.translation.width) * 1.2
-                    dragging = down && (always || atTop)
+                    // Only from a card, and only with the cards at their
+                    // start: anywhere else a drag down is a scroll, even one
+                    // with nowhere to go.
+                    if down, atTop, let id = cardAt(value.startLocation) {
+                        dragging = true
+                        grab(id)
+                    } else {
+                        dragging = false
+                    }
                 }
                 if dragging == true { drag(max(0, value.translation.height)) }
             }
@@ -160,34 +192,111 @@ struct Sheet: View {
 
     /// The pins, down by the thumb, just over New tab.
     @ViewBuilder private var pins: some View {
-            if !pinned.isEmpty {
-                VStack(spacing: 6) {
-                    ForEach(Array(Self.rows(of: pinned).enumerated()), id: \.offset) { _, line in
-                        HStack(spacing: 6) {
-                            ForEach(line) { tab in
-                                Letter(tab: tab, live: tab.id == browser.activeID, space: space) {
-                                    pick(tab)
-                                } unpin: {
-                                    Feel.nudge()
-                                    withAnimation(Motion.settle) { browser.pin(tab) }
-                                }
-                                // Held and moved: the pin goes where it's let go.
-                                .draggable(tab.id.uuidString) { Mark(icon: tab.icon, letter: tab.pin ?? "", size: 28) }
-                                .dropDestination(for: String.self) { ids, _ in drop(ids, on: tab) }
-                            }
-                            // One short row still keeps three places, as on
-                            // the Mac: a lone pin is a square, not a bar.
-                            if pinned.count < 3 {
-                                ForEach(0..<(3 - pinned.count), id: \.self) { _ in
-                                    Color.clear.frame(maxWidth: .infinity).frame(height: 50)
-                                }
-                            }
-                        }
+        if !pinned.isEmpty {
+            let slots = pinSlots(gridWidth)
+            let tall = (slots.map(\.rect.maxY).max() ?? 50)
+            ZStack(alignment: .topLeading) {
+                ForEach(slots) { slot in
+                    let tab = slot.tab
+                    let carried = carry == tab.id
+                    Letter(tab: tab, live: tab.id == browser.activeID, space: space) {
+                        pick(tab)
+                    } unpin: {
+                        Feel.nudge()
+                        withAnimation(Motion.settle) { browser.pin(tab) }
+                    }
+                    .frame(width: slot.rect.width, height: slot.rect.height)
+                    .scaleEffect(carried ? 1.06 : 1)
+                    .shadow(color: .black.opacity(carried ? 0.16 : 0), radius: 12, y: 4)
+                    // Carried, it is where the finger is; the others where
+                    // their place is, sliding there as places change.
+                    .offset(carried
+                            ? CGSize(width: finger.x - grabbed.x, height: finger.y - grabbed.y)
+                            : CGSize(width: slot.rect.minX, height: slot.rect.minY))
+                    .zIndex(carried ? 1 : 0)
+                    .gesture(reorder(tab))
+                    .dropDestination(for: String.self) { ids, _ in drop(ids, on: tab) }
+                }
+            }
+            .frame(width: gridWidth, height: tall, alignment: .topLeading)
+            .coordinateSpace(.named("pins"))
+            .animation(.spring(response: 0.3, dampingFraction: 0.82), value: pinned.map(\.id))
+            .padding(.leading, padL)
+            .padding(.trailing, padR)
+            .padding(.top, 10)
+            .confirmationDialog(pinMenu?.label ?? "", isPresented: Binding(get: { pinMenu != nil }, set: { if !$0 { pinMenu = nil } })) {
+                if let tab = pinMenu {
+                    Button("Unpin") {
+                        Feel.nudge()
+                        withAnimation(Motion.settle) { browser.pin(tab) }
+                    }
+                    if let url = tab.pinHome ?? tab.address {
+                        Button("Copy Link") { UIPasteboard.general.url = url }
                     }
                 }
-                .padding(.horizontal, 14)
-                .padding(.top, 10)
             }
+        }
+    }
+
+    /// A pin and where it stands: rows of at most four, fuller rows first
+    /// (the Mac's rule), and a lone short row still keeping three places.
+    struct PinSlot: Identifiable {
+        let tab: Tab
+        let rect: CGRect
+        var id: Tab.ID { tab.id }
+    }
+
+    private func pinSlots(_ width: CGFloat) -> [PinSlot] {
+        var out: [PinSlot] = []
+        for (row, line) in Self.rows(of: pinned).enumerated() {
+            let places = CGFloat(pinned.count < 3 ? 3 : line.count)
+            let w = (width - 6 * (places - 1)) / places
+            for (index, tab) in line.enumerated() {
+                out.append(PinSlot(tab: tab, rect: CGRect(x: CGFloat(index) * (w + 6), y: CGFloat(row) * 56, width: w, height: 50)))
+            }
+        }
+        return out
+    }
+
+    /// Held, then moved: the pin lifts, whole, and follows the finger; the
+    /// pin it passes over makes room, the others sliding along. Held and let
+    /// go without moving: what can be done with it.
+    private func reorder(_ tab: Tab) -> some Gesture {
+        LongPressGesture(minimumDuration: 0.3)
+            .sequenced(before: DragGesture(minimumDistance: 0, coordinateSpace: .named("pins")))
+            .onChanged { value in
+                guard case .second(true, let drag?) = value else {
+                    if case .second(true, nil) = value, carry != tab.id { lift(tab, at: nil) }
+                    return
+                }
+                if carry != tab.id { lift(tab, at: drag.startLocation) }
+                finger = drag.location
+                if hypot(drag.translation.width, drag.translation.height) > 6 { carriedFar = true }
+                // Over another pin: it takes this one's place.
+                let slots = pinSlots(gridWidth)
+                if let over = slots.first(where: { $0.tab.id != tab.id && $0.rect.contains(drag.location) }) {
+                    Feel.tick()
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) { browser.move(tab, before: over.tab) }
+                }
+            }
+            .onEnded { _ in
+                if carry == tab.id, !carriedFar { pinMenu = tab }
+                // Back into its place from wherever the finger let it go.
+                if let slot = pinSlots(gridWidth).first(where: { $0.tab.id == tab.id }) {
+                    finger = CGPoint(x: slot.rect.minX + grabbed.x, y: slot.rect.minY + grabbed.y)
+                }
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { carry = nil }
+            }
+    }
+
+    private func lift(_ tab: Tab, at start: CGPoint?) {
+        guard let slot = pinSlots(gridWidth).first(where: { $0.tab.id == tab.id }) else { return }
+        Feel.nudge()
+        let at = start ?? CGPoint(x: slot.rect.midX, y: slot.rect.midY)
+        grabbed = CGPoint(x: at.x - slot.rect.minX, y: at.y - slot.rect.minY)
+        finger = at
+        carriedFar = false
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) { carry = tab.id }
     }
 
     private var list: some View {
@@ -216,7 +325,8 @@ struct Sheet: View {
                 }
 
             }
-            .padding(.horizontal, 14)
+            .padding(.leading, padL)
+            .padding(.trailing, padR)
         }
         .scrollBounceBehavior(.basedOnSize)
         .scrollIndicators(.hidden)
@@ -228,30 +338,29 @@ struct Sheet: View {
             pull = max(0, -offset)
             atTop = offset <= 1
         }
-        .onScrollPhaseChange { old, new in
-            // A long list pulled down past its start: let go and it goes.
-            if old == .interacting, new != .interacting, pull > 70 {
-                dropped(pull, 1200)
-            }
-        }
     }
 
     // MARK: - cards
 
     private let gap: CGFloat = 12
-    private var cardWidth: CGFloat { max(80, (gridWidth - gap) / 2) }
+    private var cardWidth: CGFloat { max(80, (gridWidth - gap * CGFloat(cols - 1)) / CGFloat(cols)) }
     /// A little taller than wide: the top of the page, where it says what it is.
-    private var pictureHeight: CGFloat { (cardWidth * 1.3).rounded() }
+    private var pictureHeight: CGFloat {
+        // The screen's own shape, as far as a card can take it: a screen
+        // held sideways makes a wider card, so the page's top fits it.
+        let shape = screen.width > 1 ? max(0.75, min(1.3, screen.height / screen.width)) : 1.3
+        return (cardWidth * shape).rounded()
+    }
     private var cardHeight: CGFloat { pictureHeight + 26 }
     private var cardsHeight: CGFloat {
-        let rows = CGFloat((loose.count + 1) / 2)
+        let rows = CGFloat((loose.count + cols - 1) / cols)
         return rows * cardHeight + max(0, rows - 1) * gap + 8
     }
 
     private var cards: some View {
         ScrollViewReader { reader in
             ScrollView {
-                LazyVGrid(columns: [GridItem(.flexible(), spacing: gap), GridItem(.flexible(), spacing: gap)], spacing: gap) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: gap), count: cols), spacing: gap) {
                     let order = loose
                     let at = order.firstIndex { $0.id == browser.activeID }
                     ForEach(Array(order.enumerated()), id: \.element.id) { index, tab in
@@ -283,7 +392,8 @@ struct Sheet: View {
                         .id(tab.id)
                     }
                 }
-                .padding(.horizontal, 14)
+                .padding(.leading, padL)
+                .padding(.trailing, padR)
             }
             // Always free to scroll: whatever doesn't fit is a drag away.
             .scrollBounceBehavior(.basedOnSize)
@@ -301,17 +411,13 @@ struct Sheet: View {
             } action: { _, room in self.room = room }
             .scrollPosition($position)
             .scrollIndicators(.hidden)
-            .onGeometryChange(for: CGFloat.self) { $0.size.width - 28 } action: { gridWidth = $0 }
+            .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { gridWidth = $0 - padL - padR }
+            .onChange(of: rail) { _, _ in gridWidth = max(80, gridWidth) }
             .onScrollGeometryChange(for: CGFloat.self) { geo in
                 geo.contentOffset.y + geo.contentInsets.top
             } action: { _, offset in
                 pull = max(0, -offset)
                 atTop = offset <= 1
-            }
-            .onScrollPhaseChange { old, new in
-                if old == .interacting, new != .interacting, pull > 70 {
-                    dropped(pull, 1200)
-                }
             }
             // The page you're on in sight, not left three rows down: put
             // there while the screen is away, never while it shows or
@@ -344,6 +450,13 @@ struct Sheet: View {
     @State private var room = Room()
     @State private var position = ScrollPosition(edge: .top)
     @Namespace private var sideSpace
+    /// The pin held and moved, where the finger is, and where on the pin
+    /// it took hold.
+    @State private var carry: Tab.ID?
+    @State private var finger: CGPoint = .zero
+    @State private var grabbed: CGPoint = .zero
+    @State private var carriedFar = false
+    @State private var pinMenu: Tab?
 
     /// The page's card in the middle of what shows, never past either end:
     /// cards that all fit stay at the top, under the buttons, whichever is
@@ -357,7 +470,7 @@ struct Sheet: View {
             position.scrollTo(edge: .top)
             return
         }
-        let rowTop = CGFloat(at / 2) * (cardHeight + gap)
+        let rowTop = CGFloat(at / cols) * (cardHeight + gap)
         let y = max(0, min(most, rowTop + cardHeight / 2 - seen / 2))
         position.scrollTo(y: y)
     }
@@ -366,10 +479,10 @@ struct Sheet: View {
     /// points at rest.
     private func place(_ index: Int, from at: Int?) -> Camera.Place {
         guard let at else { return .init() }
-        let cols = CGFloat(index % 2 - at % 2), rows = CGFloat(index / 2 - at / 2)
+        let across = CGFloat(index % cols - at % cols), rows = CGFloat(index / cols - at / cols)
         return .init(
-            delta: CGSize(width: cols * (cardWidth + gap), height: rows * (cardHeight + gap)),
-            steps: abs(cols) + abs(rows)
+            delta: CGSize(width: across * (cardWidth + gap), height: rows * (cardHeight + gap)),
+            steps: abs(across) + abs(rows)
         )
     }
 
@@ -406,63 +519,79 @@ struct Sheet: View {
     /// a card, a drag down or the page itself takes the screen away.
     private var header: some View {
         HStack(spacing: 8) {
-            Button {
-                Feel.nudge()
-                browser.askingCloseAll = true
-            } label: { headerButton("xmark") }
-            .buttonStyle(.plain)
-            .disabled(loose.isEmpty)
-            .accessibilityLabel("Close All")
-
+            closeAllButton
             sides
-
-            Menu {
-                Button {
-                    withAnimation(Motion.settle) { prefs.tabCards.toggle() }
-                } label: {
-                    prefs.tabCards
-                        ? Label("Show as List", systemImage: "list.bullet")
-                        : Label("Show as Cards", systemImage: "square.grid.2x2")
-                }
-                if prefs.sync {
-                    Button { browser.showingOthers = true } label: {
-                        Label("Other devices", systemImage: "laptopcomputer.and.iphone")
-                    }
-                }
-                Menu {
-                    if browser.closed.isEmpty {
-                        Text("Nothing closed lately")
-                    } else {
-                        ForEach(Array(browser.closed.prefix(12).enumerated()), id: \.offset) { _, entry in
-                            Button {
-                                browser.reopen(entry)
-                            } label: {
-                                let site = URL(string: entry.url).map { Address.host($0) } ?? entry.url
-                                Text(entry.title.isEmpty ? site : entry.title)
-                                Text(site)
-                            }
-                        }
-                    }
-                } label: { Label("Recently Closed", systemImage: "clock.arrow.circlepath") }
-                Divider()
-                Button { browser.settings = true } label: { Label("Settings", systemImage: "gearshape") }
-            } label: {
-                headerButton("ellipsis")
-            }
-            .accessibilityLabel("More")
-
+            moreMenu
             Spacer(minLength: 0)
         }
     }
 
-    /// The tabs, or the private ones: two sides of one glass switch.
+    private var closeAllButton: some View {
+        Button {
+            Feel.nudge()
+            browser.askingCloseAll = true
+        } label: { headerButton("xmark") }
+        .buttonStyle(.plain)
+        .disabled(loose.isEmpty)
+        .accessibilityLabel("Close All")
+    }
+
+    private var moreMenu: some View {
+        Menu {
+            Button {
+                withAnimation(Motion.settle) { prefs.tabCards.toggle() }
+            } label: {
+                prefs.tabCards
+                    ? Label("Show as List", systemImage: "list.bullet")
+                    : Label("Show as Cards", systemImage: "square.grid.2x2")
+            }
+            if prefs.sync {
+                Button { browser.showingOthers = true } label: {
+                    Label("Other devices", systemImage: "laptopcomputer.and.iphone")
+                }
+            }
+            Menu {
+                if browser.closed.isEmpty {
+                    Text("Nothing closed lately")
+                } else {
+                    ForEach(Array(browser.closed.prefix(12).enumerated()), id: \.offset) { _, entry in
+                        Button {
+                            browser.reopen(entry)
+                        } label: {
+                            let site = URL(string: entry.url).map { Address.host($0) } ?? entry.url
+                            Text(entry.title.isEmpty ? site : entry.title)
+                            Text(site)
+                        }
+                    }
+                }
+            } label: { Label("Recently Closed", systemImage: "clock.arrow.circlepath") }
+            Divider()
+            Button { browser.settings = true } label: { Label("Settings", systemImage: "gearshape") }
+        } label: {
+            headerButton("ellipsis")
+        }
+        .accessibilityLabel("More")
+    }
+
+    /// The tabs, or the private ones: two sides of one glass switch,
+    /// across along the top, or up and down in a rail.
     private var sides: some View {
-        HStack(spacing: 2) {
+        let layout = rail.on ? AnyLayout(VStackLayout(spacing: 2)) : AnyLayout(HStackLayout(spacing: 2))
+        return layout {
             side("square.on.square", "Tabs", on: !browser.privateView) { browser.privateView = false }
             side("eyeglasses", "Private", on: browser.privateView) { browser.privateView = true }
         }
         .padding(3)
         .glass(Capsule(), interactive: true, else: Palette.wash)
+    }
+
+    /// The same buttons as along the top, one over the other in a rail.
+    private var column: some View {
+        VStack(spacing: 10) {
+            closeAllButton
+            sides
+            moreMenu
+        }
     }
 
     private func side(_ symbol: String, _ name: LocalizedStringKey, on: Bool, pick: @escaping () -> Void) -> some View {
@@ -474,7 +603,7 @@ struct Sheet: View {
             Image(systemName: symbol)
                 .font(.scaled(15, weight: .semibold))
                 .foregroundStyle(on ? Palette.ink : Palette.muted)
-                .frame(width: 44, height: 34)
+                .frame(width: rail.on ? 42 : 44, height: rail.on ? 40 : 34)
                 .background {
                     if on {
                         Capsule().fill(Palette.ink.opacity(0.1))
@@ -492,7 +621,7 @@ struct Sheet: View {
         Image(systemName: symbol)
             .font(.scaled(15, weight: .semibold))
             .foregroundStyle(Palette.ink)
-            .frame(width: 40, height: 40)
+            .frame(width: rail.on ? Metrics.pill : 40, height: rail.on ? Metrics.pill : 40)
             .glass(Circle(), interactive: true, else: Palette.wash)
             .contentShape(Circle())
     }
@@ -664,13 +793,6 @@ struct Sheet: View {
                 }
                 .contentShape(RoundedRectangle(cornerRadius: 13, style: .continuous))
                 .onTapGesture(perform: open)
-                // Held: what can be done with it, said, rather than done.
-                .contextMenu {
-                    Button(action: unpin) { Label("Unpin", systemImage: "pin.slash") }
-                    if let url = tab.pinHome ?? tab.address {
-                        Button { UIPasteboard.general.url = url } label: { Label("Copy Link", systemImage: "link") }
-                    }
-                }
         }
     }
 

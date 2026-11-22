@@ -62,7 +62,9 @@ final class Browser: NSObject, ObservableObject {
     let chrome = Chrome()
     /// The screen's safe area, for telling each page how much of it the
     /// status bar and the pill cover.
-    var safe = EdgeInsets() { didSet { if safe != oldValue { cover() } } }
+    var safe = EdgeInsets() { didSet { if safe != oldValue { cover(); rail = Rail.of(safe) } } }
+    /// The column beside the camera, where the Duo's screens have one.
+    @Published private(set) var rail = Rail()
 
     private var bag = Set<AnyCancellable>()
     private var saving = false
@@ -285,6 +287,17 @@ final class Browser: NSObject, ObservableObject {
     }
 
     /// A tab dragged to another place among the others.
+    /// The tab in front, picked from the tabs by a drag that's still under
+    /// way: the tabs stay, for now.
+    func hold(_ tab: Tab) {
+        guard tab.id != activeID else { return }
+        tab.seen = Date()
+        activeID = tab.id
+        editing = false
+        chrome.unfold(animated: false)
+        remember()
+    }
+
     func move(_ tab: Tab, before target: Tab) {
         guard tab.id != target.id,
               let from = tabs.firstIndex(where: { $0.id == tab.id }),
