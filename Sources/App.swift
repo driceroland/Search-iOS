@@ -406,7 +406,9 @@ struct ContentView: View {
             },
             lift: lift,
             away: lift == 0 && !moving && !dragging,
-            frames: { id, rect in cardFrames.rects[id] = rect },
+            frames: { id, rect in
+                cardFrames.rects[id] = rect
+            },
             zooming: zoomShown ? browser.activeID : nil,
             layer: layer,
             anchor: zoomTarget,
@@ -530,6 +532,7 @@ struct ContentView: View {
         tab.snap { image in
             freezing = false
             frozen = image ?? tab.snapshot ?? UIImage()
+            if let image { tab.keep(image) }
             frozenID = tab.id
             then?()
             // A drag that ended before the picture came: nothing to move.

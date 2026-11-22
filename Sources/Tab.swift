@@ -394,13 +394,17 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         let image = UIGraphicsImageRenderer(bounds: web.bounds, format: format).image { _ in
             _ = web.drawHierarchy(in: web.bounds, afterScreenUpdates: false)
         }
-        // Kept for the card too: once the page hides under it, WebKit's own
-        // picture of it would come out blank.
-        if !(loading && progress < 0.8) {
-            snapshot = image
-            if !isPrivate { Snapshots.write(image, for: key) }
-        }
+        // Kept for the card too, always: the page zooms into its card with
+        // this picture, and a card still showing an older one (a page
+        // mid-load kept its last) changed under it as the zoom handed over.
+        keep(image)
         return image
+    }
+
+    /// The card's picture, as the page moving into it shows.
+    func keep(_ image: UIImage) {
+        snapshot = image
+        if !isPrivate { Snapshots.write(image, for: key) }
     }
 
     func capture() {
