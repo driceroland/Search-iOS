@@ -480,6 +480,16 @@
         }
       }
     },
+    "Downloads": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Téléchargements"
+          }
+        }
+      }
+    },
     "Every site you're signed in to will sign you out.": {
       "localizations": {
         "fr": {
@@ -980,6 +990,16 @@
         }
       }
     },
+    "Save to Files": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enregistrer dans Fichiers"
+          }
+        }
+      }
+    },
     "Search": {
       "localizations": {
         "fr": {
@@ -1166,6 +1186,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Arrêter"
+          }
+        }
+      }
+    },
+    "Stop Download": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Arrêter le téléchargement"
           }
         }
       }

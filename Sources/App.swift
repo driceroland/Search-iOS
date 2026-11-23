@@ -242,6 +242,17 @@ struct ContentView: View {
                     .allowsHitTesting(browser.editing)
                     .accessibilityHidden(!browser.editing)
 
+                // A download under way, or just arrived: a round button
+                // over Tabs, by the thumb, there only while it matters.
+                DownloadButton()
+                    .padding(.trailing, rail.on && !rail.leading ? (rail.width - 44) / 2 : 18)
+                    .padding(.leading, rail.on && rail.leading ? (rail.width - 44) / 2 : 18)
+                    .padding(.bottom, Metrics.pill + 22)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity,
+                           alignment: rail.on && rail.leading ? .bottomLeading : .bottomTrailing)
+                    .opacity(browser.editing || browser.showingTabs || browser.holding || browser.finding ? 0 : 1)
+                    .animation(Motion.quick, value: browser.showingTabs)
+
                 // A link held: its page in a card over this one.
                 if let peek = browser.peek {
                     PeekView(browser: browser, peek: peek)

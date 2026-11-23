@@ -11,6 +11,10 @@ enum Feel {
         UIImpactFeedbackGenerator(style: .medium).impactOccurred()
     }
 
+    static func done() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+    }
+
     static func refuse() {
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
     }
