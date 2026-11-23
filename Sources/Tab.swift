@@ -164,6 +164,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         web = WKWebView(frame: .zero, configuration: configuration ?? Web.configuration())
         super.init()
         web.allowsBackForwardNavigationGestures = true
+        // See-through until the page has drawn: an empty web view paints
+        // white, which flashed in dark mode before every first page.
+        web.isOpaque = false
         // A link held is peeked by Search (Peeker), live and scrollable;
         // iOS's own frozen preview would take the hold first.
         web.allowsLinkPreview = false

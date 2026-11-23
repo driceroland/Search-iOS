@@ -884,6 +884,8 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         let tab = tabs.first { $0.web === webView }
         tab?.reading = false
         tab?.failure = nil
+        // See-through while the new page has nothing drawn yet (see Tab).
+        webView.isOpaque = false
     }
 
     /// A page that couldn't be reached: said, with a way to try again.
@@ -896,6 +898,7 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
     }
 
     private func failed(_ webView: WKWebView, _ error: Error) {
+        if !webView.isLoading { webView.isOpaque = true }
         let error = error as NSError
         // Stopped, replaced by another page, or handed to a download or an
         // app: not failures.
@@ -928,6 +931,9 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        // Drawn: opaque again, so a page without a background of its own
+        // stays white under its text, as it was made.
+        webView.isOpaque = true
         guard let tab = tabs.first(where: { $0.web === webView }),
               let url = tab.address
         else { return }
