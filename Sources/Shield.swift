@@ -52,10 +52,11 @@ final class Shield: ObservableObject {
     /// for the whole page rather than for the second half of it.
     func tune(_ controller: WKUserContentController, for host: String?) {
         let on = enabled && !isPaused(on: host)
-        // YouTube's scripts are a tab's only user scripts (everything else
-        // is evaluated into the page as needed), so they're put back whole.
+        // A tab's user scripts are put back whole: the link callout, YouTube's,
+        // and (Browser.armHiding) what is hidden on the site.
         let site = host.map { $0.hasPrefix("www.") ? String($0.dropFirst(4)) : $0 }
         controller.removeAllUserScripts()
+        controller.addUserScript(Web.callout)
         if on { YouTubeAds.scripts(for: site).forEach(controller.addUserScript) }
         guard let list else { return }
         controller.remove(list)
@@ -198,6 +199,7 @@ final class Shield: ObservableObject {
         guard let list else { return }
         for controller in controllers {
             controller.removeAllUserScripts()
+            controller.addUserScript(Web.callout)
             if enabled { YouTubeAds.scripts(for: nil).forEach(controller.addUserScript) }
             controller.remove(list)
             if enabled { controller.add(list) }

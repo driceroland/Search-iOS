@@ -210,6 +210,16 @@
         }
       }
     },
+    "Button": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bouton"
+          }
+        }
+      }
+    },
     "By Office Commun. No telemetry, no analytics, no crash reports: the only things that leave your iPhone are the pages you ask for and their icons.": {
       "localizations": {
         "fr": {
@@ -450,6 +460,16 @@
         }
       }
     },
+    "Dialog": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fenêtre"
+          }
+        }
+      }
+    },
     "Done": {
       "localizations": {
         "fr": {
@@ -490,12 +510,32 @@
         }
       }
     },
+    "Embed": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Contenu intégré"
+          }
+        }
+      }
+    },
     "Every site you're signed in to will sign you out.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Vous serez déconnecté de tous les sites."
+          }
+        }
+      }
+    },
+    "Figure": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Illustration"
           }
         }
       }
@@ -510,6 +550,26 @@
         }
       }
     },
+    "Footer": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pied de page"
+          }
+        }
+      }
+    },
+    "Form": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Formulaire"
+          }
+        }
+      }
+    },
     "Handoff": {
       "localizations": {
         "fr": {
@@ -520,22 +580,52 @@
         }
       }
     },
-    "Hidden on %@": {
+    "Header": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Masqué sur %@"
+            "value": "En-tête"
           }
         }
       }
     },
-    "Hide an element": {
+    "Hidden element": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Masquer un élément"
+            "value": "Élément masqué"
+          }
+        }
+      }
+    },
+    "Hidden on this site": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masqué sur ce site"
+          }
+        }
+      }
+    },
+    "Hide": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masquer"
+          }
+        }
+      }
+    },
+    "Hide Elements": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masquer des éléments"
           }
         }
       }
@@ -556,6 +646,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "L'historique, les icônes et les données des sites restent sur cet iPhone et nulle part ailleurs, même avec la synchronisation."
+          }
+        }
+      }
+    },
+    "Image": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Image"
           }
         }
       }
@@ -650,6 +750,26 @@
         }
       }
     },
+    "Narrower": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plus étroit"
+          }
+        }
+      }
+    },
+    "Navigation": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Navigation"
+          }
+        }
+      }
+    },
     "Never": {
       "localizations": {
         "fr": {
@@ -716,16 +836,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rien de fermé récemment"
-          }
-        }
-      }
-    },
-    "Nothing hidden": {
-      "localizations": {
-        "fr": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Rien de masqué"
           }
         }
       }
@@ -1080,12 +1190,22 @@
         }
       }
     },
-    "Show %lld hidden elements": {
+    "Show": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Réafficher %lld éléments masqués"
+            "value": "Afficher"
+          }
+        }
+      }
+    },
+    "Show All": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout afficher"
           }
         }
       }
@@ -1120,12 +1240,12 @@
         }
       }
     },
-    "Show the hidden element": {
+    "Sidebar": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Réafficher l'élément masqué"
+            "value": "Barre latérale"
           }
         }
       }
@@ -1240,6 +1360,16 @@
         }
       }
     },
+    "Table": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tableau"
+          }
+        }
+      }
+    },
     "Tabs": {
       "localizations": {
         "fr": {
@@ -1306,6 +1436,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "La dernière heure"
+          }
+        }
+      }
+    },
+    "The page keeps that on screen. Try Wider.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "La page garde cet élément à l’écran. Essayez Plus large."
           }
         }
       }
@@ -1400,12 +1540,32 @@
         }
       }
     },
+    "Touch a line to see it on the page.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Touchez une ligne pour la voir sur la page."
+          }
+        }
+      }
+    },
     "Try Again": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Réessayer"
+          }
+        }
+      }
+    },
+    "Undo": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Annuler"
           }
         }
       }
@@ -1450,6 +1610,16 @@
         }
       }
     },
+    "Video": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Vidéo"
+          }
+        }
+      }
+    },
     "Website data cleared": {
       "localizations": {
         "fr": {
@@ -1466,6 +1636,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ce que vous tapez est envoyé à %@ pendant la saisie, pour suggérer des recherches. Jamais depuis les onglets privés."
+          }
+        }
+      }
+    },
+    "Wider": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Plus large"
           }
         }
       }
@@ -1550,6 +1730,16 @@
         }
       }
     },
+    "bottom": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "en bas"
+          }
+        }
+      }
+    },
     "go": {
       "shouldTranslate": false
     },
@@ -1566,6 +1756,16 @@
         }
       }
     },
+    "middle": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "au milieu"
+          }
+        }
+      }
+    },
     "the": {
       "shouldTranslate": false
     },
@@ -1575,6 +1775,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "ce site"
+          }
+        }
+      }
+    },
+    "top": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "en haut"
           }
         }
       }

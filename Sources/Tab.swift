@@ -16,7 +16,13 @@ enum Web {
         config.preferences.isElementFullscreenEnabled = true
         // A web link held is ours to show (a live peek): iOS's own preview
         // and menu stay out of the way, links only.
-        config.userContentController.addUserScript(WKUserScript(
+        config.userContentController.addUserScript(callout)
+        return config
+    }
+
+    /// Put back whenever a tab's scripts are rebuilt (Shield.tune).
+    @MainActor static var callout: WKUserScript {
+        WKUserScript(
             source: """
             (function () {
               var s = document.createElement('style');
@@ -24,8 +30,7 @@ enum Web {
               (document.head || document.documentElement).appendChild(s);
             })();
             """,
-            injectionTime: .atDocumentEnd, forMainFrameOnly: false))
-        return config
+            injectionTime: .atDocumentEnd, forMainFrameOnly: false)
     }
 
     /// One cookie jar for every private tab open now, kept in memory only and

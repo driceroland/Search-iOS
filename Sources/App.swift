@@ -195,12 +195,22 @@ struct ContentView: View {
                         // thumb reaches it as in Safari.
                         bookmarks: { browser.showingBookmarks = true }
                     )
-                    .opacity(browser.finding || browser.editing ? 0 : 1)
+                    .opacity(browser.finding || browser.editing || browser.zapping != nil ? 0 : 1)
                     // Free as soon as it's on its way back: a thumb that came
                     // straight back for the tabs found it deaf until the
                     // page had quite finished landing. Over the tabs at
                     // once too, so two quick taps on Tabs open a new one.
-                    .allowsHitTesting(!landing && !browser.holding && !browser.finding && !browser.editing)
+                    .allowsHitTesting(!landing && !browser.holding && !browser.finding && !browser.editing && browser.zapping == nil)
+                }
+
+                // Hide Elements: its own bar where the pill was, until Done.
+                if let zap = browser.zapping {
+                    ZapBar(browser: browser, zap: zap)
+                        .padding(.horizontal, 12)
+                        .padding(rail.on ? rail.edge : [], rail.on ? rail.width - 8 : 0)
+                        .padding(.bottom, 8)
+                        .frame(maxHeight: .infinity, alignment: .bottom)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
 
                 // Back up the Duo's rail, under the clock: a view of its
@@ -212,8 +222,8 @@ struct ContentView: View {
                     .padding(rail.edge, rail.inset)
                     .padding(.top, Self.railBack - geo.safeAreaInsets.top)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: rail.leading ? .topLeading : .topTrailing)
-                    .opacity(browser.finding || browser.editing ? 0 : 1)
-                    .allowsHitTesting(!landing && !browser.finding && !browser.editing)
+                    .opacity(browser.finding || browser.editing || browser.zapping != nil ? 0 : 1)
+                    .allowsHitTesting(!landing && !browser.finding && !browser.editing && browser.zapping == nil)
                 }
 
                 // Always there, shown by scale and opacity: put in and taken
@@ -250,7 +260,8 @@ struct ContentView: View {
                     .padding(.bottom, Metrics.pill + 22)
                     .frame(maxWidth: .infinity, maxHeight: .infinity,
                            alignment: rail.on && rail.leading ? .bottomLeading : .bottomTrailing)
-                    .opacity(browser.editing || browser.showingTabs || browser.holding || browser.finding ? 0 : 1)
+                    .opacity(browser.editing || browser.showingTabs || browser.holding || browser.finding || browser.zapping != nil ? 0 : 1)
+                    .allowsHitTesting(browser.zapping == nil)
                     .animation(Motion.quick, value: browser.showingTabs)
 
                 // A link held: its page in a card over this one.
@@ -314,6 +325,10 @@ struct ContentView: View {
             }
         }
         .onGeometryChange(for: EdgeInsets.self) { $0.safeAreaInsets } action: { browser.safe = $0 }
+        // Hide Elements ends when its page is left behind.
+        .onChange(of: browser.activeID) { _, _ in browser.stopZap() }
+        .onChange(of: browser.showingTabs) { _, open in if open { browser.stopZap() } }
+        .onChange(of: browser.editing) { _, on in if on { browser.stopZap() } }
         .onChange(of: browser.activeID, initial: true) { _, _ in
             guard !browser.showingTabs else { return }
             browser.privateView = browser.active?.isPrivate ?? false
@@ -355,7 +370,6 @@ struct ContentView: View {
         .sheet(isPresented: $browser.siteSheet) {
             if let tab = browser.active {
                 SiteSheet(browser: browser, tab: tab)
-                    .presentationDetents([.medium, .large])
             }
         }
         .confirmationDialog(

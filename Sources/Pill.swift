@@ -389,7 +389,7 @@ struct Held: View {
             item("doc.plaintext", tab.reading ? "Leave Reader" : "Reader") { browser.read(tab) }
             if !tab.isBlank {
                 line
-                item("eye.slash", "Hide an element") { browser.zap(tab) }
+                item("eye.slash", "Hide Elements") { browser.zap(tab) }
                 line
                 item("slider.horizontal.3", "This site") { browser.siteSheet = true }
             }

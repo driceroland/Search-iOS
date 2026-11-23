@@ -40,6 +40,13 @@ final class Browser: NSObject, ObservableObject {
     @Published var showingOthers = false
     /// "This site", out of the page's menu.
     @Published var siteSheet = false
+    /// Hide Elements: the page in front is being picked from (Site.swift).
+    @Published var zapping: Zapping?
+    /// What a private tab took off its pages: for that tab only, never
+    /// written down.
+    var passingVeils: [UUID: [Veil]] = [:]
+    /// The hidden thing shown again, outlined, from This site's list.
+    @Published var peekedVeil: String?
     /// Held the count: close every tab?
     @Published var askingCloseAll = false
     /// Private tabs behind Face ID until it's given.
@@ -379,7 +386,7 @@ final class Browser: NSObject, ObservableObject {
         tab.web.uiDelegate = self
         if !tab.web.gestureRecognizers.orEmpty.contains(where: { $0 is Peeker }) {
             tab.web.addGestureRecognizer(Peeker { [weak self, weak tab] url in
-                guard let self, let tab, self.peek == nil, self.tabs.contains(tab) else { return }
+                guard let self, let tab, self.peek == nil, self.zapping == nil, self.tabs.contains(tab) else { return }
                 self.peek(url, from: tab)
             })
         }
@@ -767,7 +774,7 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
             return
         }
         if action.targetFrame?.isMainFrame == true {
-            Shield.shared.tune(webView.configuration.userContentController, for: url.host()?.lowercased())
+            armHiding(webView, for: url)
             // The computer's version of the site, when it was asked for.
             preferences.preferredContentMode = Sites.shared.prefs(url).desktop == true ? .desktop : .mobile
         }
