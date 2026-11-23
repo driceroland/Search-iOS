@@ -117,7 +117,9 @@ struct Sheet: View {
             }
             // Never quite 0: at 0 the grid wasn't laid out, and the page had
             // no card to go to until it was let go.
-            .opacity(max(0.002, Double(min(1, shown * 2))))
+            // Fully away and still, nothing at all: the large cards, page
+            // sized, showed through the page as a ghost even at 0.002.
+            .opacity(away ? 0 : max(0.002, Double(min(1, shown * 2))))
             .simultaneousGesture(down)
 
             // The pins over a plain floor: the cards stop at a straight line,

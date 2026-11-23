@@ -377,6 +377,12 @@ final class Browser: NSObject, ObservableObject {
     private func prepare(_ tab: Tab) {
         tab.web.navigationDelegate = self
         tab.web.uiDelegate = self
+        if !tab.web.gestureRecognizers.orEmpty.contains(where: { $0 is Peeker }) {
+            tab.web.addGestureRecognizer(Peeker { [weak self, weak tab] url in
+                guard let self, let tab, self.peek == nil, self.tabs.contains(tab) else { return }
+                self.peek(url, from: tab)
+            })
+        }
         let controller = tab.web.configuration.userContentController
         controller.removeScriptMessageHandler(forName: Zap.handler)
         controller.add(ZapRelay(self), name: Zap.handler)
@@ -467,6 +473,56 @@ final class Browser: NSObject, ObservableObject {
     }
 
     /// A link held and sent to a tab of its own, in front or behind.
+    // MARK: - a link held
+
+    /// A link held: its page, live, over the one it's on.
+    struct Peek: Identifiable {
+        let id = UUID()
+        let tab: Tab
+        let url: URL
+    }
+    @Published var peek: Peek?
+
+    func peek(_ url: URL, from opener: Tab?) {
+        let tab = opener?.isPrivate == true
+            ? Tab(configuration: Web.configuration(private: true), isPrivate: true)
+            : Tab()
+        prepare(tab)
+        // In its card nothing covers it: no clock over its top, no bar
+        // over its foot. Put right when it becomes a tab.
+        tab.cover(top: 0, bottom: 0, least: 0, most: 0)
+        tab.go(to: url)
+        Feel.nudge()
+        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) { peek = Peek(tab: tab, url: url) }
+    }
+
+    /// The peeked page kept, as it is, scrolled where it was left: a tab
+    /// beside this one, in front or behind.
+    func keepPeek(behind: Bool) {
+        guard let kept = peek?.tab else { return }
+        PeekTap.remove(from: kept.web)
+        let here = activeIndex.map { $0 + 1 } ?? tabs.count
+        tabs.insert(kept, at: min(here, tabs.count))
+        cover(kept)
+        if behind {
+            Feel.tick()
+            say(String(localized: "Opened behind"))
+        } else {
+            active?.capture()
+            activeID = kept.id
+            chrome.unfold(animated: false)
+        }
+        // At once: the page is already where it will stay, full screen.
+        peek = nil
+        remember()
+    }
+
+    func dropPeek() {
+        let gone = peek?.tab
+        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { peek = nil }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { gone?.close() }
+    }
+
     func open(_ url: URL, private: Bool, behind: Bool) {
         let tab = `private`
             ? Tab(configuration: Web.configuration(private: true), isPrivate: true)
@@ -695,6 +751,12 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
     ) {
         guard let url = action.request.url, let scheme = url.scheme?.lowercased() else {
             decisionHandler(.allow, preferences)
+            return
+        }
+        // In a peek a tap is for opening the page, never for following a
+        // link inside it.
+        if let peek, peek.tab.web === webView, action.navigationType == .linkActivated {
+            decisionHandler(.cancel, preferences)
             return
         }
         if !["http", "https", "about", "data", "blob", "file"].contains(scheme) {
@@ -1036,4 +1098,46 @@ enum Session {
             try? data.write(to: file, options: .atomic)
         }
     }
+}
+
+
+/// A web link held on a page: found under the finger, then handed on to be
+/// peeked. iOS's own link menu is kept off web links (see the page's style),
+/// so this is the only thing a hold on one does.
+final class Peeker: UILongPressGestureRecognizer, UIGestureRecognizerDelegate {
+    private let found: (URL) -> Void
+
+    init(found: @escaping (URL) -> Void) {
+        self.found = found
+        super.init(target: nil, action: nil)
+        minimumPressDuration = 0.4
+        delegate = self
+        addTarget(self, action: #selector(held))
+    }
+
+    @objc private func held() {
+        guard state == .began, let web = view as? WKWebView else { return }
+        let scroll = web.scrollView
+        let at = location(in: scroll)
+        let zoom = max(0.01, scroll.zoomScale)
+        let x = at.x / zoom, y = at.y / zoom
+        let probe = """
+        (function (x, y) {
+          var e = document.elementFromPoint(x - window.scrollX, y - window.scrollY);
+          var a = e && e.closest && e.closest('a[href]');
+          return a && /^https?:/.test(a.href) ? a.href : null;
+        })(\(x), \(y))
+        """
+        web.evaluateJavaScript(probe) { [found] result, _ in
+            guard let raw = result as? String, let url = URL(string: raw) else { return }
+            found(url)
+        }
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer,
+                           shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+}
+
+private extension Optional where Wrapped == [UIGestureRecognizer] {
+    var orEmpty: [UIGestureRecognizer] { self ?? [] }
 }

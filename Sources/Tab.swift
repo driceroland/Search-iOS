@@ -14,6 +14,17 @@ enum Web {
         config.applicationNameForUserAgent = userAgentTail
         // A video's own full-screen button takes the whole screen.
         config.preferences.isElementFullscreenEnabled = true
+        // A web link held is ours to show (a live peek): iOS's own preview
+        // and menu stay out of the way, links only.
+        config.userContentController.addUserScript(WKUserScript(
+            source: """
+            (function () {
+              var s = document.createElement('style');
+              s.textContent = 'a[href^="http"] { -webkit-touch-callout: none !important; }';
+              (document.head || document.documentElement).appendChild(s);
+            })();
+            """,
+            injectionTime: .atDocumentEnd, forMainFrameOnly: false))
         return config
     }
 
@@ -148,7 +159,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         web = WKWebView(frame: .zero, configuration: configuration ?? Web.configuration())
         super.init()
         web.allowsBackForwardNavigationGestures = true
-        web.allowsLinkPreview = true
+        // A link held is peeked by Search (Peeker), live and scrollable;
+        // iOS's own frozen preview would take the hold first.
+        web.allowsLinkPreview = false
         web.isInspectable = true
         if #available(iOS 26.0, *) {
             // WebKit is told what's covered (see `cover`) and does the rest.

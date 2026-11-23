@@ -242,6 +242,12 @@ struct ContentView: View {
                     .allowsHitTesting(browser.editing)
                     .accessibilityHidden(!browser.editing)
 
+                // A link held: its page in a card over this one.
+                if let peek = browser.peek {
+                    PeekView(browser: browser, peek: peek)
+                        .zIndex(5)
+                }
+
                 if let words = browser.toast {
                     Text(words)
                         .font(.scaled(13))
