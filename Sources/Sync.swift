@@ -60,6 +60,10 @@ struct DeviceTabs: Codable, Equatable {
 struct SharedSettings: Codable, Equatable {
     var engine: String?
     var custom: String?
+    /// A custom engine's suggestions address, set on the Mac. The iPhone
+    /// doesn't use it yet, but carries it back, or writing the settings
+    /// from here would wipe it there.
+    var suggest: String?
     var look: String?
 }
 
@@ -676,12 +680,13 @@ extension Browser {
 
 extension Prefs {
     var shared: SharedSettings {
-        SharedSettings(engine: engine.rawValue, custom: customEngine, look: look.rawValue)
+        SharedSettings(engine: engine.rawValue, custom: customEngine, suggest: customSuggest, look: look.rawValue)
     }
 
     func adopt(_ settings: SharedSettings) {
         if let raw = settings.engine, let engine = Engine(rawValue: raw), engine != self.engine { self.engine = engine }
         if let custom = settings.custom, custom != customEngine { customEngine = custom }
+        if let suggest = settings.suggest { customSuggest = suggest }
         if let raw = settings.look, let look = Look(rawValue: raw), look != self.look { self.look = look }
     }
 }

@@ -95,6 +95,13 @@ final class Prefs: ObservableObject {
         }
     }
 
+    /// The Mac's custom engine suggestions address, kept to be sent back
+    /// untouched (see SharedSettings.suggest).
+    var customSuggest: String? {
+        get { store.string(forKey: "search.custom.suggest") }
+        set { store.set(newValue, forKey: "search.custom.suggest") }
+    }
+
     /// The ad blocker, on as on the Mac.
     @Published var shield: Bool {
         didSet { Shield.shared.enabled = shield }
