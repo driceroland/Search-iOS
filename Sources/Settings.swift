@@ -95,6 +95,14 @@ struct Settings: View {
                     .labelsHidden()
                 }
 
+                if browser.roomy {
+                    Section {
+                        Toggle("Sidebar", isOn: $prefs.sidebar)
+                    } footer: {
+                        Text("The pins and the tabs beside the page, as on the Mac, while the screen is wide enough.")
+                    }
+                }
+
                 Section {
                     Button("Clear History…") {
                         askingHistory = true

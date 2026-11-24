@@ -630,6 +630,16 @@
         }
       }
     },
+    "Hide Sidebar": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Masquer la barre latérale"
+          }
+        }
+      }
+    },
     "History cleared": {
       "localizations": {
         "fr": {
@@ -1210,6 +1220,16 @@
         }
       }
     },
+    "Show Sidebar": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Afficher la barre latérale"
+          }
+        }
+      }
+    },
     "Show Tabs As": {
       "localizations": {
         "fr": {
@@ -1456,6 +1476,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "La page ouverte apparaît sur votre Mac, et celle du Mac ici, grâce à Handoff d'Apple : vos propres appareils, à proximité, sur le même compte Apple. Jamais les onglets privés. Handoff ne conserve rien."
+          }
+        }
+      }
+    },
+    "The pins and the tabs beside the page, as on the Mac, while the screen is wide enough.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les épingles et les onglets à côté de la page, comme sur le Mac, quand l’écran est assez large."
           }
         }
       }

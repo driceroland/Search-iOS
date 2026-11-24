@@ -42,6 +42,8 @@ final class Browser: NSObject, ObservableObject {
     @Published var siteSheet = false
     /// Hide Elements: the page in front is being picked from (Site.swift).
     @Published var zapping: Zapping?
+    /// The screen has room for the sidebar (Shell), whether or not it shows.
+    @Published var roomy = false
     /// What a private tab took off its pages: for that tab only, never
     /// written down.
     var passingVeils: [UUID: [Veil]] = [:]
@@ -623,6 +625,17 @@ final class Browser: NSObject, ObservableObject {
         adopt(tab)
         activeID = tab.id
         return tab
+    }
+
+    /// A tab picked from the sidebar while a new tab waited for typing: that
+    /// blank tab goes, as when an open tab is picked from the suggestions.
+    func pickBeside(_ tab: Tab) {
+        if let here = active, here.isBlank, here.pin == nil, here.id != tab.id {
+            if editing { putAway() }
+            tabs.removeAll { $0.id == here.id }
+            here.close()
+        }
+        select(tab)
     }
 
     func take(_ offer: Suggestion) {

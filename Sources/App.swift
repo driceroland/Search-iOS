@@ -16,10 +16,10 @@ struct SearchApp: App {
             if let number = Mock.screen {
                 MockScreen(number: number)
             } else {
-                ContentView(browser: browser)
+                Shell(browser: browser)
             }
             #else
-            ContentView(browser: browser)
+            Shell(browser: browser)
             #endif
         }
         .onChange(of: prefs.look, initial: true) { _, look in
@@ -233,14 +233,21 @@ struct ContentView: View {
                         .ignoresSafeArea()
                         .onTapGesture { withAnimation(Motion.settle) { browser.holding = false } }
                         .allowsHitTesting(browser.holding)
-                    Held(browser: browser, tab: tab) {
-                        withAnimation(Motion.settle) { browser.holding = false }
-                    }
-                    .padding(.bottom, Metrics.pill + 18)
-                    .scaleEffect(browser.holding ? 1 : 0.9, anchor: .bottom)
-                    .opacity(browser.holding ? 1 : 0)
-                    .allowsHitTesting(browser.holding)
-                    .accessibilityHidden(!browser.holding)
+                    // Laid over a clear view the stack's size: in the stack
+                    // itself, a menu taller than the screen (an open Duo,
+                    // 669 points high) made the stack taller, and the pill
+                    // sank under the home bar.
+                    Color.clear
+                        .overlay(alignment: .bottom) {
+                            Held(browser: browser, tab: tab) {
+                                withAnimation(Motion.settle) { browser.holding = false }
+                            }
+                            .padding(.bottom, Metrics.pill + 18)
+                            .scaleEffect(browser.holding ? 1 : 0.9, anchor: .bottom)
+                            .opacity(browser.holding ? 1 : 0)
+                            .allowsHitTesting(browser.holding)
+                            .accessibilityHidden(!browser.holding)
+                        }
                 }
 
                 Field(browser: browser, space: space)

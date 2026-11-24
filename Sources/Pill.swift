@@ -360,6 +360,23 @@ struct Held: View {
     private var zoom: Double { tab.textZoom }
 
     var body: some View {
+        // Whole when it fits; scrolling, Back first, on a screen too short
+        // for every row (an open Duo is 669 points high).
+        ViewThatFits(in: .vertical) {
+            rows
+            ScrollView { rows }
+                .scrollBounceBehavior(.basedOnSize)
+                .scrollIndicators(.hidden)
+        }
+        // A phone's width at most: across a Duo's whole screen the rows
+        // were a long way from their words.
+        .frame(maxWidth: 440)
+        .glass(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .modifier(Edge(radius: 26))
+        .padding(.horizontal, 16)
+    }
+
+    private var rows: some View {
         VStack(spacing: 0) {
             HStack(spacing: 0) {
                 arrow("chevron.left", enabled: tab.canGoBack, list: tab.web.backForwardList.backList.reversed()) { tab.back() }
@@ -406,12 +423,13 @@ struct Held: View {
                     }
                 }
             }
+            if browser.roomy, !Prefs.shared.sidebar {
+                line
+                item("sidebar.left", "Show Sidebar") { Prefs.shared.sidebar = true }
+            }
             line
             item("xmark", "Close Tab") { browser.close(tab) }
         }
-        .glass(RoundedRectangle(cornerRadius: 26, style: .continuous))
-        .modifier(Edge(radius: 26))
-        .padding(.horizontal, 16)
     }
 
     private var line: some View {

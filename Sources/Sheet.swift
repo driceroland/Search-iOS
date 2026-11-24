@@ -838,7 +838,7 @@ struct Sheet: View {
     /// A line that can be swiped: left to close, right to pin, a word under
     /// it saying which, and back in place if let go short. Only a drag that
     /// sets off sideways is its; one going down is the sheet's.
-    private struct Swipe<Content: View>: View {
+    struct Swipe<Content: View>: View {
         let close: () -> Void
         let pin: () -> Void
         @ViewBuilder let content: () -> Content
@@ -911,12 +911,14 @@ struct Sheet: View {
     }
 
     /// A pinned tab: one letter, and its place at the head.
-    private struct Letter: View {
+    struct Letter: View {
         @ObservedObject var tab: Tab
         let live: Bool
         let space: Namespace.ID
         let open: () -> Void
         let unpin: () -> Void
+        /// In the sidebar, on its lighter ground: squares of the page's white.
+        var side = false
 
         var body: some View {
             Group {
@@ -937,7 +939,7 @@ struct Sheet: View {
                 .frame(height: 50)
                 .background {
                     RoundedRectangle(cornerRadius: 13, style: .continuous)
-                        .fill(live ? Palette.pinLive : Palette.wash.opacity(0.55))
+                        .fill(side ? Palette.ground.opacity(live ? 1 : 0.55) : live ? Palette.pinLive : Palette.wash.opacity(0.55))
                 }
                 .overlay(alignment: .bottom) {
                     if tab.loading { Ring(size: 9).padding(.bottom, 5) }
@@ -1177,12 +1179,15 @@ struct Sheet: View {
     }
 
     /// One line: what it is, then where it came from.
-    private struct Line: View {
+    struct Line: View {
         @ObservedObject var tab: Tab
         let live: Bool
         /// A private tab while private tabs are locked: no title, no site.
         var hidden = false
         let space: Namespace.ID
+        /// In the sidebar: the name alone, and the open tab lit in the page's
+        /// own white, as on the Mac.
+        var side = false
 
         var body: some View {
             HStack(spacing: 10) {
@@ -1212,7 +1217,7 @@ struct Sheet: View {
                 // The domain keeps its room: it is the shorter of the two and
                 // the one that tells you which of three tabs on the same site
                 // you are looking at.
-                if let url = tab.address, !hidden {
+                if let url = tab.address, !hidden, !side {
                     Text(Address.host(url))
                         .font(.scaled(12.5))
                         .foregroundStyle(Palette.faint)
@@ -1222,11 +1227,11 @@ struct Sheet: View {
                 }
             }
             .padding(.horizontal, 14)
-            .frame(height: 48)
+            .frame(height: side ? 42 : 48)
             .background {
                 if live {
                     RoundedRectangle(cornerRadius: 12, style: .continuous)
-                        .fill(Palette.wash)
+                        .fill(side ? Palette.ground : Palette.wash)
                         .matchedGeometryEffect(id: "live", in: space)
                 }
             }

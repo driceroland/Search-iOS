@@ -152,6 +152,13 @@ final class Prefs: ObservableObject {
         didSet { store.set(tabDeck, forKey: "tabs.deck") }
     }
 
+    /// On a screen with room for it (an open Duo, an iPad): the Mac's
+    /// sidebar, with the pins and the tabs. On unless hidden from
+    /// its own button, brought back from the pill held or Settings.
+    @Published var sidebar: Bool {
+        didSet { store.set(sidebar, forKey: "sidebar") }
+    }
+
     /// Which of the Mac's spaces' pins the iPhone shows; nil for the first.
     @Published var syncSpace: String? {
         didSet { store.set(syncSpace, forKey: "sync.space") }
@@ -178,5 +185,6 @@ final class Prefs: ObservableObject {
         syncSpace = store.string(forKey: "sync.space")
         tabCards = store.object(forKey: "tabs.cards") as? Bool ?? true
         tabDeck = store.bool(forKey: "tabs.deck")
+        sidebar = store.object(forKey: "sidebar") as? Bool ?? true
     }
 }
