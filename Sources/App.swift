@@ -307,7 +307,12 @@ struct ContentView: View {
             guard lift != target else { return }
             let go = {
                 moving = true
-                withAnimation(still ? Motion.quick : Self.landing, completionCriteria: .removed) { lift = target } completion: {
+                // Up: done once it looks done. Waiting for the spring to be
+                // quite removed kept the page's picture over its card (and
+                // the card's cross under it) for a second or more on a
+                // busy phone. Down: to the end, as the live page takes over.
+                withAnimation(still ? Motion.quick : Self.landing,
+                              completionCriteria: open ? .logicallyComplete : .removed) { lift = target } completion: {
                     moving = false
                     thaw()
                 }
