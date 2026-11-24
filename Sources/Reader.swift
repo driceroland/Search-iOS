@@ -57,6 +57,12 @@ enum Reader {
       for (var i = 0; i < pictures.length; i++) {
         var picture = pictures[i];
         picture.setAttribute('loading', 'eager');
+        // Drawn small on the page (an icon, a logo): marked now, while its
+        // size can still be read, and left out of the copy.
+        var drawn = picture.getBoundingClientRect().width;
+        if ((drawn > 0 && drawn <= 64) || (picture.naturalWidth > 2 && picture.naturalWidth <= 64)) {
+          picture.setAttribute('data-office-small', '1');
+        }
         var real = picture.currentSrc || picture.getAttribute('src') || '';
         // A one-pixel placeholder counts as nothing.
         if (!real || real.indexOf('data:image') === 0 || picture.naturalWidth <= 2) {
@@ -143,6 +149,60 @@ enum Reader {
         }
       }
 
+      // What the site hung around the words inside the article itself:
+      // share and follow rows, newsletter boxes, related links, ads. Found
+      // by their names, and only when they hold little prose, so an article
+      // whose wrapper happens to be called "promo" is never lost.
+      var aside = /share|social|follow|newsletter|subscribe|signup|promo|related|recirc|advert|sponsor|outbrain|taboola|comment|toolbar|breadcrumb|sticky|header-bar|site-header|masthead|tags?-list|author-bio|google-news|preferred-source/i;
+      var named = wrap.querySelectorAll('[class],[id],[data-testid]');
+      for (var n = named.length - 1; n >= 0; n--) {
+        var el = named[n];
+        if (!el.isConnected) continue;
+        var name = (el.getAttribute('class') || '') + ' ' + (el.id || '') + ' ' + (el.getAttribute('data-testid') || '');
+        if (aside.test(name) && letters(el) < 200) el.remove();
+      }
+      // What the page itself kept out of sight, by hand, with little prose:
+      // with its look gone (below), it would suddenly show.
+      var tucked = wrap.querySelectorAll('[style]');
+      for (var u = tucked.length - 1; u >= 0; u--) {
+        var how = (tucked[u].getAttribute('style') || '').replace(/\\s/g, '');
+        if (/display:none|visibility:hidden/i.test(how) && letters(tucked[u]) < 200) tucked[u].remove();
+      }
+
+      // "Skip to content", and links that only send you somewhere about the
+      // site (a news app's source settings, a share sheet).
+      var links = wrap.querySelectorAll('a');
+      for (var q = 0; q < links.length; q++) {
+        var said = (links[q].textContent || '').trim();
+        var to = links[q].getAttribute('href') || '';
+        if (/^skip to/i.test(said) || /google\\.com\\/(preferences|search\\?.*source)|news\\.google|share|intent\\/tweet|facebook\\.com\\/sharer/i.test(to)) {
+          links[q].remove();
+        }
+      }
+      // Pictures too small to be the article's: icons and logos.
+      var small = wrap.querySelectorAll('img[data-office-small]');
+      for (var z = 0; z < small.length; z++) small[z].remove();
+
+      // Links dressed as buttons (Share, Add us on Google) and lone icons.
+      var dressed = wrap.querySelectorAll('[role="button"],svg');
+      for (var b = 0; b < dressed.length; b++) dressed[b].remove();
+
+      // The article's own title: ours is on top already.
+      var own = wrap.querySelectorAll('h1');
+      for (var h = 0; h < own.length; h++) {
+        if ((own[h].textContent || '').trim() === title.trim()) own[h].remove();
+      }
+
+      // The site's own look goes: kept, it went on styling what was copied
+      // (bars stayed bars, and parts waiting to fade in as you scrolled stayed
+      // invisible, a blank where the rest of the article was).
+      var looks = wrap.querySelectorAll('[class],[style],[id]');
+      for (var l = 0; l < looks.length; l++) {
+        looks[l].removeAttribute('class');
+        looks[l].removeAttribute('style');
+        looks[l].removeAttribute('id');
+      }
+
       // A picture with nothing behind it is a broken icon, which is worse than
       // no picture at all.
       var kept = wrap.querySelectorAll('img');
@@ -158,6 +218,12 @@ enum Reader {
       from.textContent = location.host.replace(/^www\\./, '');
 
       document.body.innerHTML = '';
+      var theirs = document.querySelectorAll('link[rel~="stylesheet"],style');
+      for (var t = 0; t < theirs.length; t++) theirs[t].remove();
+      document.body.removeAttribute('class');
+      document.body.removeAttribute('style');
+      document.documentElement.removeAttribute('class');
+      document.documentElement.removeAttribute('style');
       document.head.appendChild(sheet);
       wrap.insertBefore(from, wrap.firstChild);
       wrap.insertBefore(top, wrap.firstChild);
