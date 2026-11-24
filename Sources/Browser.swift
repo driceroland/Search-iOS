@@ -227,7 +227,8 @@ final class Browser: NSObject, ObservableObject {
             fresh.pinID = tab.pinID
             fresh.pinHome = tab.pinHome
             fresh.pinName = tab.pinName
-            if let url = tab.address { fresh.go(to: url) }
+            // Back to the page it was pinned at, as a pin in Arc goes home.
+            if let url = tab.pinHome ?? tab.address { fresh.go(to: url) }
             tabs[index] = fresh
             if activeID == tab.id { activeID = fresh.id }
             remember()
@@ -567,7 +568,7 @@ final class Browser: NSObject, ObservableObject {
         }
         holding = false
         if active == nil { newTab() }
-        active?.go(to: url)
+        typingTab()?.go(to: url)
         putAway()
     }
 
@@ -607,8 +608,21 @@ final class Browser: NSObject, ObservableObject {
             return
         }
         if active == nil { newTab() }
-        active?.go(to: url)
+        typingTab()?.go(to: url)
         putAway()
+    }
+
+    /// Where what was typed goes: the tab in front, but never a pin. A pin
+    /// keeps its own site; a search or an address typed from it opens in a
+    /// tab of its own, so the pin isn't left on the results (a tester found
+    /// their searches "inside" a pin, with no way back).
+    private func typingTab() -> Tab? {
+        guard let here = active, here.pin != nil else { return active }
+        here.capture()
+        let tab = Tab()
+        adopt(tab)
+        activeID = tab.id
+        return tab
     }
 
     func take(_ offer: Suggestion) {
@@ -622,7 +636,7 @@ final class Browser: NSObject, ObservableObject {
             select(there)
             return
         }
-        active?.go(to: offer.url)
+        typingTab()?.go(to: offer.url)
         putAway()
     }
 
