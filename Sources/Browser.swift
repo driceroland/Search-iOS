@@ -684,7 +684,7 @@ final class Browser: NSObject, ObservableObject {
         asking?.cancel()
         guard Prefs.shared.engineSuggestions, active?.isPrivate == false,
               Address.url(from: words) == nil,
-              let url = Prefs.shared.engine.suggestions(for: words)
+              let url = Prefs.shared.engine.suggestions(for: words, custom: Prefs.shared.customSuggest)
         else {
             searches = []
             return

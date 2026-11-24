@@ -31,11 +31,28 @@ struct Settings: View {
                             .autocorrectionDisabled()
                             .font(.scaled(15))
                             .foregroundStyle(Engine.accepts(prefs.customEngine) || prefs.customEngine.isEmpty ? Palette.ink : .red)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text("Suggestions address (optional)")
+                                .font(.scaled(12))
+                                .foregroundStyle(Palette.muted)
+                            TextField("https://example.com/suggest?q=%s", text: $prefs.customSuggest)
+                                .keyboardType(.URL)
+                                .textInputAutocapitalization(.never)
+                                .autocorrectionDisabled()
+                                .font(.scaled(15))
+                                .foregroundStyle(Engine.suggestionAccepts(prefs.customSuggest) || prefs.customSuggest.isEmpty ? Palette.ink : .red)
+                        }
                     }
                     Toggle("Search suggestions", isOn: $prefs.engineSuggestions).tint(.green)
                 } footer: {
                     if prefs.engineSuggestions {
-                        Text("What you type is sent to \(prefs.engine.name(custom: prefs.customEngine)) as you type, so it can suggest searches. Never from private tabs.")
+                        if prefs.engine == .custom, !Engine.suggestionAccepts(prefs.customSuggest) {
+                            Text("A custom engine has no suggestions until you give it an https address, so nothing is sent.")
+                        } else if prefs.engine == .custom {
+                            Text("What you type is sent to the suggestions address as you type, so it can suggest searches. Never from private tabs.")
+                        } else {
+                            Text("What you type is sent to \(prefs.engine.name(custom: prefs.customEngine)) as you type, so it can suggest searches. Never from private tabs.")
+                        }
                     } else {
                         Text("Words typed in the field go to this search when they aren't an address. Nothing you type is sent anywhere until you press Go.")
                     }

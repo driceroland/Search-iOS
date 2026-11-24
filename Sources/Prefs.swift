@@ -95,6 +95,15 @@ final class Prefs: ObservableObject {
         }
     }
 
+    /// Where a custom engine's suggestions come from, when it has them: an
+    /// https address with %s where the words go. Empty, and it has none.
+    @Published var customSuggest: String {
+        didSet {
+            store.set(customSuggest, forKey: "search.customSuggest")
+            Sync.shared.put("settings", shared)
+        }
+    }
+
     /// The ad blocker, on as on the Mac.
     @Published var shield: Bool {
         didSet { Shield.shared.enabled = shield }
@@ -161,6 +170,7 @@ final class Prefs: ObservableObject {
         look = store.string(forKey: "look").flatMap(Look.init) ?? .system
         engine = store.string(forKey: "search.engine").flatMap(Engine.init) ?? Engine.standard
         customEngine = store.string(forKey: "search.custom") ?? ""
+        customSuggest = store.string(forKey: "search.customSuggest") ?? ""
         shield = Shield.shared.enabled
         handoff = store.object(forKey: "handoff") as? Bool ?? true
         autoClose = store.string(forKey: "tabs.autoclose").flatMap(AutoClose.init) ?? .never

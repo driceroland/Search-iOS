@@ -60,6 +60,9 @@ struct DeviceTabs: Codable, Equatable {
 struct SharedSettings: Codable, Equatable {
     var engine: String?
     var custom: String?
+    /// The custom engine's suggestions address: https, with %s where the
+    /// words go. Nil or empty, and it has none, as before.
+    var suggest: String? = nil
     var look: String?
 }
 
@@ -676,12 +679,13 @@ extension Browser {
 
 extension Prefs {
     var shared: SharedSettings {
-        SharedSettings(engine: engine.rawValue, custom: customEngine, look: look.rawValue)
+        SharedSettings(engine: engine.rawValue, custom: customEngine, suggest: customSuggest, look: look.rawValue)
     }
 
     func adopt(_ settings: SharedSettings) {
         if let raw = settings.engine, let engine = Engine(rawValue: raw), engine != self.engine { self.engine = engine }
         if let custom = settings.custom, custom != customEngine { customEngine = custom }
+        if let suggest = settings.suggest, suggest != customSuggest { customSuggest = suggest }
         if let raw = settings.look, let look = Look(rawValue: raw), look != self.look { self.look = look }
     }
 }
