@@ -170,6 +170,14 @@ final class Browser: NSObject, ObservableObject {
     // MARK: - tabs
 
     func newTab(private: Bool = false) {
+        // Already on an empty new tab: that one, not another beside it.
+        if let here = active, here.isBlank, here.pin == nil, here.isPrivate == `private` {
+            chrome.unfold(animated: false)
+            typed = ""
+            editing = true
+            showingTabs = false
+            return
+        }
         // From the tabs, the page in front is hidden under its picture:
         // pictured again it would come out blank.
         if !showingTabs { active?.capture() }

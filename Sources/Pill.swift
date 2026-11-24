@@ -75,11 +75,14 @@ struct Pill: View {
                 address
                     .padding(.leading, l)
                     .padding(.trailing, r)
-                buttons
-                    .opacity(Double(max(0, 1 - f * 2)))
-                    .scaleEffect(1 - 0.12 * f, anchor: .bottom)
-                    .allowsHitTesting(!tucked)
-                    .accessibilityHidden(tucked)
+                // Gone once folded, for the same reason as Tabs (below).
+                if f < 0.5 {
+                    buttons
+                        .opacity(Double(max(0, 1 - f * 2)))
+                        .scaleEffect(1 - 0.12 * f, anchor: .bottom)
+                        .allowsHitTesting(!tucked)
+                        .accessibilityHidden(tucked)
+                }
             }
             // One glass for the three: each on its own turned light or dark
             // by what was under it alone, and a dark headline under the
@@ -135,14 +138,18 @@ struct Pill: View {
 
     /// Tabs, melting into New tab as the pill reaches it. Still there to
     /// the finger: tapped twice, it opens the tabs, then a new one.
-    private var tabsButton: some View {
-        side("square.on.square", "Tabs") {
-            if over { newTab() } else { tabs() }
+    /// Gone, not only see-through, once the pill has taken its place: in
+    /// the glass container a see-through button kept its glass, sat at the
+    /// end of New tab and, tapped, opened one more new tab.
+    @ViewBuilder private var tabsButton: some View {
+        if morph < 0.62 {
+            side("square.on.square", "Tabs") {
+                if over { newTab() } else { tabs() }
+            }
+            .opacity(Double(max(0, 1 - morph * 1.6)))
+            .scaleEffect(1 - 0.25 * morph)
+            .accessibilityValue(Text("\(count)"))
         }
-        .opacity(Double(max(0, 1 - morph * 1.6)))
-        .scaleEffect(1 - 0.25 * morph)
-        .accessibilityValue(Text("\(count)"))
-        .accessibilityHidden(morph > 0.5)
     }
 
     private var address: some View {
