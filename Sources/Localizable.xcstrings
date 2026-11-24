@@ -40,6 +40,16 @@
     "A": {
       "shouldTranslate": false
     },
+    "A custom engine has no suggestions until you give it an https address, so nothing is sent.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Un moteur personnalisé n'a pas de suggestions tant que vous ne lui donnez pas une adresse https ; rien n'est donc envoyé."
+          }
+        }
+      }
+    },
     "Add this page": {
       "localizations": {
         "fr": {
@@ -1320,6 +1330,16 @@
         }
       }
     },
+    "Suggestions address (optional)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Adresse des suggestions (facultatif)"
+          }
+        }
+      }
+    },
     "Swipe a tab left to close it. Hold it to pin it, bookmark it, or move it.": {
       "localizations": {
         "fr": {
@@ -1636,6 +1656,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Ce que vous tapez est envoyé à %@ pendant la saisie, pour suggérer des recherches. Jamais depuis les onglets privés."
+          }
+        }
+      }
+    },
+    "What you type is sent to the suggestions address as you type, so it can suggest searches. Never from private tabs.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ce que vous tapez est envoyé à l'adresse des suggestions pendant la saisie, pour suggérer des recherches. Jamais depuis les onglets privés."
           }
         }
       }

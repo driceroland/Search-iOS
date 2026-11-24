@@ -43,8 +43,13 @@ enum Engine: String, CaseIterable, Identifiable {
     }
 
     /// Where the engine's suggestions come from, for the words so far. None
-    /// for a search address of one's own.
-    func suggestions(for words: String) -> URL? {
+    /// for a search address of one's own, unless a suggestions address is
+    /// given for it (Settings).
+    func suggestions(for words: String, custom: String = "") -> URL? {
+        if self == .custom {
+            guard Engine.suggestionAccepts(custom) else { return nil }
+            return Engine.url(for: words, template: Engine.written(custom))
+        }
         guard let q = words.addingPercentEncoding(withAllowedCharacters: Engine.unreserved) else { return nil }
         let base: String
         switch self {
@@ -59,6 +64,22 @@ enum Engine: String, CaseIterable, Identifiable {
         case .custom: return nil
         }
         return URL(string: base + q)
+    }
+
+    /// A custom address as people bring it: copied from another browser with
+    /// {searchTerms} where the words go, or typed without its https://.
+    static func written(_ template: String) -> String {
+        var text = template.trimmingCharacters(in: .whitespacesAndNewlines)
+            .replacingOccurrences(of: "{searchTerms}", with: "%s")
+        if !text.isEmpty, !text.contains("://") { text = "https://" + text }
+        return text
+    }
+
+    /// Whether a custom engine's suggestions address can be asked: https,
+    /// and with %s where the words go.
+    static func suggestionAccepts(_ template: String) -> Bool {
+        let written = Engine.written(template)
+        return written.lowercased().hasPrefix("https://") && Engine.accepts(written)
     }
 
     /// The OpenSearch answer, ["words", ["one", "two"]], or Qwant's own.
