@@ -81,6 +81,10 @@ struct Pill: View {
                     .allowsHitTesting(!tucked)
                     .accessibilityHidden(tucked)
             }
+            // One glass for the three: each on its own turned light or dark
+            // by what was under it alone, and a dark headline under the
+            // pill left it black between two white buttons.
+            .glassTogether()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
         }
         .frame(height: Metrics.pill)
@@ -317,6 +321,17 @@ extension View {
             glassEffect(.regular.interactive(), in: shape).glassEffectID(id, in: space)
         } else {
             background(Glass(shape: shape))
+        }
+    }
+
+    /// Glass pieces read the page together, and so turn light or dark
+    /// together; before iOS 26, nothing.
+    @ViewBuilder
+    func glassTogether() -> some View {
+        if #available(iOS 26.0, *) {
+            GlassEffectContainer(spacing: 0) { self }
+        } else {
+            self
         }
     }
 
