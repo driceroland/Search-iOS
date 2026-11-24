@@ -716,6 +716,14 @@ struct Sheet: View {
                     }
                 }
             } label: { Label("Recently Closed", systemImage: "clock.arrow.circlepath") }
+            // Where people look for it on a wide screen once it's hidden.
+            if browser.roomy {
+                Button {
+                    withAnimation(Motion.settle) { prefs.sidebar.toggle() }
+                } label: {
+                    Label(prefs.sidebar ? "Hide Sidebar" : "Show Sidebar", systemImage: "sidebar.left")
+                }
+            }
             Divider()
             Button { browser.settings = true } label: { Label("Settings", systemImage: "gearshape") }
         } label: {
