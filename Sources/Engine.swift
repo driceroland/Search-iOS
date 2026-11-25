@@ -37,6 +37,36 @@ enum Engine: String, CaseIterable, Identifiable {
         }
     }
 
+    /// The words a search engine's results page was asked for: what the
+    /// field shows to edit on that page, rather than its address.
+    static func words(in url: URL, custom: String) -> String? {
+        guard let parts = URLComponents(url: url, resolvingAgainstBaseURL: false),
+              let host = parts.host.map(bare) else { return nil }
+        // A form's "+" is a space; a "+" typed is sent as %2B and stays one.
+        var spaced = parts
+        spaced.percentEncodedQuery = parts.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%20")
+        let templates = allCases.map { $0.template(custom: custom) }
+        for template in templates {
+            guard let shape = URLComponents(string: template.replacingOccurrences(of: "%s", with: "WORDS")),
+                  let engineHost = shape.host.map(bare),
+                  let key = shape.queryItems?.first(where: { $0.value == "WORDS" })?.name
+            else { continue }
+            // Google's results live on every country's domain.
+            let sameSite = host == engineHost
+                || (engineHost == "google.com" && host.hasPrefix("google."))
+            guard sameSite, parts.path == shape.path,
+                  let words = spaced.queryItems?.first(where: { $0.name == key })?.value,
+                  !words.trimmingCharacters(in: .whitespaces).isEmpty
+            else { continue }
+            return words
+        }
+        return nil
+    }
+
+    private static func bare(_ host: String) -> String {
+        host.lowercased().hasPrefix("www.") ? String(host.lowercased().dropFirst(4)) : host.lowercased()
+    }
+
     func name(custom: String) -> String {
         guard self == .custom else { return title }
         return Engine.bareHost(of: custom) ?? Engine.standard.title

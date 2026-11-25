@@ -586,7 +586,11 @@ final class Browser: NSObject, ObservableObject {
     }
 
     func edit() {
-        typed = active?.address.map { Address.pretty($0) } ?? ""
+        // On a page of search results, the words searched for, to correct
+        // them; anywhere else, the address.
+        typed = active?.address.map {
+            Engine.words(in: $0, custom: Prefs.shared.customEngine) ?? Address.pretty($0)
+        } ?? ""
         holding = false
         editing = true
     }
