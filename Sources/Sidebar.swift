@@ -208,6 +208,7 @@ struct Sidebar: View {
                 Label("Add to Bookmarks", systemImage: "book")
             }
             Button { UIPasteboard.general.url = url } label: { Label("Copy Link", systemImage: "link") }
+            Button { browser.share(tab) } label: { Label("Share", systemImage: "square.and.arrow.up") }
         }
         Button(role: .destructive) {
             withAnimation(Motion.settle) { browser.close(tab) }
