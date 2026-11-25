@@ -1020,6 +1020,16 @@
         }
       }
     },
+    "Pins from the Mac": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Épingles du Mac"
+          }
+        }
+      }
+    },
     "Private": {
       "localizations": {
         "fr": {
@@ -1086,6 +1096,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Recharger"
+          }
+        }
+      }
+    },
+    "Remove from Bookmarks": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retirer des favoris"
           }
         }
       }

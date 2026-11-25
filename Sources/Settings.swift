@@ -61,7 +61,13 @@ struct Settings: View {
 
                 Section {
                     Toggle("Sync with iCloud", isOn: $prefs.sync).tint(.green)
-                    if prefs.sync, sync.spaces.count > 1 {
+                    if prefs.sync {
+                        Toggle("Pins from the Mac", isOn: Binding(
+                            get: { prefs.syncPins },
+                            set: { sync.syncPins($0) }
+                        )).tint(.green)
+                    }
+                    if prefs.sync, prefs.syncPins, sync.spaces.count > 1 {
                         Picker("Pins from", selection: Binding(
                             get: { sync.pinSpace },
                             set: { sync.choose(space: $0) }

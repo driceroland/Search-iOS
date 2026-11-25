@@ -502,7 +502,7 @@ struct Held: View {
         } label: {
             Image(systemName: name)
                 .font(.scaled(17, weight: .medium))
-                .foregroundStyle(enabled ? Palette.ink : Palette.faint)
+                .foregroundStyle(enabled ? Palette.ink : Palette.off)
                 .frame(maxWidth: .infinity)
                 .frame(height: 52)
                 .contentShape(Rectangle())
@@ -531,7 +531,7 @@ struct Held: View {
                 Image(systemName: symbol).font(.scaled(14))
                 Text(title).font(.scaled(14.5)).lineLimit(1).minimumScaleFactor(0.8)
             }
-            .foregroundStyle(enabled ? Palette.ink : Palette.faint)
+            .foregroundStyle(enabled ? Palette.ink : Palette.off)
             .frame(maxWidth: .infinity)
             .frame(height: 46)
             .contentShape(Rectangle())

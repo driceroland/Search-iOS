@@ -18,6 +18,7 @@ final class Browser: NSObject, ObservableObject {
             // wait for it.
             if oldValue, !editing {
                 UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+                NotificationCenter.default.post(name: Keyboard.release, object: nil)
             }
         }
     }
@@ -37,6 +38,8 @@ final class Browser: NSObject, ObservableObject {
     @Published var settings = false
     /// The bookmarks, and the other devices' tabs.
     @Published var showingBookmarks = false
+    /// The folder the bookmarks open on (a folder tapped on New tab).
+    var bookmarkFolder: Bookmark.ID?
     @Published var showingOthers = false
     /// "This site", out of the page's menu.
     @Published var siteSheet = false

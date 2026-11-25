@@ -211,7 +211,7 @@ final class Sync: NSObject, ObservableObject {
         let key = "device.\(meta.device)"
         let last = meta.values[key].flatMap { try? JSONDecoder().decode(DeviceTabs.self, from: $0) }
         if last?.tabs != tabs.tabs || last?.name != tabs.name { put(key, tabs) }
-        putPins(browser.pinDefs)
+        if Prefs.shared.syncPins { putPins(browser.pinDefs) }
         // Never an empty list over one that isn't, unless they were taken
         // away here by hand: an iPhone that hadn't yet heard the Mac's
         // bookmarks once sent its empty list up, stamped newer, and it
@@ -267,6 +267,13 @@ final class Sync: NSObject, ObservableObject {
         Prefs.shared.syncSpace.flatMap(UUID.init(uuidString:)) ?? Sync.firstSpace
     }
 
+    /// Pins from the Mac on or off. Off, the Mac's go from here (they stay
+    /// on the Mac); on, the chosen space's come back.
+    func syncPins(_ on: Bool) {
+        Prefs.shared.syncPins = on
+        if on { choose(space: pinSpace) } else { browser?.adopt(pins: []) }
+    }
+
     func choose(space: UUID) {
         Prefs.shared.syncSpace = space.uuidString
         // Its pins, as they are in iCloud, in place of these.
@@ -311,7 +318,7 @@ final class Sync: NSObject, ObservableObject {
         } else if key.hasPrefix("pins.") {
             guard var defs = try? decoder.decode([PinDef].self, from: data) else { return }
             // Kept as it came, every field, for putPins.
-            guard key == "pins.\(pinSpace)" else { save(); return }
+            guard key == "pins.\(pinSpace)", Prefs.shared.syncPins else { save(); return }
             if first, let browser {
                 // Joining: these pins and the ones already here, together.
                 for mine in browser.pinDefs where !defs.contains(where: { $0.id == mine.id || $0.home == mine.home }) {
@@ -755,11 +762,26 @@ struct BookmarksView: View {
     @ObservedObject private var store = Bookmarks.shared
     @Environment(\.dismiss) private var done
 
+    /// Opened from a folder on New tab: that folder, Bookmarks behind it.
+    @State private var path: [Bookmark.ID]
+
+    init(browser: Browser) {
+        self.browser = browser
+        _path = State(initialValue: browser.bookmarkFolder.map { [$0] } ?? [])
+        browser.bookmarkFolder = nil
+    }
+
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             Folder(browser: browser, nodes: store.roots, done: { done() })
                 .navigationTitle("Bookmarks")
                 .navigationBarTitleDisplayMode(.inline)
+                .navigationDestination(for: Bookmark.ID.self) { id in
+                    let node = Bookmarks.flat(store.roots).first { $0.id == id }
+                    Folder(browser: browser, nodes: node?.children ?? [], done: { done() })
+                        .navigationTitle(node?.title ?? "")
+                        .navigationBarTitleDisplayMode(.inline)
+                }
                 .toolbar {
                     ToolbarItem(placement: .confirmationAction) { Button("Done") { done() } }
                     if let tab = browser.active, let url = tab.address, !tab.isPrivate, !store.contains(url) {
@@ -793,10 +815,7 @@ struct BookmarksView: View {
                 }
                 ForEach(nodes) { node in
                     if node.isFolder {
-                        NavigationLink {
-                            Folder(browser: browser, nodes: node.children ?? [], done: done)
-                                .navigationTitle(node.title)
-                        } label: {
+                        NavigationLink(value: node.id) {
                             Label(node.title, systemImage: "folder")
                         }
                     } else {

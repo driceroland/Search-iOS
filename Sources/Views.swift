@@ -203,6 +203,16 @@ final class Keyboard: ObservableObject {
 
     private var watching: [NSObjectProtocol] = []
 
+    /// A tile on New tab is being held: its menu takes the keyboard away
+    /// for as long as it's up, and the page under it mustn't drop with it
+    /// (the tile would leave the finger). The keyboard's place is kept
+    /// until it comes back or the field is put away.
+    static var held = false
+    static func hold() { if Keyboard.shown { held = true } }
+    /// The keyboard is up now.
+    private(set) static var shown = false
+    static let release = Notification.Name("Keyboard.release")
+
     init() {
         let center = NotificationCenter.default
         for name in [UIResponder.keyboardWillShowNotification, UIResponder.keyboardWillHideNotification,
@@ -217,11 +227,20 @@ final class Keyboard: ObservableObject {
                     let screen = UIScreen.main.bounds.height
                     let reach = hiding ? 0 : max(0, screen - end.minY)
                     if duration > 0 { self.duration = duration }
+                    Keyboard.shown = reach > 0
+                    if reach == 0, Keyboard.held { return }
                     guard reach != self.height else { return }
                     withAnimation(Keyboard.curve(self.duration)) { self.height = reach }
                 }
             })
         }
+        watching.append(center.addObserver(forName: Keyboard.release, object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated {
+                guard let self, Keyboard.held else { return }
+                Keyboard.held = false
+                withAnimation(Keyboard.curve(self.duration)) { self.height = 0 }
+            }
+        })
     }
 
     /// The keyboard's own curve (UIKit's private curve 7), as SwiftUI can

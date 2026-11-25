@@ -159,6 +159,12 @@ final class Prefs: ObservableObject {
         didSet { store.set(sidebar, forKey: "sidebar") }
     }
 
+    /// The Mac's pins come here (and these go there). Off: this iPhone keeps
+    /// pins of its own, and the tabs page has none of the Mac's.
+    @Published var syncPins: Bool {
+        didSet { store.set(syncPins, forKey: "sync.pins") }
+    }
+
     /// Which of the Mac's spaces' pins the iPhone shows; nil for the first.
     @Published var syncSpace: String? {
         didSet { store.set(syncSpace, forKey: "sync.space") }
@@ -183,6 +189,7 @@ final class Prefs: ObservableObject {
         welcomed = store.bool(forKey: "welcomed")
         sync = store.object(forKey: "sync") as? Bool ?? true
         syncSpace = store.string(forKey: "sync.space")
+        syncPins = store.object(forKey: "sync.pins") as? Bool ?? true
         tabCards = store.object(forKey: "tabs.cards") as? Bool ?? true
         tabDeck = store.bool(forKey: "tabs.deck")
         sidebar = store.object(forKey: "sidebar") as? Bool ?? true

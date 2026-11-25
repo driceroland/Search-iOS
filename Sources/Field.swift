@@ -228,13 +228,25 @@ struct Start: View {
     @ObservedObject private var bookmarks = Bookmarks.shared
     @State private var icons: [String: UIImage] = [:]
 
-    private var favourites: [Suggestion] {
-        bookmarks.roots.compactMap { mark in
-            guard let raw = mark.url, let url = URL(string: raw) else { return nil }
-            return Suggestion(key: Address.host(url), title: mark.title, url: url)
+    /// The top of the bookmarks, folders as well as sites, in their order.
+    /// Each keeps its own place: two on one site are two tiles, not one
+    /// tile and a hole.
+    private var marks: [Bookmark] {
+        var seen = Set<String>()
+        return bookmarks.roots.filter { mark in
+            if mark.isFolder { return true }
+            guard let raw = mark.url, URL(string: raw) != nil else { return false }
+            return seen.insert(raw).inserted
         }
         .prefix(8)
         .map { $0 }
+    }
+
+    private var favourites: [Suggestion] {
+        marks.compactMap { mark in
+            guard let raw = mark.url, let url = URL(string: raw) else { return nil }
+            return Suggestion(key: raw, title: mark.title, url: url)
+        }
     }
 
     private var often: [Suggestion] {
@@ -247,13 +259,101 @@ struct Start: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            if !favourites.isEmpty { group("Bookmarks", favourites) }
+            if !marks.isEmpty { bookmarksGroup }
             if !often.isEmpty { group("Often visited", often, removable: true) }
         }
         .padding(.horizontal, 6)
         .padding(.bottom, 8)
         .onAppear(perform: load)
         .onReceive(NotificationCenter.default.publisher(for: Favicons.came)) { _ in load() }
+    }
+
+    private var bookmarksGroup: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Bookmarks")
+                .font(.scaled(13, weight: .medium))
+                .foregroundStyle(Palette.muted)
+                .padding(.leading, 8)
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 12) {
+                ForEach(marks) { mark in
+                    if let raw = mark.url, let url = URL(string: raw) {
+                        tile(Suggestion(key: raw, title: mark.title, url: url), bookmark: mark.id)
+                    } else {
+                        Button {
+                            Feel.tick()
+                            browser.bookmarkFolder = mark.id
+                            browser.showingBookmarks = true
+                        } label: {
+                            label(title: mark.title) {
+                                Image(systemName: "folder")
+                                    .font(.scaled(20))
+                                    .foregroundStyle(Palette.ink)
+                            }
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+            }
+        }
+    }
+
+    private func label<Icon: View>(title: String, still: Bool = false, @ViewBuilder icon: () -> Icon) -> some View {
+        VStack(spacing: 6) {
+            icon()
+                .frame(width: 58, height: 58)
+                .glass(RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: !still, else: Palette.wash)
+            Text(title)
+                .font(.scaled(11.5))
+                .foregroundStyle(Palette.ink)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+        .contentShape(Rectangle())
+    }
+
+    /// A site on New tab. Held: kept or let go (a bookmark taken away, a
+    /// frequent site bookmarked or dropped). The tile stays where it is
+    /// under the finger: its glass doesn't answer the press, the menu does.
+    private func tile(_ site: Suggestion, bookmark: Bookmark.ID? = nil, removable: Bool = false) -> some View {
+        Button {
+            Feel.tick()
+            browser.take(site)
+        } label: {
+            label(title: site.title.isEmpty ? Address.host(site.url) : site.title, still: true) {
+                Mark(icon: icons[Favicons.key(site.url) ?? ""], letter: String(Address.host(site.url).prefix(1)).uppercased(), size: 30)
+            }
+        }
+        .buttonStyle(.plain)
+        .contextMenu {
+            // Built as the menu opens, before it takes the keyboard away.
+            let _ = Keyboard.hold()
+            if let bookmark {
+                Button(role: .destructive) {
+                    withAnimation(Motion.quick) { bookmarks.remove(bookmark) }
+                } label: {
+                    Label("Remove from Bookmarks", systemImage: "minus.circle")
+                }
+            }
+            if removable {
+                if !bookmarks.contains(site.url) {
+                    Button {
+                        Feel.tick()
+                        withAnimation(Motion.quick) { bookmarks.add(site.url, title: "") }
+                        browser.say(String(localized: "Added to Bookmarks"))
+                    } label: {
+                        Label("Add to Bookmarks", systemImage: "book")
+                    }
+                }
+                Button(role: .destructive) {
+                    withAnimation(Motion.quick) {
+                        browser.history.remove(site: site.key)
+                        browser.objectWillChange.send()
+                    }
+                } label: {
+                    Label("Remove from Often Visited", systemImage: "minus.circle")
+                }
+            }
+        }
     }
 
     private func group(_ title: LocalizedStringKey, _ sites: [Suggestion], removable: Bool = false) -> some View {
@@ -263,35 +363,7 @@ struct Start: View {
                 .foregroundStyle(Palette.muted)
                 .padding(.leading, 8)
             LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 12) {
-                ForEach(sites) { site in
-                    Button {
-                        Feel.tick()
-                        browser.take(site)
-                    } label: {
-                        VStack(spacing: 6) {
-                            Mark(icon: icons[Favicons.key(site.url) ?? ""], letter: String(Address.host(site.url).prefix(1)).uppercased(), size: 30)
-                                .frame(width: 58, height: 58)
-                                .glass(RoundedRectangle(cornerRadius: 16, style: .continuous), interactive: true, else: Palette.wash)
-                            Text(site.title.isEmpty ? Address.host(site.url) : site.title)
-                                .font(.scaled(11.5))
-                                .foregroundStyle(Palette.ink)
-                                .lineLimit(1)
-                        }
-                        .frame(maxWidth: .infinity)
-                        .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                    .contextMenu(removable ? ContextMenu {
-                        Button(role: .destructive) {
-                            withAnimation(Motion.quick) {
-                                browser.history.remove(site: site.key)
-                                browser.objectWillChange.send()
-                            }
-                        } label: {
-                            Label("Remove from Often Visited", systemImage: "minus.circle")
-                        }
-                    } : nil)
-                }
+                ForEach(sites) { site in tile(site, removable: removable) }
             }
         }
     }

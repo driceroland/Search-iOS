@@ -167,9 +167,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         // See-through until the page has drawn: an empty web view paints
         // white, which flashed in dark mode before every first page.
         web.isOpaque = false
-        // A link held is peeked by Search (Peeker), live and scrollable;
-        // iOS's own frozen preview would take the hold first.
-        web.allowsLinkPreview = false
+        // A link held is peeked by Search (Peeker), live and scrollable: the
+        // page's style keeps iOS's own preview off web links. Everything
+        // else held keeps iOS's menu (an image: Save to Photos, Copy).
+        web.allowsLinkPreview = true
         web.isInspectable = true
         if #available(iOS 26.0, *) {
             // WebKit is told what's covered (see `cover`) and does the rest.
@@ -379,16 +380,30 @@ final class Tab: NSObject, ObservableObject, Identifiable {
             MainActor.assumeIsolated {
                 // Copied into pixels of its own: what WebKit hands back can
                 // go on tracking the live page.
-                let image = taken.flatMap { Tab.copy($0) }
+                // Over the page's own ground: what a page hasn't painted
+                // (it's see-through until it draws) came out black.
+                let image = taken.flatMap { Tab.copy($0, fill: self?.unpainted ?? .systemBackground) }
                 // Not kept while the page is still coming in: a card of a
                 // blank page in the making says less than the old picture.
-                if let self, let image, !(self.loading && self.progress < 0.8) {
+                if let self, let image, self.web.isOpaque, !(self.loading && self.progress < 0.8) {
                     self.snapshot = image
                     if !self.isPrivate { Snapshots.write(image, for: self.key) }
                 }
                 done(image)
             }
         }
+    }
+
+    /// What's behind the page where it hasn't painted: its own colour once
+    /// it has one, the app's ground before (never see-through: a picture
+    /// of nothing came out black).
+    private var unpainted: UIColor {
+        var alpha: CGFloat = 0
+        if let color = web.underPageBackgroundColor?.resolvedColor(with: web.traitCollection) {
+            color.getWhite(nil, alpha: &alpha)
+            if alpha >= 1 { return color }
+        }
+        return UIColor(Palette.ground).resolvedColor(with: web.traitCollection)
     }
 
     /// A picture drawn into a bitmap of its own.
@@ -398,10 +413,8 @@ final class Tab: NSObject, ObservableObject, Identifiable {
         format.scale = image.scale
         format.opaque = true
         let out = UIGraphicsImageRenderer(size: image.size, format: format).image { context in
-            if down > 0 {
-                fill.setFill()
-                context.fill(CGRect(origin: .zero, size: image.size))
-            }
+            fill.setFill()
+            context.fill(CGRect(origin: .zero, size: image.size))
             image.draw(at: CGPoint(x: 0, y: down))
         }
         return out.cgImage.map { UIImage(cgImage: $0, scale: image.scale, orientation: .up) }
@@ -415,10 +428,18 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     /// picture, which comes a few frames later.
     func now() -> UIImage? {
         guard !isBlank, web.window != nil, web.bounds.width > 0 else { return nil }
+        // A page that hasn't drawn yet is see-through (no white flash in
+        // the dark, see init): pictured as it is, its card came out black.
+        // Until it draws, the last picture stands, or the page's ground.
+        if !web.isOpaque, let snapshot { return snapshot }
         let format = UIGraphicsImageRendererFormat()
         format.opaque = true
-        let image = UIGraphicsImageRenderer(bounds: web.bounds, format: format).image { _ in
-            _ = web.drawHierarchy(in: web.bounds, afterScreenUpdates: false)
+        let drawn = web.isOpaque
+        let ground = unpainted
+        let image = UIGraphicsImageRenderer(bounds: web.bounds, format: format).image { context in
+            ground.setFill()
+            context.fill(web.bounds)
+            if drawn { _ = web.drawHierarchy(in: web.bounds, afterScreenUpdates: false) }
         }
         // Kept for the card too, always: the page zooms into its card with
         // this picture, and a card still showing an older one (a page
@@ -506,8 +527,30 @@ enum Snapshots {
     private static func file(_ key: String) -> URL { folder.appendingPathComponent(key + ".jpg") }
 
     static func read(_ key: String) -> UIImage? {
-        guard let data = try? Data(contentsOf: file(key)) else { return nil }
-        return UIImage(data: data, scale: UIScreen.main.scale)
+        guard let data = try? Data(contentsOf: file(key)),
+              let image = UIImage(data: data, scale: UIScreen.main.scale) else { return nil }
+        // A picture of a page taken before it had drawn (builds 4 and 5) is
+        // black from edge to edge: no picture says more than that one.
+        if blank(image) {
+            remove(key)
+            return nil
+        }
+        return image
+    }
+
+    /// Black all over, as only a page that hadn't drawn is.
+    private static func blank(_ image: UIImage) -> Bool {
+        guard let cg = image.cgImage else { return false }
+        let side = 8
+        var pixels = [UInt8](repeating: 0, count: side * side * 4)
+        guard let context = CGContext(data: &pixels, width: side, height: side, bitsPerComponent: 8,
+                                      bytesPerRow: side * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+        context.interpolationQuality = .low
+        context.draw(cg, in: CGRect(x: 0, y: 0, width: side, height: side))
+        return stride(from: 0, to: pixels.count, by: 4).allSatisfy {
+            pixels[$0] < 4 && pixels[$0 + 1] < 4 && pixels[$0 + 2] < 4
+        }
     }
 
     static func write(_ image: UIImage, for key: String) {
