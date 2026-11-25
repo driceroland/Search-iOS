@@ -97,7 +97,13 @@ struct Pill: View {
         // Folded, the bar is small: a tap anywhere about it opens it again,
         // not only one that lands on the capsule itself.
         .gesture(Tap { if tucked { chrome.unfold(animated: true) } })
-        .gesture(Hold { if !tucked, !over { Feel.nudge(); hold() } })
+        // Held folded, it opens and its menu with it, as when it's open.
+        .gesture(Hold {
+            guard !over else { return }
+            Feel.nudge()
+            if tucked { chrome.unfold(animated: true) }
+            hold()
+        })
     }
 
     /// Back and Tabs: either side of the pill on an iPhone; one over the

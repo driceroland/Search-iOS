@@ -9,7 +9,7 @@ enum Palette {
     static let muted = tone(0.55, 0.58)
     static let faint = tone(0.83, 0.32)
     /// A choice that can't be made now, on glass: still read, plainly off.
-    static let off = tone(0.66, 0.46)
+    static let off = tone(0.58, 0.44)
     static let hairline = tone(0.91, 0.20)
     static let wash = tone(0.937, 0.175)
     static let pinLive = tone(0.90, 0.21)
