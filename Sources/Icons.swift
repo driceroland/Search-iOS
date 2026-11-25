@@ -162,11 +162,12 @@ final class Favicons {
             guard bestSide > 0,
                   let decoded = CGImageSourceCreateThumbnailAtIndex(source, best, [
                       kCGImageSourceCreateThumbnailFromImageAlways: true,
-                      kCGImageSourceThumbnailMaxPixelSize: 128,
+                      kCGImageSourceThumbnailMaxPixelSize: 192,
                       kCGImageSourceCreateThumbnailWithTransform: true,
                   ] as CFDictionary)
             else { return nil }
-            let side: CGFloat = 64
+            // Sharp at a pin's size on a 3x screen, not only at a tab's.
+            let side: CGFloat = 96
             let format = UIGraphicsImageRendererFormat()
             format.scale = 1
             let out = UIGraphicsImageRenderer(size: CGSize(width: side, height: side), format: format).image { _ in
@@ -214,7 +215,7 @@ final class Favicons {
                 case ..<24: score = 10
                 case 24..<48: score = 42
                 case 48..<128: score = 50
-                case 128..<260: score = 46
+                case 128..<260: score = 52
                 default: score = 20
                 }
             }

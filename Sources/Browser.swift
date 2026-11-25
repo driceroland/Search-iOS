@@ -119,7 +119,9 @@ final class Browser: NSObject, ObservableObject {
         let saved = Session.read()
         guard !saved.tabs.isEmpty else {
             adopt(Tab())
-            editing = true
+            // Not under the welcome: the keyboard came up over it with no
+            // field in sight. The welcome opens the field when it's done.
+            editing = Prefs.shared.welcomed
             return
         }
         // Every tab comes back with its address, title and picture, and
@@ -152,7 +154,7 @@ final class Browser: NSObject, ObservableObject {
             prepare(fresh)
             tabs.append(fresh)
             activeID = fresh.id
-            editing = true
+            editing = Prefs.shared.welcomed
         } else {
             activeID = tabs[min(max(0, saved.active), tabs.count - 1)].id
         }
