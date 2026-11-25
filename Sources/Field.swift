@@ -144,9 +144,25 @@ struct Field: View {
                                 .font(.scaled(12.5))
                                 .foregroundStyle(Palette.muted)
                                 .fixedSize()
+                        } else {
+                            // Into the field, not gone to: to go on typing
+                            // from it, as in Safari.
+                            Button {
+                                Feel.tick()
+                                browser.typed = offer.search ? offer.key + " " : Address.pretty(offer.url)
+                            } label: {
+                                Image(systemName: "arrow.up.left")
+                                    .font(.scaled(14, weight: .medium))
+                                    .foregroundStyle(Palette.muted)
+                                    .frame(width: 40, height: 44)
+                                    .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel("Fill In")
                         }
                     }
-                    .padding(.horizontal, 14)
+                    .padding(.leading, 14)
+                    .padding(.trailing, offer.tab != nil ? 14 : 2)
                     .frame(height: 44)
                     .background(
                         RoundedRectangle(cornerRadius: 11, style: .continuous)
