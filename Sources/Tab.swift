@@ -204,6 +204,9 @@ final class Tab: NSObject, ObservableObject, Identifiable {
                     guard let self else { return }
                     self.progress = self.web.estimatedProgress
                     if self.waking, self.progress >= 0.6 { self.waking = false }
+                    // The top's colour as soon as there's a top, not once
+                    // the last ad has loaded (it took seconds).
+                    if self.progress >= 0.3 { self.readEdge(force: false) }
                 }
             },
             web.observe(\.isLoading, options: [.new]) { [weak self] _, _ in
@@ -231,7 +234,10 @@ final class Tab: NSObject, ObservableObject, Identifiable {
             // The page's background as soon as it paints it, and whenever it
             // changes: the clock's colour follows it from the first load.
             web.observe(\.underPageBackgroundColor, options: [.new]) { [weak self] _, _ in
-                MainActor.assumeIsolated { self?.readGround() }
+                MainActor.assumeIsolated {
+                    self?.readGround()
+                    self?.readEdge(force: false)
+                }
             },
             web.observe(\.themeColor, options: [.new]) { [weak self] _, _ in
                 MainActor.assumeIsolated { self?.tint = self?.web.themeColor }

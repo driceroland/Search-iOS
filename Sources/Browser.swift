@@ -828,6 +828,7 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         guard let tab = tabs.first(where: { $0.web === webView }) else { return }
         apply(Sites.shared.prefs(tab.address), to: tab)
         tab.readGround()
+        tab.readEdge(force: false)
     }
 
     /// The camera and the microphone: as decided for the site, or asked.
