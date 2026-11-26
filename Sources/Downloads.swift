@@ -40,10 +40,10 @@ final class Downloads: NSObject, ObservableObject, WKDownloadDelegate {
 
     private func set(_ next: Shown?, for seconds: Double? = nil) {
         leave?.cancel()
-        withAnimation(.spring(response: 0.36, dampingFraction: 0.8)) { shown = next }
+        withAnimation(Motion.pick(.spring(response: 0.36, dampingFraction: 0.8), smooth: Motion.settle)) { shown = next }
         guard let seconds else { return }
         let work = DispatchWorkItem { [weak self] in
-            withAnimation(.spring(response: 0.36, dampingFraction: 0.9)) { self?.shown = nil }
+            withAnimation(Motion.pick(.spring(response: 0.36, dampingFraction: 0.9), smooth: Motion.settle)) { self?.shown = nil }
         }
         leave = work
         DispatchQueue.main.asyncAfter(deadline: .now() + seconds, execute: work)
