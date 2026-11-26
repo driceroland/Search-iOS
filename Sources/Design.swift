@@ -22,17 +22,46 @@ enum Palette {
     }
 }
 
-/// The Mac's three curves, and the one way a gesture hands its speed to them.
+/// The curves everything moves on. Two sets: the Mac's own (the default),
+/// with a little bounce, and a smoother set chosen in Settings that moves the
+/// way Safari does: iOS's own springs, critically damped, so things come to
+/// rest without overshooting and wobbling back.
 enum Motion {
+    /// Settings' Smoother animations. Read straight from the defaults, so it
+    /// can be asked from anywhere, on any thread.
+    static var smooth: Bool { Store.settings.bool(forKey: Prefs.smoothKey) }
+
+    /// The classic curve, or the smooth one when that's chosen.
+    static func pick(_ classic: Animation, smooth new: Animation) -> Animation {
+        smooth ? new : classic
+    }
+
     /// Things that move between two places.
-    static let glide = Animation.spring(response: 0.34, dampingFraction: 0.82)
+    static var glide: Animation {
+        pick(.spring(response: 0.34, dampingFraction: 0.82), smooth: .spring(duration: 0.42, bounce: 0))
+    }
     /// Things that arrive or leave.
-    static let settle = Animation.spring(response: 0.30, dampingFraction: 0.86)
+    static var settle: Animation {
+        pick(.spring(response: 0.30, dampingFraction: 0.86), smooth: .spring(duration: 0.38, bounce: 0))
+    }
     /// Things that make room for each other, with a little give: cards
     /// closing up the gap one left.
-    static let bouncy = Animation.spring(response: 0.38, dampingFraction: 0.74)
+    static var bouncy: Animation {
+        pick(.spring(response: 0.38, dampingFraction: 0.74), smooth: .spring(duration: 0.40, bounce: 0.08))
+    }
+    /// A thing picked up under the finger, or set back down (smooth set).
+    static let grab = Animation.spring(duration: 0.28, bounce: 0)
+    /// Something thrown off the screen, fast, and gone (smooth set).
+    static let toss = Animation.spring(duration: 0.26, bounce: 0)
+    /// The page shrinking to its card and growing back, without a bounce:
+    /// Safari's tab overview takes a little longer than the Mac's.
+    static var lift: Spring {
+        smooth ? Spring(duration: 0.46, bounce: 0) : Spring(response: 0.38, dampingRatio: 1)
+    }
     /// Fades.
-    static let quick = Animation.easeOut(duration: 0.14)
+    static var quick: Animation {
+        pick(.easeOut(duration: 0.14), smooth: .easeInOut(duration: 0.2))
+    }
 
     /// A glide that starts at the finger's speed. `velocity` in points per
     /// second, `distance` what is left to travel: SwiftUI wants the speed as
@@ -40,9 +69,8 @@ enum Motion {
     static func thrown(velocity: CGFloat, distance: CGFloat) -> Animation {
         guard abs(distance) > 0.5 else { return glide }
         let share = max(-12, min(12, velocity / distance))
-        return .interpolatingSpring(
-            Spring(response: 0.34, dampingRatio: 0.86), initialVelocity: share
-        )
+        let spring = smooth ? Spring(duration: 0.42, bounce: 0) : Spring(response: 0.34, dampingRatio: 0.86)
+        return .interpolatingSpring(spring, initialVelocity: share)
     }
 
     /// Where a flick would come to rest: the iOS rule, decelerating at the

@@ -511,7 +511,7 @@ final class Browser: NSObject, ObservableObject {
         tab.cover(top: 0, bottom: 0, least: 0, most: 0)
         tab.go(to: url)
         Feel.nudge()
-        withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) { peek = Peek(tab: tab, url: url) }
+        withAnimation(Motion.pick(.spring(response: 0.34, dampingFraction: 0.86), smooth: Motion.glide)) { peek = Peek(tab: tab, url: url) }
     }
 
     /// The peeked page kept, as it is, scrolled where it was left: a tab
@@ -537,8 +537,8 @@ final class Browser: NSObject, ObservableObject {
 
     func dropPeek() {
         let gone = peek?.tab
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { peek = nil }
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { gone?.close() }
+        withAnimation(Motion.pick(.spring(response: 0.3, dampingFraction: 0.9), smooth: Motion.settle)) { peek = nil }
+        DispatchQueue.main.asyncAfter(deadline: .now() + (Motion.smooth ? 0.4 : 0.35)) { gone?.close() }
     }
 
     func open(_ url: URL, private: Bool, behind: Bool) {

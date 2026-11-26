@@ -229,7 +229,7 @@ struct Sheet: View {
             }
             .frame(width: gridWidth, height: tall, alignment: .topLeading)
             .coordinateSpace(.named("pins"))
-            .animation(.spring(response: 0.3, dampingFraction: 0.82), value: pinned.map(\.id))
+            .animation(Motion.pick(.spring(response: 0.3, dampingFraction: 0.82), smooth: Motion.glide), value: pinned.map(\.id))
             .padding(.leading, padL)
             .padding(.trailing, padR)
             .padding(.top, 10)
@@ -285,7 +285,7 @@ struct Sheet: View {
                 let slots = pinSlots(gridWidth)
                 if let over = slots.first(where: { $0.tab.id != tab.id && $0.rect.contains(drag.location) }) {
                     Feel.tick()
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.82)) { browser.move(tab, before: over.tab) }
+                    withAnimation(Motion.pick(.spring(response: 0.3, dampingFraction: 0.82), smooth: Motion.glide)) { browser.move(tab, before: over.tab) }
                 }
             }
             .onEnded { _ in
@@ -294,7 +294,7 @@ struct Sheet: View {
                 if let slot = pinSlots(gridWidth).first(where: { $0.tab.id == tab.id }) {
                     finger = CGPoint(x: slot.rect.minX + grabbed.x, y: slot.rect.minY + grabbed.y)
                 }
-                withAnimation(.spring(response: 0.3, dampingFraction: 0.85)) { carry = nil }
+                withAnimation(Motion.pick(.spring(response: 0.3, dampingFraction: 0.85), smooth: Motion.grab)) { carry = nil }
             }
     }
 
@@ -305,7 +305,7 @@ struct Sheet: View {
         grabbed = CGPoint(x: at.x - slot.rect.minX, y: at.y - slot.rect.minY)
         finger = at
         carriedFar = false
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) { carry = tab.id }
+        withAnimation(Motion.pick(.spring(response: 0.25, dampingFraction: 0.8), smooth: Motion.grab)) { carry = tab.id }
     }
 
     private var list: some View {
@@ -547,7 +547,7 @@ struct Sheet: View {
         .onChange(of: loose.count) { _, count in
             // One closed at the end: the one before it comes to the middle.
             if deckAt > CGFloat(max(0, count - 1)) {
-                withAnimation(.spring(response: 0.35, dampingFraction: 0.86)) { deckAt = CGFloat(max(0, count - 1)) }
+                withAnimation(Motion.pick(.spring(response: 0.35, dampingFraction: 0.86), smooth: Motion.glide)) { deckAt = CGFloat(max(0, count - 1)) }
             }
         }
     }
@@ -580,7 +580,10 @@ struct Sheet: View {
                 let thrown = deckAt - value.velocity.width / width * 0.25
                 let last = CGFloat(max(0, count - 1))
                 let target = max(0, min(last, thrown.rounded()))
-                withAnimation(.spring(response: 0.38, dampingFraction: 0.88)) { deckAt = target }
+                withAnimation(Motion.pick(
+                    .spring(response: 0.38, dampingFraction: 0.88),
+                    smooth: Motion.thrown(velocity: -value.velocity.width / width, distance: target - deckAt)
+                )) { deckAt = target }
             }
     }
 
@@ -1051,7 +1054,7 @@ struct Sheet: View {
         /// Off the way it was going, then gone from the grid, the others
         /// closing up behind it.
         private func flyOff(to x: CGFloat, speed: CGFloat = 0) {
-            withAnimation(.spring(response: 0.28, dampingFraction: 0.9)) {
+            withAnimation(Motion.pick(.spring(response: 0.28, dampingFraction: 0.9), smooth: Motion.toss)) {
                 if x != 0 { shift = x } else { gone = true }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { close() }
@@ -1150,7 +1153,7 @@ struct Sheet: View {
                         guard upward == true else { return }
                         let landing = value.translation.height + value.velocity.height * 0.2
                         if landing < -height * 0.25 {
-                            withAnimation(.spring(response: 0.28, dampingFraction: 0.95)) { lift = -height * 1.4 }
+                            withAnimation(Motion.pick(.spring(response: 0.28, dampingFraction: 0.95), smooth: Motion.toss)) { lift = -height * 1.4 }
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) { close() }
                         } else {
                             withAnimation(Motion.bouncy) { lift = 0 }

@@ -95,6 +95,12 @@ struct Settings: View {
                     .labelsHidden()
                 }
 
+                Section {
+                    Toggle("Smoother animations", isOn: $prefs.smoothMotion).tint(.green)
+                } footer: {
+                    Text("Things glide to a stop the way they do in Safari, without the little bounce.")
+                }
+
                 if browser.roomy {
                     Section {
                         Toggle("Sidebar", isOn: $prefs.sidebar)

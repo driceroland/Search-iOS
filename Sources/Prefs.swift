@@ -159,6 +159,13 @@ final class Prefs: ObservableObject {
         didSet { store.set(sidebar, forKey: "sidebar") }
     }
 
+    /// Smoother animations: Safari's springs, which come to rest without a
+    /// bounce, in place of the Mac's. Off until chosen. Motion reads it.
+    @Published var smoothMotion: Bool {
+        didSet { store.set(smoothMotion, forKey: Self.smoothKey) }
+    }
+    nonisolated static let smoothKey = "motion.smooth"
+
     /// Which of the Mac's spaces' pins the iPhone shows; nil for the first.
     @Published var syncSpace: String? {
         didSet { store.set(syncSpace, forKey: "sync.space") }
@@ -186,5 +193,6 @@ final class Prefs: ObservableObject {
         tabCards = store.object(forKey: "tabs.cards") as? Bool ?? true
         tabDeck = store.bool(forKey: "tabs.deck")
         sidebar = store.object(forKey: "sidebar") as? Bool ?? true
+        smoothMotion = store.bool(forKey: Self.smoothKey)
     }
 }

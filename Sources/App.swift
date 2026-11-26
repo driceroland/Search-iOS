@@ -487,7 +487,7 @@ struct ContentView: View {
 
     /// How the tabs land: no bounce, so the page settles on its card
     /// rather than past it and back.
-    static let landing = Animation.spring(response: 0.38, dampingFraction: 1)
+    static var landing: Animation { .spring(Motion.lift) }
 
     private var zoomTarget: CGRect? {
         guard Prefs.shared.tabCards, let tab = browser.active, tab.pin == nil,
@@ -731,9 +731,7 @@ struct ContentView: View {
         let share = abs(left) < 0.02 ? 0 : max(-8, min(8, rate / left))
         moving = true
         withAnimation(
-            still ? Motion.quick : .interpolatingSpring(
-                Spring(response: 0.38, dampingRatio: 1), initialVelocity: share
-            ),
+            still ? Motion.quick : .interpolatingSpring(Motion.lift, initialVelocity: share),
             completionCriteria: .removed
         ) {
             lift = target
