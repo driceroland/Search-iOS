@@ -1520,6 +1520,16 @@
         }
       }
     },
+    "The sites you visit most, under your bookmarks on a new tab. Turning this off hides them; your history stays.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les sites que vous visitez le plus, sous vos signets dans un nouvel onglet. Les masquer ne touche pas à votre historique."
+          }
+        }
+      }
+    },
     "Third-party ad networks and trackers are stopped before they load. If a site breaks, hold the address and allow ads on that site alone.": {
       "localizations": {
         "fr": {

@@ -226,6 +226,7 @@ struct Field: View {
 struct Start: View {
     @ObservedObject var browser: Browser
     @ObservedObject private var bookmarks = Bookmarks.shared
+    @ObservedObject private var prefs = Prefs.shared
     @State private var icons: [String: UIImage] = [:]
 
     private var favourites: [Suggestion] {
@@ -238,6 +239,7 @@ struct Start: View {
     }
 
     private var often: [Suggestion] {
+        guard prefs.oftenVisited else { return [] }
         let known = Set(favourites.map { Address.host($0.url) })
         return browser.history.top(12)
             .filter { !known.contains(Address.host($0.url)) }

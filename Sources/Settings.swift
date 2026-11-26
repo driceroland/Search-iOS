@@ -42,6 +42,12 @@ struct Settings: View {
                 }
 
                 Section {
+                    Toggle("Often visited", isOn: $prefs.oftenVisited).tint(.green)
+                } footer: {
+                    Text("The sites you visit most, under your bookmarks on a new tab. Turning this off hides them; your history stays.")
+                }
+
+                Section {
                     Picker("Close tabs", selection: $prefs.autoClose) {
                         ForEach(AutoClose.allCases) { Text($0.title).tag($0) }
                     }
