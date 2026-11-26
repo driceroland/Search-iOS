@@ -161,8 +161,10 @@ struct ContentView: View {
                 // Gone in the first steps out, back in the last steps home.
                 Color.clear
                     .overlay(alignment: .bottom) {
-                        Fade()
-                            .frame(height: Metrics.foot(geo.safeAreaInsets.bottom))
+                        Group {
+                            if let tab = browser.active { PageFade(tab: tab) } else { Fade() }
+                        }
+                        .frame(height: Metrics.foot(geo.safeAreaInsets.bottom))
                     }
                     .opacity(Double(max(0, 1 - min(1, lift) * 5)))
                     .allowsHitTesting(false)

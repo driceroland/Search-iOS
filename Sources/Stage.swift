@@ -210,8 +210,27 @@ struct Still: View {
 /// material's tint stays out of it) and each masked to a band that overlaps
 /// the next. With Reduce Transparency on, nothing: the page as it is.
 struct Fade: UIViewRepresentable {
+    /// The page's own darkness, when it's known: a dark page under a light
+    /// iPhone fades into a dark blur, not a pale band (and the other way).
+    var dark: Bool? = nil
     func makeUIView(context: Context) -> FadeView { FadeView() }
-    func updateUIView(_ view: FadeView, context: Context) {}
+    func updateUIView(_ view: FadeView, context: Context) {
+        let style: UIUserInterfaceStyle = dark.map { $0 ? .dark : .light } ?? .unspecified
+        if view.overrideUserInterfaceStyle != style { view.overrideUserInterfaceStyle = style }
+    }
+}
+
+/// The fade under the pill, following the page in front: its top colour
+/// says whether it is a dark page (the bottom is rarely read on its own).
+struct PageFade: View {
+    @ObservedObject var tab: Tab
+    var body: some View {
+        Fade(dark: tab.edge.map { colour in
+            var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+            guard colour.getRed(&r, green: &g, blue: &b, alpha: &a), a > 0.5 else { return nil }
+            return 0.2126 * r + 0.7152 * g + 0.0722 * b < 0.4
+        } ?? nil)
+    }
 }
 
 final class FadeView: UIView {
@@ -253,6 +272,13 @@ final class FadeView: UIView {
     }
 
     required init?(coder: NSCoder) { fatalError() }
+
+    /// The blurs are held part-way with the look they were made in: made
+    /// again when the look changes.
+    override func traitCollectionDidChange(_ previous: UITraitCollection?) {
+        super.traitCollectionDidChange(previous)
+        if traitCollection.userInterfaceStyle != previous?.userInterfaceStyle { hold() }
+    }
 
     @objc private func hold() {
         animators.forEach { $0.stopAnimation(true) }
