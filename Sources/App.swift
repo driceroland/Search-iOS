@@ -68,6 +68,11 @@ struct ContentView: View {
     @State private var liftFrom: CGFloat = 0
     /// A finger is walking or lifting the page.
     @State private var dragging = false
+    /// When the finger last moved the lift, and where to: a lift whose end
+    /// never comes (a second finger dragging a picture took the touches) is
+    /// let go from there, not left half open with the page frozen under it.
+    @State private var liftSeen = Date.distantPast
+    @State private var liftLast: CGFloat = 0
     /// The tabs are on their way, up or down, let go of: the page stays
     /// in the air until they land, whatever `lift` already says.
     @State private var moving = false
@@ -674,6 +679,12 @@ struct ContentView: View {
     private func lifting(_ moved: CGFloat) {
         let first = !dragging
         dragging = true
+        liftSeen = Date()
+        liftLast = moved
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            guard dragging, Date().timeIntervalSince(liftSeen) >= 1.9 else { return }
+            lifted(liftLast, speed: 0)
+        }
         // Over the tabs the bar takes them away, down.
         if browser.showingTabs {
             lift = 1 - max(0, moved) / travel

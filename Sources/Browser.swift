@@ -143,7 +143,7 @@ final class Browser: NSObject, ObservableObject {
             tab.pinHome = entry.home.flatMap(URL.init(string:))
             tab.pinName = entry.pinName
             tab.seen = entry.seen ?? Date()
-            tab.restore(url, title: entry.title)
+            tab.restore(url, title: entry.title, history: entry.history)
             if tab.icon == nil { Favicons.shared.prefetch(url) }
             tabs.append(tab)
         }
@@ -788,7 +788,8 @@ final class Browser: NSObject, ObservableObject {
                 Session.Entry(
                     url: tab.address!.absoluteString, title: tab.title, pin: tab.pin, key: tab.key,
                     seen: tab.id == activeID ? Date() : tab.seen,
-                    pinID: tab.pinID, home: tab.pinHome?.absoluteString, pinName: tab.pinName
+                    pinID: tab.pinID, home: tab.pinHome?.absoluteString, pinName: tab.pinName,
+                    history: tab.history
                 )
             },
             // On an empty tab or a private one, which aren't written down:
@@ -799,6 +800,16 @@ final class Browser: NSObject, ObservableObject {
 }
 
 extension Browser: WKNavigationDelegate, WKUIDelegate {
+    /// The page's process ended (iOS took its memory back while Search sat
+    /// in the background): the page comes back where it was, history and all.
+    func webViewWebContentProcessDidTerminate(_ webView: WKWebView) {
+        if let tab = tabs.first(where: { $0.web === webView }), tab.id == activeID {
+            webView.reload()
+        } else if let tab = tabs.first(where: { $0.web === webView }) {
+            tab.needsReload = true
+        }
+    }
+
     /// Before each page: the ad blocker goes on or off for the site it's
     /// heading to, so "off for this site" holds for the whole page. Links
     /// that aren't for a browser (mail, phone, the App Store) go to the app
@@ -1026,7 +1037,10 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
         let opener = tabs.first { $0.web === webView }
         let tab = Tab(configuration: configuration, isPrivate: opener?.isPrivate ?? false)
         active?.capture()
-        adopt(tab)
+        // Next to the tab it came from, as a link opened from the menu is.
+        prepare(tab)
+        let here = opener.flatMap { o in tabs.firstIndex { $0 === o } }.map { $0 + 1 } ?? tabs.count
+        tabs.insert(tab, at: min(here, tabs.count))
         activeID = tab.id
         chrome.unfold(animated: false)
         return tab.web
@@ -1125,6 +1139,9 @@ enum Session {
         var pinID: UUID? = nil
         var home: String? = nil
         var pinName: String? = nil
+        /// Its back and forward pages, as WebKit keeps them: so a tab
+        /// brought back after iOS closed Search still goes back.
+        var history: Data? = nil
     }
 
     struct Shape: Codable {

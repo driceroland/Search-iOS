@@ -17,37 +17,52 @@ struct Field: View {
     @State private var drop: CGFloat = 0
     /// The address it opens on is selected, as in Safari: the first letter
     /// typed replaces it, and a tap places the caret to edit it instead.
-    @State private var selection: TextSelection?
-    /// The text the selection was made in: its indices mean nothing in any
-    /// other string, even one as long (another script, other letters).
+    /// Kept as places in the text (UTF-16 offsets), not as String indices:
+    /// an index carried over to another copy of the text, even an equal one,
+    /// stopped the app on iOS 18 when the field turned it into a range.
+    @State private var picked: Range<Int>?
+    /// The text the selection was made in: in any other, it means nothing.
     @State private var selectedIn = ""
 
     private var blank: Bool { browser.active?.isBlank ?? true }
 
-    /// The selection, only while it still falls inside what's typed. The text
-    /// can be replaced under it (a new tab, a suggestion taken); handing the
-    /// field a range past the end of the new text stops the app.
+    /// The selection, built afresh in the text the field is given, and only
+    /// while it was made in that same text.
     private var fitting: Binding<TextSelection?> {
         Binding(
             get: {
-                guard let selection else { return nil }
                 let text = browser.typed
-                switch selection.indices {
-                case .selection(let range):
-                    if text == selectedIn { return selection }
-                    // Text changed under it: kept only if both ends still
-                    // fall on a letter of this text, never between.
-                    guard range.lowerBound >= text.startIndex, range.upperBound <= text.endIndex,
-                          range.lowerBound.samePosition(in: text) != nil,
-                          range.upperBound.samePosition(in: text) != nil
-                    else { return nil }
-                    return selection
-                default:
-                    return nil
-                }
+                guard let picked, text == selectedIn,
+                      picked.lowerBound >= 0, picked.upperBound <= text.utf16.count
+                else { return nil }
+                let lo = String.Index(utf16Offset: picked.lowerBound, in: text)
+                let hi = String.Index(utf16Offset: picked.upperBound, in: text)
+                guard lo.samePosition(in: text) != nil, hi.samePosition(in: text) != nil else { return nil }
+                return picked.isEmpty ? TextSelection(insertionPoint: lo) : TextSelection(range: lo..<hi)
             },
-            set: { selection = $0; selectedIn = browser.typed }
+            set: { new in
+                let text = browser.typed
+                selectedIn = text
+                guard let new else { picked = nil; return }
+                let range: Range<String.Index>
+                switch new.indices {
+                case .selection(let r): range = r
+                default: picked = nil; return
+                }
+                guard range.lowerBound.samePosition(in: text) != nil,
+                      range.upperBound.samePosition(in: text) != nil,
+                      range.upperBound <= text.endIndex
+                else { picked = nil; return }
+                picked = range.lowerBound.utf16Offset(in: text)..<range.upperBound.utf16Offset(in: text)
+            }
         )
+    }
+
+    /// Put text in the field with the caret after it, to go on typing.
+    private func fill(_ text: String) {
+        browser.typed = text
+        selectedIn = text
+        picked = text.utf16.count..<text.utf16.count
     }
 
     var body: some View {
@@ -87,7 +102,7 @@ struct Field: View {
             typing = raised
             guard raised else {
                 // Put away: the selection was over that text, not the next.
-                selection = nil
+                picked = nil
                 return
             }
             // Selected once the field has the caret: a selection set before
@@ -95,7 +110,7 @@ struct Field: View {
             DispatchQueue.main.async {
                 let text = browser.typed
                 if !text.isEmpty {
-                    selection = TextSelection(range: text.startIndex..<text.endIndex)
+                    picked = 0..<text.utf16.count
                     selectedIn = text
                 }
             }
@@ -149,7 +164,7 @@ struct Field: View {
                             // from it, as in Safari.
                             Button {
                                 Feel.tick()
-                                browser.typed = offer.search ? offer.key + " " : Address.pretty(offer.url)
+                                fill(offer.search ? offer.key + " " : Address.pretty(offer.url))
                             } label: {
                                 Image(systemName: "arrow.up.left")
                                     .font(.scaled(14, weight: .medium))

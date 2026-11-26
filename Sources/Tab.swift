@@ -257,19 +257,45 @@ final class Tab: NSObject, ObservableObject, Identifiable {
     }
 
     /// A tab from the last launch: everything but the page.
-    func restore(_ url: URL, title: String) {
+    func restore(_ url: URL, title: String, history: Data? = nil) {
         pending = url
         address = url
         self.title = title
+        kept = history
         snapshot = Snapshots.read(key)
+    }
+
+    /// Back and forward, as written down while a restored tab hasn't loaded.
+    private var kept: Data?
+    /// Its page's process went while it was out of sight: loaded again
+    /// when it's shown.
+    var needsReload = false
+
+    /// Back and forward, to be written down; a tab not loaded yet keeps
+    /// what it came back with. Not past a size worth keeping.
+    var history: Data? {
+        if pending != nil { return kept }
+        guard let data = web.interactionState as? Data, data.count < 256_000 else { return nil }
+        return data
     }
 
     /// Loads the page a restored tab has been holding a place for.
     func wake() {
+        if needsReload {
+            needsReload = false
+            web.reload()
+        }
         guard let url = pending else { return }
         pending = nil
         waking = snapshot != nil
-        web.load(URLRequest(url: url))
+        if let kept {
+            self.kept = nil
+            web.interactionState = kept
+            // Not taken (another WebKit wrote it): the page alone.
+            if web.url == nil { web.load(URLRequest(url: url)) }
+        } else {
+            web.load(URLRequest(url: url))
+        }
     }
 
     /// What's at the top of the page, asked of the page: the first element

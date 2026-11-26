@@ -120,7 +120,10 @@ extension Browser {
 
     /// Back in front on a private tab: asked at once.
     func askToUnlock() {
-        guard locked, active?.isPrivate == true else { return }
+        // Only where a private tab is on screen: the private side of the
+        // tabs, or a private page. Never over the other tabs.
+        let onScreen = showingTabs ? privateView : active?.isPrivate == true
+        guard locked, onScreen else { return }
         unlock()
     }
 
