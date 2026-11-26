@@ -66,6 +66,22 @@ enum AutoClose: String, CaseIterable, Identifiable {
     }
 }
 
+/// Which player a video goes full screen in: the iPhone's own (AVPlayer),
+/// the site's own player, or the site's own on the sites chosen for it.
+enum VideoPlayer: String, CaseIterable, Identifiable {
+    case native, website, chosen
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .native: return String(localized: "iPhone player")
+        case .website: return String(localized: "Website's player")
+        case .chosen: return String(localized: "Website's player on chosen sites")
+        }
+    }
+}
+
 @MainActor
 final class Prefs: ObservableObject {
     static let shared = Prefs()
@@ -159,6 +175,11 @@ final class Prefs: ObservableObject {
         didSet { store.set(sidebar, forKey: "sidebar") }
     }
 
+    /// The player videos go full screen in. The iPhone's own until chosen.
+    @Published var videoPlayer: VideoPlayer {
+        didSet { store.set(videoPlayer.rawValue, forKey: "video.player") }
+    }
+
     /// Which of the Mac's spaces' pins the iPhone shows; nil for the first.
     @Published var syncSpace: String? {
         didSet { store.set(syncSpace, forKey: "sync.space") }
@@ -186,5 +207,15 @@ final class Prefs: ObservableObject {
         tabCards = store.object(forKey: "tabs.cards") as? Bool ?? true
         tabDeck = store.bool(forKey: "tabs.deck")
         sidebar = store.object(forKey: "sidebar") as? Bool ?? true
+        videoPlayer = store.string(forKey: "video.player").flatMap(VideoPlayer.init) ?? .native
+    }
+
+    /// The site's own player for videos on this page's site.
+    func sitePlayer(_ url: URL?) -> Bool {
+        switch videoPlayer {
+        case .native: return false
+        case .website: return true
+        case .chosen: return Sites.shared.prefs(url).sitePlayer == true
+        }
     }
 }

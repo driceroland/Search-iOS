@@ -35,6 +35,9 @@ struct Veil: Codable, Equatable, Identifiable {
 struct SitePrefs: Codable, Equatable {
     var zoom: Double?
     var desktop: Bool?
+    /// Videos go full screen in the site's own player, not the iPhone's
+    /// (with Settings' video player on chosen sites).
+    var sitePlayer: Bool?
     var camera: Choice?
     var microphone: Choice?
     /// What was hidden before hidden things had names: bare selectors,
@@ -133,6 +136,13 @@ extension Browser {
     func desktop(_ tab: Tab) {
         let on = !(Sites.shared.prefs(tab.address).desktop ?? false)
         Sites.shared.change(tab.address) { $0.desktop = on ? true : nil }
+        tab.web.reload()
+    }
+
+    /// Videos on the site in its own player, or in the iPhone's again.
+    func sitePlayer(_ tab: Tab) {
+        let on = !(Sites.shared.prefs(tab.address).sitePlayer ?? false)
+        Sites.shared.change(tab.address) { $0.sitePlayer = on ? true : nil }
         tab.web.reload()
     }
 
@@ -258,6 +268,7 @@ extension Browser {
     func armHiding(_ web: WKWebView, for url: URL?) {
         let controller = web.configuration.userContentController
         Shield.shared.tune(controller, for: url?.host()?.lowercased())
+        if Prefs.shared.sitePlayer(url) { controller.addUserScript(SitePlayer.script) }
         let tab = tabs.first { $0.web === web }
         let css = (Sites.shared.prefs(url).allVeils + (tab.flatMap { passingVeils[$0.id] } ?? []))
             .map { Zap.rule($0.selector) }
@@ -769,6 +780,12 @@ struct SiteSheet: View {
                             Button { browser.zoom(tab, step: 1) } label: { Text("A").font(.scaled(19)) }
                         }
                         .buttonStyle(.plain)
+                    }
+                    if Prefs.shared.videoPlayer == .chosen {
+                        Toggle("Website's video player", isOn: Binding(
+                            get: { prefs.sitePlayer ?? false },
+                            set: { _ in browser.sitePlayer(tab) }
+                        )).tint(.green)
                     }
                     if Shield.shared.enabled {
                         Toggle("Block ads", isOn: Binding(

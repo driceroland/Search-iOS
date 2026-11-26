@@ -12,6 +12,13 @@ struct Settings: View {
     @State private var askingHistory = false
     @State private var askingErase = false
     @ObservedObject private var sync = Sync.shared
+    @ObservedObject private var sites = Sites.shared
+
+    /// The sites chosen for their own video player.
+    private var playerSites: [String] {
+        sites.all.filter { $0.value.sitePlayer == true }.keys.sorted()
+    }
+
 
     var body: some View {
         NavigationStack {
@@ -83,6 +90,30 @@ struct Settings: View {
                     Toggle("Handoff", isOn: $prefs.handoff).tint(.green)
                 } footer: {
                     Text("The page you're on shows up on your Mac, and your Mac's page here, through Apple's Handoff: your own devices, nearby, on the same Apple Account. Private tabs never. Handoff itself keeps nothing.")
+                }
+
+                Section {
+                    Picker("Video player", selection: $prefs.videoPlayer) {
+                        ForEach(VideoPlayer.allCases) { Text($0.title).tag($0) }
+                    }
+                    if prefs.videoPlayer == .chosen {
+                        NavigationLink {
+                            PlayerSites()
+                        } label: {
+                            LabeledContent("Chosen sites") {
+                                Text(playerSites.isEmpty ? String(localized: "None") : String(localized: "See All (\(playerSites.count))"))
+                            }
+                        }
+                    }
+                } footer: {
+                    switch prefs.videoPlayer {
+                    case .native:
+                        Text("Videos go full screen in the iPhone's own player, with Picture in Picture and AirPlay.")
+                    case .website:
+                        Text("Videos stay in the website's own player, full screen included, with the site's controls.")
+                    case .chosen:
+                        Text("Sites you choose use their own player; everywhere else, the iPhone's. Choose a site from its This site sheet: hold the address, then This site.")
+                    }
                 }
 
                 Section("Appearance") {
@@ -182,6 +213,49 @@ struct Settings: View {
         let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = info?["CFBundleVersion"] as? String ?? ""
         return build.isEmpty ? short : "\(short) (\(build))"
+    }
+}
+
+/// Every site chosen for its own video player, as Safari lists website data:
+/// swiped away one by one, or all at once from Edit.
+struct PlayerSites: View {
+    @ObservedObject private var sites = Sites.shared
+
+    private var list: [String] {
+        sites.all.filter { $0.value.sitePlayer == true }.keys.sorted()
+    }
+
+    var body: some View {
+        Form {
+            if list.isEmpty {
+                Text("No sites yet. Choose one from its This site sheet: hold the address, then This site.")
+                    .foregroundStyle(Palette.muted)
+            } else {
+                Section {
+                    ForEach(list, id: \.self) { site in
+                        Text(site).foregroundStyle(Palette.ink)
+                    }
+                    .onDelete { rows in
+                        let gone = rows.map { list[$0] }
+                        for site in gone { forget(site) }
+                    }
+                } footer: {
+                    Text("Videos on these sites go full screen in the site's own player.")
+                }
+                Section {
+                    Button("Remove All", role: .destructive) {
+                        for site in list { forget(site) }
+                    }
+                }
+            }
+        }
+        .navigationTitle("Chosen Sites")
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar { if !list.isEmpty { EditButton() } }
+    }
+
+    private func forget(_ site: String) {
+        sites.change(URL(string: "https://\(site)")) { $0.sitePlayer = nil }
     }
 }
 

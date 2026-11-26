@@ -384,6 +384,8 @@ final class Browser: NSObject, ObservableObject {
 
     private func cover(_ tab: Tab) {
         guard safe.bottom > 0 || safe.top > 0 else { return }
+        // A player over the whole screen has nothing of the app's over it.
+        guard !VideoCover.shared.holds(tab.web), tab.web.fullscreenState == .notInFullscreen else { return }
         let foot = Metrics.foot(safe.bottom)
         let least = Metrics.footFolded(safe.bottom)
         // As in Safari: what the bar covers follows the bar as it folds, so
@@ -404,6 +406,8 @@ final class Browser: NSObject, ObservableObject {
         let controller = tab.web.configuration.userContentController
         controller.removeScriptMessageHandler(forName: Zap.handler)
         controller.add(ZapRelay(self), name: Zap.handler)
+        controller.removeScriptMessageHandler(forName: SitePlayer.handler)
+        controller.add(PlayerRelay(), name: SitePlayer.handler)
         cover(tab)
         tab.scrolled = { [weak self, weak tab] event in
             guard let self, let tab, tab.id == self.activeID else { return }

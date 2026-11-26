@@ -140,10 +140,19 @@ final class StageView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
+        // A page in element full screen is WebKit's, in a window of its own,
+        // until WebKit hands it back here: taken back now, it left that
+        // window black.
+        if let current, Self.fullscreen(current) { return }
         if let current, current.superview !== self, window != nil {
             addSubview(current)
         }
         current?.frame = bounds
+    }
+
+    private static func fullscreen(_ view: UIView) -> Bool {
+        guard let web = view as? WKWebView else { return false }
+        return web.fullscreenState != .notInFullscreen || VideoCover.shared.holds(web)
     }
 
     func show(_ page: UIView?) {
@@ -154,6 +163,10 @@ final class StageView: UIView {
             return
         }
         if page == nil, current == nil { return }
+        if let page, Self.fullscreen(page) {
+            current = page
+            return
+        }
 
         current?.removeFromSuperview()
         current = page
@@ -162,6 +175,142 @@ final class StageView: UIView {
         page.frame = bounds
         addSubview(page)
         setNeedsLayout()
+    }
+}
+
+/// A site's own video player over the whole screen where WebKit won't put
+/// it there itself (SitePlayer pins it over the page): the page goes into
+/// a window of its own, the way WebKit's own full screen takes it, with no
+/// clock, no pill and no home bar, and the phone free to turn. Back to its
+/// stage, untouched, when the player leaves full screen.
+@MainActor
+final class VideoCover {
+    static let shared = VideoCover()
+
+    private var window: UIWindow?
+    private weak var web: WKWebView?
+    private weak var home: UIView?
+    private var insets = UIEdgeInsets.zero
+
+    func holds(_ view: UIView) -> Bool { window != nil && view === web }
+
+    func enter(_ web: WKWebView, wide: Bool) {
+        guard window == nil, let scene = web.window?.windowScene else { return }
+        let controller = CoverController()
+        controller.close = { [weak self, weak web] in
+            web?.evaluateJavaScript(SitePlayer.exit)
+            self?.exit()
+        }
+        let window = UIWindow(windowScene: scene)
+        window.windowLevel = .normal + 1
+        window.rootViewController = controller
+        self.window = window
+        self.web = web
+        home = web.superview
+        // Nothing of the app's covers it now.
+        insets = web.scrollView.contentInset
+        if #available(iOS 26.0, *) { web.obscuredContentInsets = .zero }
+        web.scrollView.contentInset = .zero
+        web.setMinimumViewportInset(.zero, maximumViewportInset: .zero)
+        controller.hold(web)
+        window.makeKeyAndVisible()
+        Shortcuts.turning = true
+        // A wide video turns the screen on its side, as the iPhone's own
+        // player does; turned back by hand, it stays turned back.
+        if wide, UIDevice.current.userInterfaceIdiom == .phone, !Shortcuts.onPad {
+            scene.requestGeometryUpdate(.iOS(interfaceOrientations: .landscapeRight))
+        }
+    }
+
+    func exit() {
+        guard let window else { return }
+        let web = self.web
+        self.window = nil
+        self.web = nil
+        web?.removeFromSuperview()
+        window.isHidden = true
+        if let web { web.scrollView.contentInset = insets }
+        // The stage takes its page back as it lays itself out.
+        home?.setNeedsLayout()
+        home?.layoutIfNeeded()
+        Shortcuts.turning = false
+        Shortcuts.browser?.cover()
+    }
+}
+
+/// The cover's one screen: the page, black around it, and a close button
+/// that steps aside until the screen is touched.
+final class CoverController: UIViewController, UIGestureRecognizerDelegate {
+    var close: (() -> Void)?
+    private let button = UIButton(type: .system)
+    private var fade: DispatchWorkItem?
+
+    override func loadView() {
+        view = UIView()
+        view.backgroundColor = .black
+    }
+
+    func hold(_ page: UIView) {
+        loadViewIfNeeded()
+        page.frame = view.bounds
+        page.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        view.insertSubview(page, at: 0)
+
+        var look = UIButton.Configuration.filled()
+        look.image = UIImage(systemName: "xmark", withConfiguration: UIImage.SymbolConfiguration(pointSize: 15, weight: .semibold))
+        look.baseBackgroundColor = UIColor(white: 0.15, alpha: 0.7)
+        look.baseForegroundColor = .white
+        look.cornerStyle = .capsule
+        button.configuration = look
+        button.accessibilityLabel = String(localized: "Exit Full Screen")
+        button.addAction(UIAction { [weak self] _ in self?.close?() }, for: .touchUpInside)
+        button.translatesAutoresizingMaskIntoConstraints = false
+        view.addSubview(button)
+        NSLayoutConstraint.activate([
+            button.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor, constant: 16),
+            button.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 8),
+            button.widthAnchor.constraint(equalToConstant: 44),
+            button.heightAnchor.constraint(equalToConstant: 44),
+        ])
+
+        let touch = UITapGestureRecognizer(target: self, action: #selector(touched))
+        touch.cancelsTouchesInView = false
+        touch.delegate = self
+        view.addGestureRecognizer(touch)
+        show()
+    }
+
+    @objc private func touched() { show() }
+
+    private func show() {
+        UIView.animate(withDuration: 0.2) { self.button.alpha = 1 }
+        fade?.cancel()
+        let later = DispatchWorkItem { [weak self] in
+            UIView.animate(withDuration: 0.4) { self?.button.alpha = 0 }
+        }
+        fade = later
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3, execute: later)
+    }
+
+    func gestureRecognizer(_ g: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer) -> Bool { true }
+
+    override var prefersStatusBarHidden: Bool { true }
+    override var prefersHomeIndicatorAutoHidden: Bool { true }
+    override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge { .all }
+}
+
+/// What a page's player says about full screen (SitePlayer).
+final class PlayerRelay: NSObject, WKScriptMessageHandler {
+    func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard let body = message.body as? [String: Any], let full = body["full"] as? Bool else { return }
+        let web = message.webView
+        MainActor.assumeIsolated {
+            if full, let web, message.frameInfo.isMainFrame {
+                VideoCover.shared.enter(web, wide: body["wide"] as? Bool ?? false)
+            } else if !full, let web, VideoCover.shared.holds(web) {
+                VideoCover.shared.exit()
+            }
+        }
     }
 }
 
