@@ -154,10 +154,13 @@ struct ContentView: View {
                 // the page on its way, not under it: under it, it came back
                 // all at once when the live page took the picture's place.
                 // Gone in the first steps out, back in the last steps home.
+                // Its height follows the fold just as what the page is told
+                // is covered does, so a site's own fixed bar at the bottom
+                // (heureka.cz's nav) comes down above the small capsule
+                // clear of the blur, not under it.
                 Color.clear
                     .overlay(alignment: .bottom) {
-                        Fade()
-                            .frame(height: Metrics.foot(geo.safeAreaInsets.bottom))
+                        FootFade(chrome: browser.chrome, safeBottom: geo.safeAreaInsets.bottom)
                     }
                     .opacity(Double(max(0, 1 - min(1, lift) * 5)))
                     .allowsHitTesting(false)
