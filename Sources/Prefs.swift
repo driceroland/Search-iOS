@@ -129,6 +129,12 @@ final class Prefs: ObservableObject {
         didSet { store.set(engineSuggestions, forKey: "search.suggest") }
     }
 
+    /// A new tab shows the sites visited most under the bookmarks. On unless
+    /// turned off; the history itself stays either way.
+    @Published var oftenVisited: Bool {
+        didSet { store.set(oftenVisited, forKey: "start.often") }
+    }
+
     /// Tabs, pins, bookmarks and these settings through one's own iCloud.
     /// On unless turned off: what people ask for, and nothing leaves their
     /// own iCloud, end to end encrypted.
@@ -180,6 +186,7 @@ final class Prefs: ObservableObject {
         autoClose = store.string(forKey: "tabs.autoclose").flatMap(AutoClose.init) ?? .never
         lockPrivate = store.object(forKey: "private.lock") as? Bool ?? true
         engineSuggestions = store.object(forKey: "search.suggest") as? Bool ?? true
+        oftenVisited = store.object(forKey: "start.often") as? Bool ?? true
         welcomed = store.bool(forKey: "welcomed")
         sync = store.object(forKey: "sync") as? Bool ?? true
         syncSpace = store.string(forKey: "sync.space")
