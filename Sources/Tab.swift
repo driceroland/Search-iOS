@@ -26,7 +26,11 @@ enum Web {
             source: """
             (function () {
               var s = document.createElement('style');
-              s.textContent = 'a[href^="http"] { -webkit-touch-callout: none !important; }';
+              // Every link to a page, written whole or as a path (/ios, ./a,
+              // #top, ?q=): only other schemes (mailto:, tel:) keep the menu.
+              s.textContent = 'a[href] { -webkit-touch-callout: none !important; } '
+                + 'a[href*=":"]:not([href^="http:"]):not([href^="https:"]):not([href^="/"])'
+                + ':not([href^="."]):not([href^="#"]):not([href^="?"]) { -webkit-touch-callout: default !important; }';
               (document.head || document.documentElement).appendChild(s);
             })();
             """,

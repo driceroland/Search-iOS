@@ -515,6 +515,7 @@ final class Browser: NSObject, ObservableObject {
         // over its foot. Put right when it becomes a tab.
         tab.cover(top: 0, bottom: 0, least: 0, most: 0)
         tab.go(to: url)
+        unselect(opener)
         Feel.nudge()
         withAnimation(.spring(response: 0.34, dampingFraction: 0.86)) { peek = Peek(tab: tab, url: url) }
     }
@@ -523,6 +524,7 @@ final class Browser: NSObject, ObservableObject {
     /// beside this one, in front or behind.
     func keepPeek(behind: Bool) {
         guard let kept = peek?.tab else { return }
+        unselect(active)
         PeekTap.remove(from: kept.web)
         let here = activeIndex.map { $0 + 1 } ?? tabs.count
         tabs.insert(kept, at: min(here, tabs.count))
@@ -540,7 +542,14 @@ final class Browser: NSObject, ObservableObject {
         remember()
     }
 
+    /// The hold that peeked a link also picked a word under it: let it go.
+    /// Again when the peek closes, as iOS may pick it after the peek opens.
+    private func unselect(_ tab: Tab?) {
+        tab?.web.evaluateJavaScript("window.getSelection && window.getSelection().removeAllRanges()")
+    }
+
     func dropPeek() {
+        unselect(active)
         let gone = peek?.tab
         withAnimation(.spring(response: 0.3, dampingFraction: 0.9)) { peek = nil }
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { gone?.close() }
