@@ -19,6 +19,7 @@ It uses **WebKit**, the engine every iPhone already has. It is not a copy of the
 - **Swipe the pill up** for every tab: pinned pages as letters at the top, one line for each of the others. Swipe a line away to close it.
 - **Hold the pill** for the rest: back and forward, reload, share, find on page, reading mode, ads on or off for the site, pin.
 - **Ads and trackers are blocked before they load.** On by default, off per site if something breaks.
+- **Videos go full screen in the iPhone's own player**, or, if you choose in Settings, in the website's own player, everywhere or on the sites you pick.
 - **Private tabs** keep their own cookies and leave nothing behind.
 
 ## What it doesn't do

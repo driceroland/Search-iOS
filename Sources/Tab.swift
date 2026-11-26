@@ -54,6 +54,228 @@ enum Web {
     }()
 }
 
+/// Videos in the site's own player rather than the iPhone's (AVPlayer).
+/// Left alone, a video goes full screen through webkitEnterFullscreen, which
+/// hands it to the system's player. With this in, every video plays inline,
+/// and asking for full screen takes the site's player box full screen
+/// instead (element full screen), controls and all.
+///
+/// Where WebKit has no element full screen for the site (YouTube on an
+/// iPhone, by WebKit's own quirk) or turns the request down, the player is
+/// pinned over the whole page instead, and the app gives it the whole
+/// screen (VideoCover): the site's player still, never the iPhone's.
+enum SitePlayer {
+    static let handler = "searchPlayer"
+
+    @MainActor static var script: WKUserScript {
+        WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: false)
+    }
+
+    static let exit = "window.__searchSitePlayerExit && window.__searchSitePlayerExit();"
+
+    static let source = """
+    (function () {
+      if (window.__searchSitePlayer) return;
+      window.__searchSitePlayer = true;
+      var V = window.HTMLVideoElement && HTMLVideoElement.prototype;
+      if (!V) return;
+      var D = document, E = Element.prototype, P = Document.prototype;
+      var main = window === window.top;
+      var request = E.requestFullscreen || E.webkitRequestFullscreen;
+      var leave = P.exitFullscreen || P.webkitExitFullscreen;
+      var native = V.webkitEnterFullscreen || V.webkitEnterFullScreen;
+      var nativeExit = V.webkitExitFullscreen || V.webkitExitFullScreen;
+      var real = !!request && D.fullscreenEnabled !== false && D.webkitFullscreenEnabled !== false;
+
+      function say(full, wide) {
+        try { window.webkit.messageHandlers.\(handler).postMessage({ full: full, wide: !!wide }); } catch (e) {}
+      }
+
+      // In full screen, real or pinned, the video fills the player,
+      // letterboxed on black, wherever the site had it sitting inline.
+      var style = D.createElement('style');
+      style.textContent = [
+        '[data-search-player] { background: #000 !important; }',
+        '[data-search-player] [data-search-video] { position: fixed !important; inset: 0 !important; left: 0 !important; top: 0 !important;' +
+          ' width: 100% !important; height: 100% !important; max-width: none !important; max-height: none !important;' +
+          ' margin: 0 !important; transform: none !important; object-fit: contain !important; }',
+        '[data-search-fake] { position: fixed !important; inset: 0 !important; left: 0 !important; top: 0 !important;' +
+          ' width: 100vw !important; height: 100vh !important; max-width: none !important; max-height: none !important;' +
+          ' margin: 0 !important; padding: 0 !important; transform: none !important; z-index: 2147483647 !important; }',
+        '[data-search-fake-up] { transform: none !important; filter: none !important; contain: none !important;' +
+          ' will-change: auto !important; z-index: 2147483647 !important; }',
+        'html[data-search-faking], html[data-search-faking] body { overflow: hidden !important; }'
+      ].join('\\n');
+      function styled() { if (!style.isConnected) (D.head || D.documentElement).appendChild(style); }
+
+      function biggest(root) {
+        var best = null, area = -1;
+        Array.prototype.forEach.call(root.querySelectorAll('video'), function (v) {
+          var r = v.getBoundingClientRect(), a = r.width * r.height;
+          if (a > area) { area = a; best = v; }
+        });
+        return best;
+      }
+      function mark(el) {
+        styled();
+        el.setAttribute('data-search-player', '');
+        if (el.tagName === 'VIDEO') return;
+        var v = biggest(el);
+        if (v) v.setAttribute('data-search-video', '');
+      }
+      function unmark() {
+        Array.prototype.forEach.call(D.querySelectorAll('[data-search-player],[data-search-video]'), function (el) {
+          el.removeAttribute('data-search-player');
+          el.removeAttribute('data-search-video');
+        });
+      }
+
+      // The player around the video: the widest ancestor still about its
+      // size, so the site's own controls come along.
+      function box(v) {
+        var r = v.getBoundingClientRect(), best = v.parentElement || v;
+        for (var p = v.parentElement; p && p !== D.body && p !== D.documentElement; p = p.parentElement) {
+          var q = p.getBoundingClientRect();
+          if (q.width > r.width + 8 || q.height > r.height * 1.6 + 8) break;
+          best = p;
+        }
+        return best;
+      }
+
+      // Pinned over the page, for where real full screen isn't to be had.
+      var fake = null;
+      // A frame later, as a browser does: after the request has answered.
+      function fire(el) {
+        requestAnimationFrame(function () {
+          ['fullscreenchange', 'webkitfullscreenchange'].forEach(function (t) {
+            try { (el.isConnected ? el : D).dispatchEvent(new Event(t, { bubbles: true })); } catch (e) {}
+          });
+        });
+      }
+      function settle() { setTimeout(function () { window.dispatchEvent(new Event('resize')); }, 60); }
+      function enterFake(el) {
+        if (fake === el) return Promise.resolve();
+        if (fake) exitFake();
+        styled();
+        fake = el;
+        el.setAttribute('data-search-fake', '');
+        mark(el);
+        for (var p = el.parentElement; p; p = p.parentElement) p.setAttribute('data-search-fake-up', '');
+        D.documentElement.setAttribute('data-search-faking', '');
+        var v = el.tagName === 'VIDEO' ? el : biggest(el);
+        say(true, v && v.videoWidth > v.videoHeight);
+        fire(el);
+        settle();
+        return Promise.resolve();
+      }
+      function exitFake() {
+        if (!fake) return Promise.resolve();
+        var el = fake;
+        fake = null;
+        el.removeAttribute('data-search-fake');
+        Array.prototype.forEach.call(D.querySelectorAll('[data-search-fake-up]'), function (p) {
+          p.removeAttribute('data-search-fake-up');
+        });
+        D.documentElement.removeAttribute('data-search-faking');
+        unmark();
+        say(false);
+        fire(el);
+        settle();
+        return Promise.resolve();
+      }
+      window.__searchSitePlayerExit = function () { exitFake(); };
+      window.addEventListener('pagehide', function () { if (fake) exitFake(); });
+
+      // Real full screen: the player marked while it lasts.
+      function changed() {
+        if (fake) return;
+        var f = D.fullscreenElement || D.webkitFullscreenElement;
+        if (f) mark(f); else unmark();
+      }
+      D.addEventListener('fullscreenchange', changed, true);
+      D.addEventListener('webkitfullscreenchange', changed, true);
+
+      // No element full screen here at all: the page is given one, the
+      // pinned kind, so the site's own full-screen button and its own
+      // full-screen layout work as they would anywhere else.
+      if (!real && main) {
+        var get = function (name, fn) {
+          try { Object.defineProperty(D, name, { get: fn, configurable: true }); } catch (e) {}
+        };
+        get('fullscreenEnabled', function () { return true; });
+        get('webkitFullscreenEnabled', function () { return true; });
+        get('fullscreenElement', function () { return fake; });
+        get('webkitFullscreenElement', function () { return fake; });
+        get('webkitCurrentFullScreenElement', function () { return fake; });
+        get('webkitIsFullScreen', function () { return !!fake; });
+        get('fullscreen', function () { return !!fake; });
+        // Sites look for these to know which event to listen for.
+        ['onfullscreenchange', 'onwebkitfullscreenchange', 'onfullscreenerror', 'onwebkitfullscreenerror'].forEach(function (name) {
+          var held = null;
+          try {
+            Object.defineProperty(D, name, {
+              get: function () { return held; },
+              set: function (fn) {
+                if (held) D.removeEventListener(name.slice(2), held);
+                held = typeof fn === 'function' ? fn : null;
+                if (held) D.addEventListener(name.slice(2), held);
+              },
+              configurable: true
+            });
+          } catch (e) {}
+        });
+        D.exitFullscreen = D.webkitExitFullscreen = D.webkitCancelFullScreen = function () { return exitFake(); };
+        E.requestFullscreen = E.webkitRequestFullscreen = E.webkitRequestFullScreen = function () { return enterFake(this); };
+      }
+
+      function enter(v) {
+        var target = box(v);
+        var fallback = function () {
+          if (main) return enterFake(target);
+          if (native) try { native.call(v); } catch (e) {}
+        };
+        if (!real) return fallback();
+        try {
+          var p = request.call(target);
+          if (p && typeof p.catch === 'function') return p.catch(fallback);
+          return p;
+        } catch (e) { return fallback(); }
+      }
+      function exit(v) {
+        if (fake) return exitFake();
+        if ((D.fullscreenElement || D.webkitFullscreenElement) && leave) return leave.call(D);
+        if (nativeExit) return nativeExit.call(v);
+      }
+
+      function own(name, fn) {
+        if (!(name in V)) return;
+        try { Object.defineProperty(V, name, { value: fn, configurable: true, writable: true }); } catch (e) {}
+      }
+      own('webkitEnterFullscreen', function () { return enter(this); });
+      own('webkitEnterFullScreen', function () { return enter(this); });
+      own('requestFullscreen', function () { return enter(this); });
+      own('webkitRequestFullscreen', function () { return enter(this); });
+      own('webkitExitFullscreen', function () { return exit(this); });
+      own('webkitExitFullScreen', function () { return exit(this); });
+
+      // Inline, never the system's player just for pressing play.
+      function inline(v) {
+        if (!v.hasAttribute('playsinline')) v.setAttribute('playsinline', '');
+        if (!v.hasAttribute('webkit-playsinline')) v.setAttribute('webkit-playsinline', '');
+      }
+      var play = V.play;
+      V.play = function () { inline(this); return play.apply(this, arguments); };
+      function sweep(root) {
+        if (root.tagName === 'VIDEO') inline(root);
+        if (root.querySelectorAll) Array.prototype.forEach.call(root.querySelectorAll('video'), inline);
+      }
+      new MutationObserver(function (changes) {
+        changes.forEach(function (c) { c.addedNodes.forEach(function (n) { if (n.nodeType === 1) sweep(n); }); });
+      }).observe(D, { childList: true, subtree: true });
+    })();
+    """
+}
+
 /// What a page's scrolling tells the pill.
 enum Scrolled {
     case by(CGFloat)
@@ -222,9 +444,26 @@ final class Tab: NSObject, ObservableObject, Identifiable {
             web.observe(\.canGoForward, options: [.new]) { [weak self] _, _ in
                 MainActor.assumeIsolated { self?.canGoForward = self?.web.canGoForward ?? false }
             },
-            web.observe(\.fullscreenState, options: [.new]) { web, _ in
+            web.observe(\.fullscreenState, options: [.new]) { [weak self] web, _ in
                 MainActor.assumeIsolated {
-                    Shortcuts.turning = web.fullscreenState == .inFullscreen || web.fullscreenState == .enteringFullscreen
+                    // Free to turn once WebKit's own full screen is up, not
+                    // on its way: turned mid-way, it kept the page at the
+                    // size it had before and the player sat off to one side.
+                    Shortcuts.turning = web.fullscreenState == .inFullscreen
+                    // In WebKit's own full screen nothing of the app's covers
+                    // the page: kept, the clock's and the pill's room laid
+                    // the player out at the wrong size, off to one side.
+                    if web.fullscreenState == .enteringFullscreen {
+                        self?.cover(top: 0, bottom: 0, least: 0, most: 0)
+                    } else if web.fullscreenState == .notInFullscreen {
+                        // WebKit puts back what it saved as it leaves; the
+                        // app's own room, put on again after it, once.
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in
+                            guard let self, self.web.fullscreenState == .notInFullscreen else { return }
+                            self.cover(top: 0, bottom: 0, least: 0, most: 0)
+                            Shortcuts.browser?.cover()
+                        }
+                    }
                 }
             },
             // The page's background as soon as it paints it, and whenever it

@@ -260,6 +260,26 @@
         }
       }
     },
+    "Chosen Sites": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sites choisis"
+          }
+        }
+      }
+    },
+    "Chosen sites": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sites choisis"
+          }
+        }
+      }
+    },
     "Clear Cookies and Website Data": {
       "localizations": {
         "fr": {
@@ -526,6 +546,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Vous serez déconnecté de tous les sites."
+          }
+        }
+      }
+    },
+    "Exit Full Screen": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quitter le plein écran"
           }
         }
       }
@@ -830,6 +860,26 @@
         }
       }
     },
+    "No sites yet. Choose one from its This site sheet: hold the address, then This site.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun site pour l’instant. Choisissez-en un depuis sa fiche Ce site : maintenez l’adresse, puis Ce site."
+          }
+        }
+      }
+    },
+    "None": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aucun"
+          }
+        }
+      }
+    },
     "Not secure": {
       "localizations": {
         "fr": {
@@ -1090,6 +1140,16 @@
         }
       }
     },
+    "Remove All": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout supprimer"
+          }
+        }
+      }
+    },
     "Remove from Often Visited": {
       "localizations": {
         "fr": {
@@ -1166,6 +1226,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Rechercher avec"
+          }
+        }
+      }
+    },
+    "See All (%lld)": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tout afficher (%lld)"
           }
         }
       }
@@ -1296,6 +1366,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "Déconnecté d'iCloud"
+          }
+        }
+      }
+    },
+    "Sites you choose use their own player; everywhere else, the iPhone's. Choose a site from its This site sheet: hold the address, then This site.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les sites choisis utilisent leur propre lecteur ; ailleurs, celui de l’iPhone. Choisissez un site depuis sa fiche Ce site : maintenez l’adresse, puis Ce site."
           }
         }
       }
@@ -1650,12 +1730,82 @@
         }
       }
     },
+    "Video player": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecteur vidéo"
+          }
+        }
+      }
+    },
+    "Videos go full screen in the iPhone's own player, with Picture in Picture and AirPlay.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les vidéos passent en plein écran dans le lecteur de l’iPhone, avec Image dans l’image et AirPlay."
+          }
+        }
+      }
+    },
+    "Videos on these sites go full screen in the site's own player.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sur ces sites, les vidéos passent en plein écran dans le lecteur du site."
+          }
+        }
+      }
+    },
+    "Videos stay in the website's own player, full screen included, with the site's controls.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les vidéos restent dans le lecteur du site, plein écran compris, avec les commandes du site."
+          }
+        }
+      }
+    },
     "Website data cleared": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
             "value": "Données des sites effacées"
+          }
+        }
+      }
+    },
+    "Website's player": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecteur du site"
+          }
+        }
+      }
+    },
+    "Website's player on chosen sites": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecteur du site sur les sites choisis"
+          }
+        }
+      }
+    },
+    "Website's video player": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecteur vidéo du site"
           }
         }
       }
@@ -1782,6 +1932,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "iOS demande avant qu'un site obtienne votre position, et vous pouvez la couper pour Search dans les Réglages de l'iPhone."
+          }
+        }
+      }
+    },
+    "iPhone player": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lecteur de l’iPhone"
           }
         }
       }
