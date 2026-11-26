@@ -18,12 +18,12 @@ It uses **WebKit**, the engine every iPhone already has. It is not a copy of the
 - **Drag the pill sideways** to walk your tabs. The page follows your finger.
 - **Swipe the pill up** for every tab: pinned pages as letters at the top, one line for each of the others. Swipe a line away to close it.
 - **Hold the pill** for the rest: back and forward, reload, share, find on page, reading mode, ads on or off for the site, pin.
-- **Ads and trackers are blocked before they load.** On by default, off per site if something breaks.
+- **Ads and trackers are blocked before they load.** On by default, off per site if something breaks. *Stronger ad blocking* in Settings adds uBlock Origin's lists, EasyList and EasyPrivacy, off until you turn it on.
 - **Private tabs** keep their own cookies and leave nothing behind.
 
 ## What it doesn't do
 
-On purpose: no sync, no account, no cloud, no AI, no telemetry, no analytics, no crash reports. Your tabs and history are small files on your iPhone and nowhere else. The only things that leave it are the pages you ask for.
+On purpose: no sync, no account, no cloud, no AI, no telemetry, no analytics, no crash reports. Your tabs and history are small files on your iPhone and nowhere else. The only things that leave it are the pages you ask for, and, if you turn on stronger ad blocking, a weekly download of the lists.
 
 ## Building
 

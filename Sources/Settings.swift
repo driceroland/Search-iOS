@@ -12,6 +12,7 @@ struct Settings: View {
     @State private var askingHistory = false
     @State private var askingErase = false
     @ObservedObject private var sync = Sync.shared
+    @ObservedObject private var lists = Lists.shared
 
     var body: some View {
         NavigationStack {
@@ -55,8 +56,18 @@ struct Settings: View {
                         .onChange(of: prefs.shield) { _, _ in
                             Shield.shared.apply(to: browser.tabs.map { $0.web.configuration.userContentController })
                         }
+                    if prefs.shield {
+                        Toggle("Stronger ad blocking", isOn: $lists.enabled).tint(.green)
+                        if lists.enabled {
+                            ListsStatus(lists: lists)
+                        }
+                    }
                 } footer: {
-                    Text("Third-party ad networks and trackers are stopped before they load. If a site breaks, hold the address and allow ads on that site alone.")
+                    if prefs.shield, lists.enabled {
+                        Text("uBlock Origin's lists, EasyList, EasyPrivacy, Peter Lowe's list and wBlock's, downloaded from ublockorigin.github.io, pgl.yoyo.org and raw.githubusercontent.com, and again each week. Nothing about you is sent. If a site breaks, hold the address and allow ads on that site alone.")
+                    } else {
+                        Text("Third-party ad networks and trackers are stopped before they load. If a site breaks, hold the address and allow ads on that site alone.")
+                    }
                 }
 
                 Section {
@@ -118,7 +129,7 @@ struct Settings: View {
                     Link("Search is open source", destination: URL(string: "https://github.com/driceroland/Search-iOS")!)
                     LabeledContent("Version", value: Self.version)
                 } footer: {
-                    Text("By Office Commun. No telemetry, no analytics, no crash reports: the only things that leave your iPhone are the pages you ask for and their icons.")
+                    Text("By Office Commun. No telemetry, no analytics, no crash reports: the only things that leave your iPhone are the pages you ask for and their icons, and the ad blocking lists if you turn them on.")
                 }
             }
             .navigationTitle("Settings")
@@ -182,6 +193,28 @@ struct Settings: View {
         let short = info?["CFBundleShortVersionString"] as? String ?? "1.0"
         let build = info?["CFBundleVersion"] as? String ?? ""
         return build.isEmpty ? short : "\(short) (\(build))"
+    }
+}
+
+/// Where the stronger lists are at: being made, made (when, and how many
+/// rules), or not made, with the way to try again.
+struct ListsStatus: View {
+    @ObservedObject var lists: Lists
+
+    var body: some View {
+        if lists.working {
+            HStack(spacing: 10) {
+                ProgressView()
+                Text("Downloading and preparing the lists…")
+            }
+            .foregroundStyle(Palette.muted)
+        } else if let problem = lists.problem {
+            Text(problem).foregroundStyle(Palette.muted)
+            Button("Try Again") { lists.refresh() }
+        } else if let updated = lists.updated {
+            Text("\(lists.rules.formatted()) rules, updated \(updated.formatted(.relative(presentation: .named)))")
+                .foregroundStyle(Palette.muted)
+        }
     }
 }
 

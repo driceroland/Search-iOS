@@ -14,7 +14,16 @@ final class Shield: ObservableObject {
     static let shared = Shield()
 
     private(set) var list: WKContentRuleList?
-    private var waiting: [WKUserContentController] = []
+
+    /// The bigger lists, for those who asked for them (Lists.swift): empty
+    /// until they are, and until they are ready.
+    private(set) var extra: [WKContentRuleList] = []
+
+    /// Every open tab's controller, and whether the lists are on for the
+    /// page it is on. Held weakly: a closed tab simply drops out. A list
+    /// that arrives later, the built-in one at launch or the bigger ones
+    /// whenever they are ready, reaches each of them as they stand.
+    private let tabs = NSMapTable<WKUserContentController, NSNumber>.weakToStrongObjects()
 
     /// Set the one time compiling the list didn't work. The toggle in
     /// Settings can say "on" all it wants; nothing is actually blocked until
@@ -58,9 +67,31 @@ final class Shield: ObservableObject {
         controller.removeAllUserScripts()
         controller.addUserScript(Web.callout)
         if on { YouTubeAds.scripts(for: site).forEach(controller.addUserScript) }
-        guard let list else { return }
-        controller.remove(list)
-        if on { controller.add(list) }
+        attach(controller, on: on)
+    }
+
+    /// The rule lists on or off for one tab. Shield is the only thing that
+    /// puts rule lists on a page, so it can take them all off and put back
+    /// what belongs.
+    private func attach(_ controller: WKUserContentController, on: Bool) {
+        tabs.setObject(NSNumber(value: on), forKey: controller)
+        controller.removeAllContentRuleLists()
+        guard on else { return }
+        if let list { controller.add(list) }
+        extra.forEach(controller.add)
+    }
+
+    /// Every open tab, put right after a list arrived or went.
+    private func reattach() {
+        for controller in tabs.keyEnumerator().allObjects as! [WKUserContentController] {
+            attach(controller, on: tabs.object(forKey: controller)?.boolValue ?? enabled)
+        }
+    }
+
+    /// The bigger lists in, or out (none).
+    func use(_ lists: [WKContentRuleList]) {
+        extra = lists
+        reattach()
     }
 
     /// Third parties whose only job is to watch or to sell. First-party
@@ -178,8 +209,7 @@ final class Shield: ObservableObject {
                 }
                 self.list = compiled
                 // Tabs that opened while this was still compiling get it now.
-                if self.enabled { self.waiting.forEach { $0.add(compiled) } }
-                self.waiting = []
+                self.reattach()
             }
         }
     }
@@ -187,22 +217,16 @@ final class Shield: ObservableObject {
     /// Every tab asks for it; whoever asks before it is ready is remembered.
     func protect(_ controller: WKUserContentController) {
         if enabled { YouTubeAds.scripts(for: nil).forEach(controller.addUserScript) }
-        if let list {
-            if enabled { controller.add(list) }
-        } else {
-            waiting.append(controller)
-        }
+        attach(controller, on: enabled)
     }
 
     /// Switched on or off for every page that is already open.
     func apply(to controllers: [WKUserContentController]) {
-        guard let list else { return }
         for controller in controllers {
             controller.removeAllUserScripts()
             controller.addUserScript(Web.callout)
             if enabled { YouTubeAds.scripts(for: nil).forEach(controller.addUserScript) }
-            controller.remove(list)
-            if enabled { controller.add(list) }
+            attach(controller, on: enabled)
         }
     }
 }

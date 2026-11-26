@@ -98,6 +98,7 @@ final class Browser: NSObject, ObservableObject {
             if Prefs.shared.sync { Sync.shared.start() }
         }
         Shield.shared.compile()
+        Lists.shared.start()
         chrome.moved = { [weak self] in
             guard let self, let tab = self.active else { return }
             self.cover(tab)
