@@ -209,6 +209,19 @@ struct Still: View {
 /// (the radius is what changes along the way; at these fractions the
 /// material's tint stays out of it) and each masked to a band that overlaps
 /// the next. With Reduce Transparency on, nothing: the page as it is.
+/// The blur under the pill, as tall as what the pill covers: the full foot
+/// open, the folded one folded, in step with the fold between.
+struct FootFade: View {
+    @ObservedObject var chrome: Chrome
+    let safeBottom: CGFloat
+
+    var body: some View {
+        let foot = Metrics.foot(safeBottom)
+        let least = Metrics.footFolded(safeBottom)
+        Fade().frame(height: foot - (foot - least) * chrome.fold)
+    }
+}
+
 struct Fade: UIViewRepresentable {
     func makeUIView(context: Context) -> FadeView { FadeView() }
     func updateUIView(_ view: FadeView, context: Context) {}

@@ -388,7 +388,7 @@ final class Browser: NSObject, ObservableObject {
         let least = Metrics.footFolded(safe.bottom)
         // As in Safari: what the bar covers follows the bar as it folds, so
         // a page's fixed button at the bottom goes down with it.
-        let now = foot - (foot - least) * chrome.fold
+        let now = foot - (foot - least) * chrome.cover
         tab.cover(top: safe.top, bottom: now, least: least, most: foot)
     }
 
@@ -1053,7 +1053,10 @@ extension Browser: WKNavigationDelegate, WKUIDelegate {
 @MainActor
 final class Chrome: ObservableObject {
     @Published private(set) var fold: CGFloat = 0 {
-        didSet { if fold != oldValue { moved?() } }
+        didSet {
+            if fold == 0 { opening = false }
+            if fold != oldValue { moved?() }
+        }
     }
     /// Where the fold came to rest: folded or open. Pages are told only
     /// when it settles, so a fixed button doesn't jitter with every scroll.
@@ -1070,7 +1073,12 @@ final class Chrome: ObservableObject {
     func follow(_ event: Scrolled) {
         switch event {
         case .by(let delta):
+            stopTween()
             let next = min(1, max(0, fold + delta / travel))
+            // Scrolling back up opens it: the page hears the open cover at
+            // once, so its bar is up before the pill grows into it.
+            if delta < 0, next < fold, !opening { opening = true; moved?() }
+            if delta > 0, opening { opening = false }
             if next != fold { fold = next }
         case .top:
             unfold(animated: true)
@@ -1078,17 +1086,91 @@ final class Chrome: ObservableObject {
             let target: CGFloat = fold > 0.5 ? 1 : 0
             folded = target == 1
             guard target != fold else { return }
-            withAnimation(Motion.settle) { fold = target }
+            tween(to: target)
         }
     }
 
     func unfold(animated: Bool) {
         folded = false
-        guard fold != 0 else { return }
+        guard fold != 0 else { stopTween(); return }
         if animated {
-            withAnimation(Motion.settle) { fold = 0 }
+            tween(to: 0)
         } else {
+            stopTween()
             fold = 0
+        }
+    }
+
+    // MARK: Settling, a frame at a time
+    //
+    // Not withAnimation: that set the fold at its end at once, so the page
+    // was told its new cover in one step and WebKit moved a site's fixed
+    // bar whenever it next laid out, behind the pill as it grew. Stepped
+    // per frame, as a scroll steps it, the pill, the blur under it and the
+    // page's own bar all follow the one value together.
+
+    private var link: CADisplayLink?
+    private var tweenFrom: CGFloat = 0
+    private var tweenTo: CGFloat = 0
+    private var tweenStart: CFTimeInterval = 0
+    private let tweenLength: CFTimeInterval = 0.32
+
+    /// The fold the page is told it's under: open as soon as the pill sets
+    /// off to open, where the pill is otherwise.
+    ///
+    /// WebKit moves a site's fixed bar up (more of the page covered) only
+    /// once the cover stops changing, so stepped along with a pill growing
+    /// open, the bar stalled and the pill grew into it. Told at once, the bar
+    /// is up a frame or two later, before the pill reaches it. Down (folding)
+    /// WebKit follows every step, so there the page follows the pill.
+    var cover: CGFloat { opening ? 0 : fold }
+    /// On its way open, by a tween or by scrolling back up.
+    private var opening = false
+
+    private func value(at time: CFTimeInterval) -> CGFloat {
+        let t = max(0, min(1, (time - tweenStart) / tweenLength))
+        // Ease out, quick away and soft at the end, like the settle spring.
+        let eased = 1 - pow(1 - t, 3)
+        return tweenFrom + (tweenTo - tweenFrom) * CGFloat(eased)
+    }
+
+    private func tween(to target: CGFloat) {
+        // Already on its way there (each scroll event near the top asks
+        // again): carry on rather than start over.
+        if link != nil, tweenTo == target { return }
+        tweenFrom = fold
+        tweenTo = target
+        tweenStart = CACurrentMediaTime()
+        let wasOpening = opening
+        opening = target < fold
+        defer { if opening != wasOpening { moved?() } }
+        if link == nil {
+            let link = CADisplayLink(target: Tick(self), selector: #selector(Tick.step))
+            link.preferredFrameRateRange = CAFrameRateRange(minimum: 60, maximum: 120, preferred: 120)
+            link.add(to: .main, forMode: .common)
+            self.link = link
+        }
+    }
+
+    private func stopTween() {
+        link?.invalidate()
+        link = nil
+    }
+
+    fileprivate func step(_ now: CFTimeInterval) {
+        let next = value(at: now)
+        let done = now - tweenStart >= tweenLength
+        if done { stopTween() }
+        if next != fold { fold = next }
+    }
+
+    /// The display link holds its target strongly: this holds the chrome
+    /// weakly, so neither keeps the other.
+    private final class Tick: NSObject {
+        weak var chrome: Chrome?
+        init(_ chrome: Chrome) { self.chrome = chrome }
+        @objc func step(_ link: CADisplayLink) {
+            MainActor.assumeIsolated { chrome?.step(link.targetTimestamp) }
         }
     }
 }
