@@ -83,10 +83,14 @@ final class History: ObservableObject {
 
     func completion(for typed: String, among options: [Suggestion]) -> String? {
         let lower = typed.lowercased()
-        guard lower.count >= 2,
-              let hit = options.first(where: { $0.key.hasPrefix(lower) })
-        else { return nil }
+        guard !lower.isEmpty else { return nil }
+
+        // As on the Mac, one letter only finishes the top site's address.
+        let single = lower.count == 1
+        let candidates = options.prefix(single ? 1 : options.count)
+        guard let hit = candidates.first(where: { $0.key.hasPrefix(lower) }) else { return nil }
         let rest = String(hit.key.dropFirst(lower.count))
+        if single, hit.key.contains("/") || Address.url(from: typed + rest) == nil { return nil }
         return rest.isEmpty ? nil : rest
     }
 
