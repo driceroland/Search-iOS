@@ -707,7 +707,10 @@ struct OtherTabs: View {
     @Environment(\.dismiss) private var done
 
     private var devices: [(String, DeviceTabs)] {
-        sync.others.sorted { $0.value.at > $1.value.at }.filter { !$0.value.tabs.isEmpty }
+        // Every device that has synced, even with nothing open: hidden, a
+        // Mac whose tabs are all in another profile (only Personal syncs)
+        // looked the same as a Mac that never synced (26 Nov).
+        sync.others.sorted { $0.value.at > $1.value.at }
     }
 
     var body: some View {
@@ -719,6 +722,13 @@ struct OtherTabs: View {
                 }
                 ForEach(devices, id: \.0) { _, device in
                     Section {
+                        if device.tabs.isEmpty {
+                            Text(device.platform == "macos"
+                                ? String(localized: "No open tabs. On a Mac, only the Personal profile's tabs come here.")
+                                : String(localized: "No open tabs."))
+                                .font(.scaled(14))
+                                .foregroundStyle(Palette.muted)
+                        }
                         ForEach(device.tabs, id: \.self) { page in
                             Button {
                                 Feel.tick()
