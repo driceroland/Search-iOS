@@ -17,52 +17,16 @@ struct Field: View {
     @State private var drop: CGFloat = 0
     /// The address it opens on is selected, as in Safari: the first letter
     /// typed replaces it, and a tap places the caret to edit it instead.
-    /// Kept as places in the text (UTF-16 offsets), not as String indices:
-    /// an index carried over to another copy of the text, even an equal one,
-    /// stopped the app on iOS 18 when the field turned it into a range.
-    @State private var picked: Range<Int>?
-    /// The text the selection was made in: in any other, it means nothing.
-    @State private var selectedIn = ""
-
+    /// Done by the text field itself (select all), never through SwiftUI's
+    /// selection binding: its indices come from the field's own copy of the
+    /// text, and checking them against ours stopped the app (iOS 18 in build
+    /// 6, every iOS in build 8). Text put in by code leaves the caret at its
+    /// end, which is what Fill In wants.
     private var blank: Bool { browser.active?.isBlank ?? true }
-
-    /// The selection, built afresh in the text the field is given, and only
-    /// while it was made in that same text.
-    private var fitting: Binding<TextSelection?> {
-        Binding(
-            get: {
-                let text = browser.typed
-                guard let picked, text == selectedIn,
-                      picked.lowerBound >= 0, picked.upperBound <= text.utf16.count
-                else { return nil }
-                let lo = String.Index(utf16Offset: picked.lowerBound, in: text)
-                let hi = String.Index(utf16Offset: picked.upperBound, in: text)
-                guard lo.samePosition(in: text) != nil, hi.samePosition(in: text) != nil else { return nil }
-                return picked.isEmpty ? TextSelection(insertionPoint: lo) : TextSelection(range: lo..<hi)
-            },
-            set: { new in
-                let text = browser.typed
-                selectedIn = text
-                guard let new else { picked = nil; return }
-                let range: Range<String.Index>
-                switch new.indices {
-                case .selection(let r): range = r
-                default: picked = nil; return
-                }
-                guard range.lowerBound.samePosition(in: text) != nil,
-                      range.upperBound.samePosition(in: text) != nil,
-                      range.upperBound <= text.endIndex
-                else { picked = nil; return }
-                picked = range.lowerBound.utf16Offset(in: text)..<range.upperBound.utf16Offset(in: text)
-            }
-        )
-    }
 
     /// Put text in the field with the caret after it, to go on typing.
     private func fill(_ text: String) {
         browser.typed = text
-        selectedIn = text
-        picked = text.utf16.count..<text.utf16.count
     }
 
     var body: some View {
@@ -100,19 +64,12 @@ struct Field: View {
         // it's raised and gives it back when it's put away.
         .onChange(of: browser.editing, initial: true) { _, raised in
             typing = raised
-            guard raised else {
-                // Put away: the selection was over that text, not the next.
-                picked = nil
-                return
-            }
-            // Selected once the field has the caret: a selection set before
-            // it does is dropped by the focus change.
+            guard raised else { return }
+            // Selected once the field has the caret: before, the focus
+            // change drops it. Sent to whatever has the caret: the field.
             DispatchQueue.main.async {
-                let text = browser.typed
-                if !text.isEmpty {
-                    picked = 0..<text.utf16.count
-                    selectedIn = text
-                }
+                guard browser.editing, !browser.typed.isEmpty else { return }
+                UIApplication.shared.sendAction(#selector(UIResponder.selectAll(_:)), to: nil, from: nil, for: nil)
             }
         }
         .onChange(of: browser.refusals) { _, _ in
@@ -206,7 +163,7 @@ struct Field: View {
                         + Text(ending).foregroundStyle(Palette.ink.opacity(0.4)))
                         .lineLimit(1)
                 }
-                TextField("", text: $browser.typed, selection: fitting)
+                TextField("", text: $browser.typed)
                     .textFieldStyle(.plain)
                     .foregroundStyle(Palette.ink)
                     .focused($typing)

@@ -447,8 +447,11 @@ struct ContentView: View {
     /// One layer of the tabs screen, the whole screen's size, never more: a
     /// taller one grew the stack, and the field above the keyboard slid down.
     /// Where Back stands in the rail, from the screen's top: under the
-    /// camera, the clock and the signal.
-    static let railBack: CGFloat = 170
+    /// camera, the clock and the signal, with room for the camera's pill to
+    /// grow. A live activity or the camera in use (a call, a delivery)
+    /// stretches it and pushes the clock and signal down about 34 points:
+    /// at 170 they came over Back (27 Nov, two testers).
+    static let railBack: CGFloat = 210
 
     private func sheet(_ layer: Sheet.Layer, size: CGSize, screen: CGSize, pageX: CGFloat) -> some View {
         Sheet(
