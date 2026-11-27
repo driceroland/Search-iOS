@@ -263,8 +263,18 @@ final class Sync: NSObject, ObservableObject {
     }
 
     /// The space whose pins this iPhone shows.
+    /// The one chosen if the Mac still has it; else the Mac's first space.
+    /// The fixed first-space id only before the Mac's spaces are known: a
+    /// Mac whose Personal spaces don't include it (spaces made by an
+    /// import) left the iPhone looking for pins that never came, with no
+    /// picker to get out when there was one space (27 Nov).
     var pinSpace: UUID {
-        Prefs.shared.syncSpace.flatMap(UUID.init(uuidString:)) ?? Sync.firstSpace
+        Sync.pinSpace(chosen: Prefs.shared.syncSpace.flatMap(UUID.init(uuidString:)), spaces: spaces.map(\.id))
+    }
+
+    static func pinSpace(chosen: UUID?, spaces: [UUID]) -> UUID {
+        if let chosen, spaces.isEmpty || spaces.contains(chosen) { return chosen }
+        return spaces.first ?? firstSpace
     }
 
     /// Pins from the Mac on or off. Off, the Mac's go from here (they stay
@@ -336,10 +346,14 @@ final class Sync: NSObject, ObservableObject {
             }
             Bookmarks.shared.adopt(roots)
         } else if key == "spaces" {
+            let shown = pinSpace
             spaces = (try? decoder.decode([SpaceInfo].self, from: data)) ?? []
-            if spaces.count > 0, !spaces.contains(where: { $0.id == pinSpace }) {
+            if let chosen = Prefs.shared.syncSpace.flatMap(UUID.init(uuidString:)),
+               !spaces.isEmpty, !spaces.contains(where: { $0.id == chosen }) {
                 Prefs.shared.syncSpace = nil
             }
+            // Another space now: its pins, from what already came.
+            if pinSpace != shown, Prefs.shared.syncPins { choose(space: pinSpace) }
         } else if key == "settings" {
             if let settings = try? decoder.decode(SharedSettings.self, from: data) {
                 canonical(settings)
