@@ -379,6 +379,7 @@ struct Sheet: View {
                             Feel.tick()
                             withAnimation(Motion.bouncy) { browser.close(tab) }
                         }
+                        .contextMenu { menu(for: tab) }
                         // Every other card moves with the page, as if the
                         // page were one card seen up close: the rest were
                         // there all along, out of the frame, and come into it
@@ -390,7 +391,6 @@ struct Sheet: View {
                             screen: screen,
                             x0: pageX
                         ))
-                        .contextMenu { menu(for: tab) }
                         .draggable(tab.id.uuidString) {
                             Line(tab: tab, live: false, space: space).frame(width: 300)
                         }
@@ -515,6 +515,10 @@ struct Sheet: View {
                                 withAnimation(Motion.bouncy) { browser.close(tab) }
                             }
                         )
+                        // Held: the menu takes the card itself, before it's
+                        // moved into place: taken after, its picture was
+                        // cut off at the card's first place (28 Nov).
+                        .contextMenu { menu(for: tab) }
                         .offset(x: left + x, y: top - deckName)
                         // As the page shrinks into its card, the others come
                         // in with the camera stepping back, as in the grid.
@@ -526,7 +530,6 @@ struct Sheet: View {
                             x0: pageX
                         ))
                         .zIndex(Double(index))
-                        .contextMenu { menu(for: tab) }
                         .transition(.asymmetric(
                             insertion: .scale(scale: 0.9).combined(with: .opacity),
                             removal: .move(edge: .top).combined(with: .opacity)

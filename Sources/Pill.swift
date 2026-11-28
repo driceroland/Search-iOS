@@ -362,9 +362,13 @@ extension View {
 
     /// Liquid Glass in this shape on iOS 26; the given colour before.
     @ViewBuilder
-    func glass<S: Shape>(_ shape: S, interactive: Bool = false, else fallback: Color = Palette.ground) -> some View {
+    /// `solid`: how much of the ground lies under the glass, for words over
+    /// a busy page: a menu at full clear glass let a big logo or a photo
+    /// read through its rows (28 Nov).
+    func glass<S: Shape>(_ shape: S, interactive: Bool = false, solid: Double = 0, else fallback: Color = Palette.ground) -> some View {
         if #available(iOS 26.0, *) {
-            glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
+            background(Palette.ground.opacity(solid), in: shape)
+                .glassEffect(interactive ? .regular.interactive() : .regular, in: shape)
         } else {
             background(fallback, in: shape)
         }
@@ -411,7 +415,7 @@ struct Held: View {
         // A phone's width at most: across a Duo's whole screen the rows
         // were a long way from their words.
         .frame(maxWidth: 440)
-        .glass(RoundedRectangle(cornerRadius: 26, style: .continuous))
+        .glass(RoundedRectangle(cornerRadius: 26, style: .continuous), solid: 0.82)
         .modifier(Edge(radius: 26))
         .padding(.horizontal, 16)
     }

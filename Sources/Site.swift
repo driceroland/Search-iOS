@@ -813,6 +813,9 @@ struct SiteSheet: View {
         }
         .tint(Palette.ink)
         .presentationDetents([.medium, .large], selection: $detent)
+        // A plain ground: half up, the page read through the glass under
+        // the switches (28 Nov).
+        .presentationBackground(Palette.ground)
         // Whatever was shown again from the list goes again with the sheet.
         .onDisappear {
             guard browser.peekedVeil != nil else { return }
