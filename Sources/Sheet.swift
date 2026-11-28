@@ -378,9 +378,7 @@ struct Sheet: View {
                         } report: { frames(tab.id, $0) } close: {
                             Feel.tick()
                             withAnimation(Motion.bouncy) { browser.close(tab) }
-                        }
-                        .contentShape(.contextMenuPreview, PictureShape(top: 0, height: pictureHeight, radius: 18))
-                        .contextMenu { menu(for: tab) }
+                        } menu: { AnyView(menu(for: tab)) }
                         // Every other card moves with the page, as if the
                         // page were one card seen up close: the rest were
                         // there all along, out of the frame, and come into it
@@ -514,15 +512,14 @@ struct Sheet: View {
                             close: {
                                 Feel.tick()
                                 withAnimation(Motion.bouncy) { browser.close(tab) }
-                            }
+                            },
+                            menu: { AnyView(menu(for: tab)) }
                         )
                         // Held: the menu takes the card itself, before it's
                         // moved into place: taken after, its picture was
                         // cut off at the card's first place (28 Nov). The
                         // picture alone lifts, round, not the name above it
                         // in a square of ground with its shadow cut off.
-                        .contentShape(.contextMenuPreview, PictureShape(top: deckName, height: height, radius: 22))
-                        .contextMenu { menu(for: tab) }
                         .offset(x: left + x, y: top - deckName)
                         // As the page shrinks into its card, the others come
                         // in with the camera stepping back, as in the grid.
@@ -980,6 +977,8 @@ struct Sheet: View {
         let open: () -> Void
         let report: (CGRect) -> Void
         let close: () -> Void
+        /// Held: on the picture alone (see DeckCard.menu).
+        var menu: () -> AnyView = { AnyView(EmptyView()) }
 
         @State private var shift: CGFloat = 0
         @State private var sideways: Bool?
@@ -998,6 +997,8 @@ struct Sheet: View {
                             RoundedRectangle(cornerRadius: 18, style: .continuous)
                                 .strokeBorder(Palette.faint.opacity(0.35), lineWidth: 0.5)
                         }
+                        .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 18, style: .continuous))
+                        .contextMenu { menu() }
                         .shadow(color: .black.opacity(live ? 0.16 : 0.07), radius: live ? 12 : 7, y: live ? 4 : 2)
                     // Waiting too: the page brings its name down with it.
                     CardName(tab: tab, live: live, hidden: hidden)
@@ -1115,6 +1116,11 @@ struct Sheet: View {
         let open: () -> Void
         let report: (CGRect) -> Void
         let close: () -> Void
+        /// Held: what can be done with it. On the picture alone, so iOS
+        /// hides only the picture while the menu is up: on the whole card
+        /// it hid the name and the shadow too, and they came back a second
+        /// after the menu, all at once (28 Nov).
+        var menu: () -> AnyView = { AnyView(EmptyView()) }
 
         @State private var lift: CGFloat = 0
         @State private var upward: Bool?
@@ -1131,6 +1137,8 @@ struct Sheet: View {
                         RoundedRectangle(cornerRadius: 22, style: .continuous)
                             .strokeBorder(Palette.faint.opacity(0.3), lineWidth: 0.5)
                     }
+                    .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 22, style: .continuous))
+                    .contextMenu { menu() }
                     .opacity(waiting ? 0 : 1)
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report($0) }
                     .shadow(color: .black.opacity(0.18), radius: 16, y: 6)
@@ -1329,16 +1337,3 @@ struct Camera: GeometryEffect {
     }
 }
 
-
-/// A card's picture within the card: what lifts when a card is held, round
-/// as the picture is, without the name beside it.
-struct PictureShape: Shape {
-    var top: CGFloat
-    var height: CGFloat
-    var radius: CGFloat
-
-    func path(in rect: CGRect) -> Path {
-        let picture = CGRect(x: rect.minX, y: rect.minY + top, width: rect.width, height: min(height, rect.height - top))
-        return RoundedRectangle(cornerRadius: radius, style: .continuous).path(in: picture)
-    }
-}
