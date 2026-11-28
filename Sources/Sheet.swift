@@ -379,6 +379,7 @@ struct Sheet: View {
                             Feel.tick()
                             withAnimation(Motion.bouncy) { browser.close(tab) }
                         }
+                        .contentShape(.contextMenuPreview, PictureShape(top: 0, height: pictureHeight, radius: 18))
                         .contextMenu { menu(for: tab) }
                         // Every other card moves with the page, as if the
                         // page were one card seen up close: the rest were
@@ -517,7 +518,10 @@ struct Sheet: View {
                         )
                         // Held: the menu takes the card itself, before it's
                         // moved into place: taken after, its picture was
-                        // cut off at the card's first place (28 Nov).
+                        // cut off at the card's first place (28 Nov). The
+                        // picture alone lifts, round, not the name above it
+                        // in a square of ground with its shadow cut off.
+                        .contentShape(.contextMenuPreview, PictureShape(top: deckName, height: height, radius: 22))
                         .contextMenu { menu(for: tab) }
                         .offset(x: left + x, y: top - deckName)
                         // As the page shrinks into its card, the others come
@@ -1322,5 +1326,19 @@ struct Camera: GeometryEffect {
         return ProjectionTransform(
             CGAffineTransform(scaleX: k, y: k).concatenating(CGAffineTransform(translationX: dx, y: dy))
         )
+    }
+}
+
+
+/// A card's picture within the card: what lifts when a card is held, round
+/// as the picture is, without the name beside it.
+struct PictureShape: Shape {
+    var top: CGFloat
+    var height: CGFloat
+    var radius: CGFloat
+
+    func path(in rect: CGRect) -> Path {
+        let picture = CGRect(x: rect.minX, y: rect.minY + top, width: rect.width, height: min(height, rect.height - top))
+        return RoundedRectangle(cornerRadius: radius, style: .continuous).path(in: picture)
     }
 }
