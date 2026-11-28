@@ -42,6 +42,15 @@ struct Settings: View {
                 }
 
                 Section {
+                    Toggle("Bookmarks", isOn: $prefs.startBookmarks).tint(.green)
+                    Toggle("Often visited", isOn: $prefs.startOften).tint(.green)
+                } header: {
+                    Text("On New tab")
+                } footer: {
+                    Text("The sites shown above the field on a new tab. Off, a new tab is the field alone.")
+                }
+
+                Section {
                     Picker("Close tabs", selection: $prefs.autoClose) {
                         ForEach(AutoClose.allCases) { Text($0.title).tag($0) }
                     }

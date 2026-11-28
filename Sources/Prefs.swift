@@ -123,6 +123,16 @@ final class Prefs: ObservableObject {
         didSet { store.set(lockPrivate, forKey: "private.lock") }
     }
 
+    /// What New tab shows before anything is typed: the bookmarks, and the
+    /// sites visited most. Both on, as they were; each can be put away (28 Nov,
+    /// asked by several testers).
+    @Published var startBookmarks: Bool {
+        didSet { store.set(startBookmarks, forKey: "start.bookmarks") }
+    }
+    @Published var startOften: Bool {
+        didSet { store.set(startOften, forKey: "start.often") }
+    }
+
     /// The engine's own suggestions while typing. On, as in Safari: it sends
     /// what is typed to the engine before Go, never from a private tab.
     @Published var engineSuggestions: Bool {
@@ -185,6 +195,8 @@ final class Prefs: ObservableObject {
         handoff = store.object(forKey: "handoff") as? Bool ?? true
         autoClose = store.string(forKey: "tabs.autoclose").flatMap(AutoClose.init) ?? .never
         lockPrivate = store.object(forKey: "private.lock") as? Bool ?? true
+        startBookmarks = store.object(forKey: "start.bookmarks") as? Bool ?? true
+        startOften = store.object(forKey: "start.often") as? Bool ?? true
         engineSuggestions = store.object(forKey: "search.suggest") as? Bool ?? true
         welcomed = store.bool(forKey: "welcomed")
         sync = store.object(forKey: "sync") as? Bool ?? true

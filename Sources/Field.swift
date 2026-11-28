@@ -214,6 +214,7 @@ struct Field: View {
 struct Start: View {
     @ObservedObject var browser: Browser
     @ObservedObject private var bookmarks = Bookmarks.shared
+    @ObservedObject private var prefs = Prefs.shared
     @State private var icons: [String: UIImage] = [:]
 
     /// The top of the bookmarks, folders as well as sites, in their order.
@@ -247,8 +248,8 @@ struct Start: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
-            if !marks.isEmpty { bookmarksGroup }
-            if !often.isEmpty { group("Often visited", often, removable: true) }
+            if prefs.startBookmarks, !marks.isEmpty { bookmarksGroup }
+            if prefs.startOften, !often.isEmpty { group("Often visited", often, removable: true) }
         }
         .padding(.horizontal, 6)
         .padding(.bottom, 8)
