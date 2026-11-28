@@ -1006,7 +1006,16 @@ struct Sheet: View {
                         }
                         .contentShape(.contextMenuPreview, RoundedRectangle(cornerRadius: 18, style: .continuous))
                         .contextMenu { menu() }
-                        .shadow(color: .black.opacity(live ? 0.16 : 0.07), radius: live ? 12 : 7, y: live ? 4 : 2)
+                        // The shadow on a shape of its own behind the
+                        // picture: on the picture, iOS hid it with the
+                        // picture while the menu was up and it came back
+                        // ~0.8 s after the menu, in one frame (28 Nov).
+                        .background {
+                            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                .fill(Palette.ground)
+                                .shadow(color: .black.opacity(live ? 0.16 : 0.07), radius: live ? 12 : 7, y: live ? 4 : 2)
+                                .opacity(waiting ? 0 : 1)
+                        }
                     // Waiting too: the page brings its name down with it.
                     CardName(tab: tab, live: live, hidden: hidden)
                         .opacity(waiting ? 0 : 1)
@@ -1148,7 +1157,13 @@ struct Sheet: View {
                     .contextMenu { menu() }
                     .opacity(waiting ? 0 : 1)
                     .onGeometryChange(for: CGRect.self) { $0.frame(in: .global) } action: { report($0) }
-                    .shadow(color: .black.opacity(0.18), radius: 16, y: 6)
+                    // Behind the picture, not on it (see the grid card).
+                    .background {
+                        RoundedRectangle(cornerRadius: 22, style: .continuous)
+                            .fill(Palette.ground)
+                            .shadow(color: .black.opacity(0.18), radius: 16, y: 6)
+                            .opacity(waiting ? 0 : 1)
+                    }
             }
             .contentShape(Rectangle())
             .onTapGesture(perform: open)
