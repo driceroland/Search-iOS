@@ -217,18 +217,34 @@ final class Sync: NSObject, ObservableObject {
         // bookmarks once sent its empty list up, stamped newer, and it
         // emptied the Mac's (18 Nov).
         if !Bookmarks.shared.roots.isEmpty || Bookmarks.shared.emptiedByHand {
-            put("bookmarks", Bookmarks.shared.roots)
+            putBookmarks(Bookmarks.shared.roots)
         }
         put("settings", Prefs.shared.shared)
     }
 
     func put<T: Encodable>(_ key: String, _ value: T) {
-        guard let engine, meta.joined, let data = try? Sync.encoder.encode(value) else { return }
-        guard meta.values[key] != data else { return }
-        meta.values[key] = data
-        meta.at[key] = Date()
+        guard let data = try? Sync.encoder.encode(value) else { return }
+        putData(key, data)
+    }
+
+    /// The bookmarks: one record while they fit, in parts past the budget
+    /// (SYNC.md, "Big bookmark lists"). Nothing goes when the tree is what
+    /// the parts kept here already say, however they were cut; parts above
+    /// the last are deleted when the tree got shorter.
+    func putBookmarks(_ roots: [Bookmark]) {
+        guard let engine, meta.joined, let mine = try? Sync.encoder.encode(roots),
+              let whole = Sync.normal(mine) else { return }
+        let kept = Sync.bookmarksParts(in: meta.values)
+        if let last = Sync.joinBookmarks(kept.map(\.data)), Sync.normal(last) == whole { return }
+        let parts = Sync.splitBookmarks(whole)
+        for (n, data) in parts.enumerated() { putData(Sync.bookmarksKey(n + 1), data) }
+        for (key, _) in kept where (Sync.bookmarksPart(key) ?? 0) > parts.count {
+            meta.values[key] = nil
+            meta.at[key] = nil
+            meta.fields[key] = nil
+            engine.state.add(pendingRecordZoneChanges: [.deleteRecord(Sync.record(key))])
+        }
         save()
-        engine.state.add(pendingRecordZoneChanges: [.saveRecord(Sync.record(key))])
     }
 
     /// Pins go up over the last version read, so what the Mac keeps in a
@@ -303,7 +319,7 @@ final class Sync: NSObject, ObservableObject {
         let at = record["at"] as? Date ?? record.modificationDate ?? .distantPast
         // An empty list of ours never wins over bookmarks that came: what
         // came is kept.
-        let oursEmpty = key == "bookmarks" && Bookmarks.shared.roots.isEmpty && !Bookmarks.shared.emptiedByHand
+        let oursEmpty = Sync.bookmarksPart(key) != nil && Bookmarks.shared.roots.isEmpty && !Bookmarks.shared.emptiedByHand
         if let ours = meta.at[key], ours > at, meta.values[key] != nil, !oursEmpty {
             // Ours is newer: it goes up again over this one.
             engine?.state.add(pendingRecordZoneChanges: [.saveRecord(record.recordID)])
@@ -337,9 +353,10 @@ final class Sync: NSObject, ObservableObject {
                 meta.at[key] = .distantPast
             }
             browser?.adopt(pins: defs)
-        } else if key == "bookmarks" {
-            guard var roots = try? decoder.decode([Bookmark].self, from: data) else { return }
-            canonical(roots)
+        } else if Sync.bookmarksPart(key) != nil {
+            // Every part kept, as the one tree (SYNC.md, "Big bookmark lists").
+            guard let whole = Sync.joinBookmarks(Sync.bookmarksParts(in: meta.values).map(\.data)),
+                  var roots = try? decoder.decode([Bookmark].self, from: whole) else { save(); return }
             if first {
                 roots = Bookmarks.union(roots, Bookmarks.shared.roots)
                 meta.at[key] = .distantPast
@@ -369,6 +386,12 @@ final class Sync: NSObject, ObservableObject {
         meta.fields[key] = nil
         if key.hasPrefix("device.") { others[String(key.dropFirst(7))] = nil }
         if key == "spaces" { spaces = [] }
+        // A later part gone: the tree is what the others say.
+        if let part = Sync.bookmarksPart(key), part > 1,
+           let whole = Sync.joinBookmarks(Sync.bookmarksParts(in: meta.values).map(\.data)),
+           let roots = try? JSONDecoder().decode([Bookmark].self, from: whole) {
+            Bookmarks.shared.adopt(roots)
+        }
         save()
     }
 
@@ -387,6 +410,7 @@ final class Sync: NSObject, ObservableObject {
         for saved in changes.savedRecords {
             meta.fields[saved.recordID.recordName] = Sync.fields(of: saved)
         }
+        var failed = false
         for failure in changes.failedRecordSaves {
             let id = failure.record.recordID
             let key = id.recordName
@@ -412,10 +436,33 @@ final class Sync: NSObject, ObservableObject {
             case .networkFailure, .networkUnavailable, .serviceUnavailable, .requestRateLimited, .zoneBusy:
                 break // the engine tries again by itself
             default:
-                problem = Sync.say(failure.error)
+                // Nothing that fails is quiet: which record, and why.
+                problem = Sync.upload(key, failed: failure.error)
+                failed = true
             }
         }
+        if failed {
+            uploadFailed = true
+        } else if uploadFailed, !changes.savedRecords.isEmpty {
+            problem = nil
+            uploadFailed = false
+        }
         save()
+    }
+
+    private var uploadFailed = false
+
+    /// What a record is, for the line when it can't go up.
+    static func what(_ key: String) -> String {
+        if key.hasPrefix("device.") { return String(localized: "open tabs") }
+        if key.hasPrefix("pins.") { return String(localized: "pins") }
+        if bookmarksPart(key) != nil { return String(localized: "bookmarks") }
+        return key == "settings" ? String(localized: "settings") : String(localized: "something")
+    }
+
+    static func upload(_ key: String, failed error: CKError) -> String {
+        let why = say(error)
+        return String(localized: "Couldn't send \(what(key)): \(why)")
     }
 
     fileprivate func account(_ change: CKSyncEngine.Event.AccountChange) {
@@ -471,6 +518,126 @@ final class Sync: NSObject, ObservableObject {
 
     // MARK: helpers
 
+    // MARK: bookmarks in parts (SYNC.md, "Big bookmark lists")
+
+    /// What one record's data may hold before the bookmarks go in several:
+    /// CloudKit refuses a record over about 1 MB.
+    static let recordBudget = 700_000
+
+    static func bookmarksKey(_ part: Int) -> String { part <= 1 ? "bookmarks" : "bookmarks.\(part)" }
+
+    /// Which part a record name is, or nil when it isn't one.
+    static func bookmarksPart(_ key: String) -> Int? {
+        if key == "bookmarks" { return 1 }
+        guard key.hasPrefix("bookmarks."), let part = Int(key.dropFirst("bookmarks.".count)), part >= 2 else { return nil }
+        return part
+    }
+
+    /// The bookmark parts kept, in order.
+    static func bookmarksParts(in values: [String: Data]) -> [(key: String, data: Data)] {
+        values.compactMap { key, data in bookmarksPart(key).map { ($0, key, data) } }
+            .sorted { $0.0 < $1.0 }.map { ($0.1, $0.2) }
+    }
+
+    private static func dump(_ object: Any) -> Data? {
+        try? JSONSerialization.data(withJSONObject: object, options: [.sortedKeys, .withoutEscapingSlashes])
+    }
+
+    /// The same JSON written the one way the parts are measured in.
+    static func normal(_ data: Data) -> Data? {
+        (try? JSONSerialization.jsonObject(with: data)).flatMap(dump)
+    }
+
+    /// Cut in reading order, each part filled to the budget; a folder that
+    /// goes on in the next part is there again, same id and title, with the
+    /// rest of its children. One part, exactly as before, while it fits.
+    static func splitBookmarks(_ whole: Data, budget: Int = recordBudget) -> [Data] {
+        guard whole.count > budget, let list = try? JSONSerialization.jsonObject(with: whole) as? [[String: Any]] else { return [whole] }
+        func size(_ object: Any) -> Int { dump(object)?.count ?? 0 }
+        var parts: [[[String: Any]]] = [[]]
+        var used = 0
+        func open(_ path: [[String: Any]]) -> Int {
+            var level = parts[parts.count - 1]
+            var depth = 0
+            for shell in path {
+                guard let last = level.last, last["id"] as? String == shell["id"] as? String,
+                      let kids = last["children"] as? [[String: Any]] else { break }
+                level = kids
+                depth += 1
+            }
+            return depth
+        }
+        func insert(_ leaf: [String: Any], _ path: ArraySlice<[String: Any]>, into list: inout [[String: Any]]) {
+            guard let shell = path.first else { list.append(leaf); return }
+            if list.last?["id"] as? String == shell["id"] as? String, list.last?["children"] != nil {
+                var last = list.removeLast()
+                var kids = last["children"] as? [[String: Any]] ?? []
+                last["children"] = nil
+                insert(leaf, path.dropFirst(), into: &kids)
+                last["children"] = kids
+                list.append(last)
+            } else {
+                var made = shell
+                var kids: [[String: Any]] = []
+                insert(leaf, path.dropFirst(), into: &kids)
+                made["children"] = kids
+                list.append(made)
+            }
+        }
+        func place(_ leaf: [String: Any], through path: [[String: Any]]) {
+            let shells = { (from: Int) in path[from...].reduce(0) { $0 + size($1) + 16 } }
+            var cost = size(leaf) + 1 + shells(open(path))
+            if used + cost > budget, used > 0 {
+                parts.append([])
+                used = 0
+                cost = size(leaf) + 1 + shells(0)
+            }
+            insert(leaf, path[...], into: &parts[parts.count - 1])
+            used += cost
+        }
+        func walk(_ nodes: [[String: Any]], through path: [[String: Any]]) {
+            for node in nodes {
+                if let kids = node["children"] as? [[String: Any]], !kids.isEmpty {
+                    var shell = node
+                    shell["children"] = nil
+                    walk(kids, through: path + [shell])
+                } else {
+                    place(node, through: path)
+                }
+            }
+        }
+        walk(list, through: [])
+        let out = parts.compactMap { dump($0) }
+        return out.count == parts.count ? out : [whole]
+    }
+
+    /// The parts, back as the one list they were cut from: a folder that
+    /// goes on in the next part is one folder again.
+    static func joinBookmarks(_ parts: [Data]) -> Data? {
+        guard parts.count > 1 else { return parts.first }
+        func merge(_ into: inout [[String: Any]], _ more: [[String: Any]]) {
+            for node in more {
+                if let id = node["id"] as? String, let kids = node["children"] as? [[String: Any]],
+                   let at = into.lastIndex(where: { $0["id"] as? String == id && $0["children"] != nil }) {
+                    var host = into[at]
+                    var have = host["children"] as? [[String: Any]] ?? []
+                    host["children"] = nil
+                    merge(&have, kids)
+                    host["children"] = have
+                    into[at] = host
+                } else {
+                    into.append(node)
+                }
+            }
+        }
+        var whole: [[String: Any]] = []
+        for part in parts {
+            guard let list = try? JSONSerialization.jsonObject(with: part) as? [[String: Any]] else { return nil }
+            merge(&whole, list)
+        }
+        return dump(whole)
+    }
+
     static func record(_ key: String) -> CKRecord.ID { CKRecord.ID(recordName: key, zoneID: zoneID) }
 
     fileprivate static let encoder: JSONEncoder = {
@@ -498,6 +665,7 @@ final class Sync: NSObject, ObservableObject {
         switch error.code {
         case .notAuthenticated: return String(localized: "Sign in to iCloud in the iPhone's Settings to sync.")
         case .quotaExceeded: return String(localized: "Your iCloud is full.")
+        case .limitExceeded: return String(localized: "Too big for iCloud to take in one piece.")
         case .networkFailure, .networkUnavailable: return String(localized: "Offline. Sync carries on when you're back.")
         default: return error.localizedDescription
         }
@@ -590,12 +758,12 @@ final class Bookmarks: ObservableObject {
         roots = fresh
         if !fresh.isEmpty { emptiedByHand = false }
         write()
-        Sync.shared.put("bookmarks", roots)
+        Sync.shared.putBookmarks(roots)
     }
 
     private func changed() {
         write()
-        Sync.shared.put("bookmarks", roots)
+        Sync.shared.putBookmarks(roots)
     }
 
     /// One after the other, never two at once landing in the wrong order.
