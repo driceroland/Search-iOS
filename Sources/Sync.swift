@@ -1008,7 +1008,13 @@ struct BookmarksView: View {
                 ForEach(nodes) { node in
                     if node.isFolder {
                         NavigationLink(value: node.id) {
-                            Label(node.title, systemImage: "folder")
+                            // Its name where the sites' names are.
+                            HStack(spacing: 12) {
+                                Image(systemName: "folder")
+                                    .font(.scaled(17))
+                                    .frame(width: 24, height: 24)
+                                Text(node.title).font(.scaled(15)).lineLimit(1)
+                            }
                         }
                     } else {
                         Button {
@@ -1016,10 +1022,13 @@ struct BookmarksView: View {
                             if let url = node.url.flatMap(URL.init(string:)) { browser.open(url) }
                             done()
                         } label: {
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(node.title).font(.scaled(15)).foregroundStyle(Palette.ink).lineLimit(1)
-                                if let url = node.url.flatMap(URL.init(string:)) {
-                                    Text(Address.host(url)).font(.scaled(12.5)).foregroundStyle(Palette.muted)
+                            HStack(spacing: 12) {
+                                SiteIcon(url: node.url.flatMap(URL.init(string:)), size: 24)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(node.title).font(.scaled(15)).foregroundStyle(Palette.ink).lineLimit(1)
+                                    if let url = node.url.flatMap(URL.init(string:)) {
+                                        Text(Address.host(url)).font(.scaled(12.5)).foregroundStyle(Palette.muted)
+                                    }
                                 }
                             }
                         }
@@ -1029,6 +1038,30 @@ struct BookmarksView: View {
                     for index in offsets { Bookmarks.shared.remove(nodes[index].id) }
                 }
             }
+        }
+    }
+}
+
+
+/// A site's own small icon, the one its tab wears: the letter until it is
+/// there. Fetched once and kept (Favicons), then drawn at once.
+struct SiteIcon: View {
+    let url: URL?
+    var size: CGFloat = 24
+    @State private var icon: UIImage?
+
+    var body: some View {
+        Mark(icon: icon, letter: String((url.map { Address.host($0) } ?? "").prefix(1)).uppercased(), size: size)
+            .onAppear(perform: load)
+            .onReceive(NotificationCenter.default.publisher(for: Favicons.came)) { _ in load() }
+    }
+
+    private func load() {
+        guard let url else { return }
+        if let found = Favicons.shared.cached(url) {
+            if icon == nil { icon = found }
+        } else {
+            Favicons.shared.prefetch(url)
         }
     }
 }
