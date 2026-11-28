@@ -43,6 +43,14 @@ struct SearchApp: App {
 
 struct ContentView: View {
     @ObservedObject var browser: Browser
+    @ObservedObject private var sync = Sync.shared
+    @ObservedObject private var prefs = Prefs.shared
+
+    /// Another device has tabs open: a button for them by the thumb over
+    /// the tabs, not three taps down a menu (Arc showed them as plainly).
+    private var othersOpen: Bool {
+        prefs.sync && !browser.privateView && sync.others.values.contains { !$0.tabs.isEmpty }
+    }
 
     @Namespace private var space
     @StateObject private var keyboard = Keyboard()
@@ -200,7 +208,8 @@ struct ContentView: View {
                         rail: browser.rail,
                         // Back stands up the rail, under the clock, where a
                         // thumb reaches it as in Safari.
-                        bookmarks: { browser.showingBookmarks = true }
+                        bookmarks: { browser.showingBookmarks = true },
+                        others: othersOpen ? { Feel.tick(); browser.showingOthers = true } : nil
                     )
                     .opacity(browser.finding || browser.editing || browser.zapping != nil ? 0 : 1)
                     // Free as soon as it's on its way back: a thumb that came

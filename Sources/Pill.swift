@@ -38,6 +38,9 @@ struct Pill: View {
     /// The Duo's column beside the camera, where Back and Tabs stand.
     var rail = Rail()
     var bookmarks: () -> Void = {}
+    /// Over the tabs, when another device has tabs open: Tabs turns into
+    /// Other devices instead of leaving its room to New tab.
+    var others: (() -> Void)? = nil
 
     private enum Axis { case none, walk, lift, ignored }
     @State private var axis: Axis = .none
@@ -70,7 +73,7 @@ struct Pill: View {
             // edge where the thumb that opened the tabs already is.
             let tabsLeading = rail.on && rail.leading
             let l = tabsLeading ? l0 + (16 - l0) * morph : l0
-            let r = tabsLeading ? r0 : r0 + (16 - r0) * morph
+            let r = tabsLeading || keepsRight ? r0 : r0 + (16 - r0) * morph
             ZStack(alignment: .bottom) {
                 address
                     .padding(.leading, l)
@@ -147,8 +150,17 @@ struct Pill: View {
     /// Gone, not only see-through, once the pill has taken its place: in
     /// the glass container a see-through button kept its glass, sat at the
     /// end of New tab and, tapped, opened one more new tab.
+    /// Tabs stays, as Other devices, over the tabs: not on a Duo's rail.
+    private var keepsRight: Bool { others != nil && !rail.on }
+
     @ViewBuilder private var tabsButton: some View {
-        if morph < 0.62 {
+        if keepsRight, let others {
+            side("square.on.square", morph > 0.5 ? "Other devices" : "Tabs",
+                 other: "laptopcomputer", turn: morph) {
+                if over { others() } else { tabs() }
+            }
+            .accessibilityValue(Text(morph > 0.5 ? "" : "\(count)"))
+        } else if morph < 0.62 {
             side("square.on.square", "Tabs") {
                 if over { newTab() } else { tabs() }
             }
