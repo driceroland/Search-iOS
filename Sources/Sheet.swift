@@ -215,6 +215,17 @@ struct Sheet: View {
                         withAnimation(Motion.settle) { browser.pin(tab) }
                     }
                     .frame(width: slot.rect.width, height: slot.rect.height)
+                    // Before the offset: the menu points at the pin where it
+                    // stands, not at the place it was laid out from.
+                    .confirmationDialog(tab.label, isPresented: pinDialog(tab)) {
+                        Button("Unpin") {
+                            Feel.nudge()
+                            withAnimation(Motion.settle) { browser.pin(tab) }
+                        }
+                        if let url = tab.pinHome ?? tab.address {
+                            Button("Copy Link") { UIPasteboard.general.url = url }
+                        }
+                    }
                     .scaleEffect(carried ? 1.06 : 1)
                     .shadow(color: .black.opacity(carried ? 0.16 : 0), radius: 12, y: 4)
                     // Carried, it is where the finger is; the others where
@@ -233,18 +244,14 @@ struct Sheet: View {
             .padding(.leading, padL)
             .padding(.trailing, padR)
             .padding(.top, 10)
-            .confirmationDialog(pinMenu?.label ?? "", isPresented: Binding(get: { pinMenu != nil }, set: { if !$0 { pinMenu = nil } })) {
-                if let tab = pinMenu {
-                    Button("Unpin") {
-                        Feel.nudge()
-                        withAnimation(Motion.settle) { browser.pin(tab) }
-                    }
-                    if let url = tab.pinHome ?? tab.address {
-                        Button("Copy Link") { UIPasteboard.general.url = url }
-                    }
-                }
-            }
         }
+    }
+
+    /// What can be done with a pin, drawn from the pin itself: on the whole
+    /// grid, its arrow pointed at the grid's middle, whichever pin was held
+    /// (28 Nov).
+    private func pinDialog(_ tab: Tab) -> Binding<Bool> {
+        Binding(get: { pinMenu?.id == tab.id }, set: { if !$0, pinMenu?.id == tab.id { pinMenu = nil } })
     }
 
     /// A pin and where it stands: rows of at most four, fuller rows first
