@@ -4,6 +4,16 @@
     "": {
       "shouldTranslate": false
     },
+    "%@ rules, updated %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ règles, mises à jour %2$@"
+          }
+        }
+      }
+    },
     "%lld": {
       "shouldTranslate": false
     },
@@ -220,12 +230,12 @@
         }
       }
     },
-    "By Office Commun. No telemetry, no analytics, no crash reports: the only things that leave your iPhone are the pages you ask for and their icons.": {
+    "By Office Commun. No telemetry, no analytics, no crash reports: the only things that leave your iPhone are the pages you ask for and their icons, and the ad blocking lists if you turn them on.": {
       "localizations": {
         "fr": {
           "stringUnit": {
             "state": "translated",
-            "value": "Par Office Commun. Aucune télémétrie, aucune statistique, aucun rapport de plantage : ne quittent votre iPhone que les pages que vous demandez et leurs icônes."
+            "value": "Par Office Commun. Aucune télémétrie, aucune statistique, aucun rapport de plantage : ne quittent votre iPhone que les pages que vous demandez et leurs icônes, et les listes de blocage si vous les activez."
           }
         }
       }
@@ -390,6 +400,26 @@
         }
       }
     },
+    "Couldn't download the lists. Check your connection and try again.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de télécharger les listes. Vérifiez votre connexion et réessayez."
+          }
+        }
+      }
+    },
+    "Couldn't prepare the lists: %@": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Impossible de préparer les listes : %@"
+          }
+        }
+      }
+    },
     "Custom": {
       "localizations": {
         "fr": {
@@ -486,6 +516,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ téléchargé"
+          }
+        }
+      }
+    },
+    "Downloading and preparing the lists…": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Téléchargement et préparation des listes…"
           }
         }
       }
@@ -1360,6 +1400,16 @@
         }
       }
     },
+    "Stronger ad blocking": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Blocage renforcé"
+          }
+        }
+      }
+    },
     "Swipe a tab left to close it. Hold it to pin it, bookmark it, or move it.": {
       "localizations": {
         "fr": {
@@ -1835,6 +1885,16 @@
           "stringUnit": {
             "state": "translated",
             "value": "en haut"
+          }
+        }
+      }
+    },
+    "uBlock Origin's lists, EasyList, EasyPrivacy, Peter Lowe's list and wBlock's, downloaded from ublockorigin.github.io, pgl.yoyo.org and raw.githubusercontent.com, and again each week. Nothing about you is sent. If a site breaks, hold the address and allow ads on that site alone.": {
+      "localizations": {
+        "fr": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Les listes d’uBlock Origin, EasyList, EasyPrivacy, la liste de Peter Lowe et celle de wBlock, téléchargées depuis ublockorigin.github.io, pgl.yoyo.org et raw.githubusercontent.com, puis chaque semaine. Rien sur vous n’est envoyé. Si un site ne marche plus, autorisez les publicités sur ce site seul dans « Ce site »."
           }
         }
       }

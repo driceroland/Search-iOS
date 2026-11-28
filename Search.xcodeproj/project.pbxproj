@@ -16,6 +16,8 @@
 		AA11BB22CC33DD44EE550301 /* Downloads.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550302 /* Downloads.swift */; };
 		AA11BB22CC33DD44EE550203 /* Reader.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550204 /* Reader.swift */; };
 		AA11BB22CC33DD44EE550201 /* Shield.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550202 /* Shield.swift */; };
+		AA11BB22CC33DD44EE550205 /* Filters.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550206 /* Filters.swift */; };
+		AA11BB22CC33DD44EE550207 /* Lists.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550208 /* Lists.swift */; };
 		AA11BB22CC33DD44EE550901 /* YouTubeAds.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550902 /* YouTubeAds.swift */; };
 		AA11BB22CC33DD44EE550107 /* Icons.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550108 /* Icons.swift */; };
 		AA11BB22CC33DD44EE550105 /* Sheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA11BB22CC33DD44EE550106 /* Sheet.swift */; };
@@ -52,6 +54,8 @@
 		AA11BB22CC33DD44EE550302 /* Downloads.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Downloads.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550204 /* Reader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Reader.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550202 /* Shield.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shield.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE550206 /* Filters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Filters.swift; sourceTree = "<group>"; };
+		AA11BB22CC33DD44EE550208 /* Lists.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lists.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550902 /* YouTubeAds.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = YouTubeAds.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550108 /* Icons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Icons.swift; sourceTree = "<group>"; };
 		AA11BB22CC33DD44EE550106 /* Sheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Sheet.swift; sourceTree = "<group>"; };
@@ -125,6 +129,8 @@
 				AA11BB22CC33DD44EE550302 /* Downloads.swift */,
 				AA11BB22CC33DD44EE550204 /* Reader.swift */,
 				AA11BB22CC33DD44EE550202 /* Shield.swift */,
+				AA11BB22CC33DD44EE550206 /* Filters.swift */,
+				AA11BB22CC33DD44EE550208 /* Lists.swift */,
 				AA11BB22CC33DD44EE550902 /* YouTubeAds.swift */,
 				AA11BB22CC33DD44EE550108 /* Icons.swift */,
 				AA11BB22CC33DD44EE550106 /* Sheet.swift */,
@@ -228,6 +234,8 @@
 				AA11BB22CC33DD44EE550301 /* Downloads.swift in Sources */,
 				AA11BB22CC33DD44EE550203 /* Reader.swift in Sources */,
 				AA11BB22CC33DD44EE550201 /* Shield.swift in Sources */,
+				AA11BB22CC33DD44EE550205 /* Filters.swift in Sources */,
+				AA11BB22CC33DD44EE550207 /* Lists.swift in Sources */,
 				AA11BB22CC33DD44EE550901 /* YouTubeAds.swift in Sources */,
 				AA11BB22CC33DD44EE550107 /* Icons.swift in Sources */,
 				AA11BB22CC33DD44EE550105 /* Sheet.swift in Sources */,
